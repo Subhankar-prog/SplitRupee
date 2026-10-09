@@ -1,0 +1,65 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-slate-950;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  /* Smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.4);
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection on buttons */
+button, a {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 768px) {
+  button, a[role="button"] {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Hide scrollbar but keep scrollable - for mobile tab bars */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
