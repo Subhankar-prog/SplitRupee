@@ -59,10 +59,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { token, newPassword } = body;
+    const { token, phone, newPassword } = body;
 
-    if (!token) {
-      return NextResponse.json({ ok: false, error: "Reset token is required" }, { status: 400 });
+    if (!token && !phone) {
+      return NextResponse.json({ ok: false, error: "Reset token or verified phone is required" }, { status: 400 });
     }
 
     if (!newPassword || newPassword.length < 4) {
@@ -72,7 +72,33 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify token exists and has not expired
+    // 1. Phone-verified reset
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+      const user = await prisma.user.findFirst({
+        where: { phone: cleanPhone },
+      });
+
+      if (!user) {
+        return NextResponse.json({ ok: false, error: "No account found with this phone number." }, { status: 404 });
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash: hashPassword(newPassword.trim()),
+          resetToken: null,
+          resetTokenExpiry: null,
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        message: "Your password has been successfully updated! You can now log in.",
+      });
+    }
+
+    // 2. Email token-verified reset
     const user = await prisma.user.findFirst({
       where: {
         resetToken: token,
@@ -89,7 +115,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Update password hash and revoke reset token
     await prisma.user.update({
       where: { id: user.id },
       data: {
