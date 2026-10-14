@@ -20,6 +20,10 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!currentUser) {
+      setError("Please log in to update your UPI ID");
+      return;
+    }
     const clean = upiId.trim();
 
     if (!clean) {
