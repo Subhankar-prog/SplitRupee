@@ -20,15 +20,10 @@ export async function POST(req: Request) {
       let name = googleUser?.name || "";
 
       if (!email && !name) {
-        // Find or create default first user for testing Google 1-Click
-        const firstUser = await prisma.user.findFirst({
-          select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true, createdAt: true },
-        });
-        if (firstUser) {
-          return NextResponse.json({ ok: true, user: firstUser });
-        }
-        email = "aarav.google@gmail.com";
-        name = "Aarav Sharma";
+        return NextResponse.json(
+          { ok: false, error: "Google authentication payload is missing profile information." },
+          { status: 400 }
+        );
       }
 
       let user = await prisma.user.findFirst({
