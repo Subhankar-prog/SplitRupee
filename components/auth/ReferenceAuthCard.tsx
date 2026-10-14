@@ -53,7 +53,8 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
     if (!toggled) {
       setIsGoogleOnboarding(false);
     }
-    window.history.replaceState(null, "", toggled ? "/signup" : "/login");
+    const search = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    window.history.replaceState(null, "", (toggled ? "/signup" : "/login") + search);
   }
 
   // --- LOGIN STATE ---

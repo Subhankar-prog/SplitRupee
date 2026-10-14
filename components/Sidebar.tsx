@@ -65,6 +65,7 @@ export default function Sidebar({
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Recent Activity", href: "/activity", icon: Activity },
     { label: "All Expenses", href: "/expenses", icon: Receipt },
+    { label: "AI Itinerary", href: "/itinerary", icon: Plane },
   ];
 
   return (

@@ -244,6 +244,10 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 <Link href="/calculator" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition">
                   Calculator
                 </Link>
+                <Link href="/itinerary" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition flex items-center gap-1">
+                  <Plane className="h-3 w-3 text-emerald-400" />
+                  <span>Itinerary</span>
+                </Link>
                 <Link href="/pro" className="rounded-lg px-2.5 py-1.5 text-amber-400 hover:bg-white/5 transition">
                   Pro
                 </Link>
@@ -608,6 +612,14 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition"
             >
               Bill & Tip Split Calculator
+            </Link>
+            <Link
+              href="/itinerary"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition flex items-center gap-2"
+            >
+              <Plane className="h-4 w-4 text-emerald-400" />
+              <span>AI Travel Itinerary</span>
             </Link>
             <Link
               href="/pro"

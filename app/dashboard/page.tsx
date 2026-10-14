@@ -215,6 +215,13 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/itinerary"
+            className="flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition shadow-sm"
+          >
+            <Plane className="h-3.5 w-3.5 text-cyan-400" />
+            <span>Itinerary</span>
+          </Link>
           <button
             onClick={() => setShowCreateGroup(true)}
             className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"

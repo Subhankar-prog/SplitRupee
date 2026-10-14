@@ -31,6 +31,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/groups") ||
     pathname.startsWith("/expenses") ||
     pathname.startsWith("/activity") ||
+    pathname.startsWith("/itinerary") ||
     pathname.startsWith("/join");
 
   useEffect(() => {

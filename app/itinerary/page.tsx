@@ -47,10 +47,10 @@ export default function ItineraryPage() {
     destination: "",
     startDate: "",
     endDate: "",
-    nights: 5,
-    travellers: 2,
+    nights: "" as any,
+    travellers: "" as any,
     groupType: "Friends",
-    budget: 30000,
+    budget: "" as any,
     stayBudget: "",
     transportTrain: true,
     transportBus: false,
@@ -65,46 +65,42 @@ export default function ItineraryPage() {
     specialNotes: ""
   });
 
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const returnDate = new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0];
-    setForm((prev) => ({
-      ...prev,
-      startDate: today,
-      endDate: returnDate,
-    }));
-  }, []);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
     if (type === "checkbox") {
       setForm({ ...form, [name]: (e.target as HTMLInputElement).checked });
     } else if (name === "nights") {
-      const numNights = Math.max(1, parseInt(value) || 1);
-      try {
-        const start = form.startDate ? new Date(form.startDate) : new Date();
-        const end = new Date(start.getTime() + numNights * 86400000).toISOString().split("T")[0];
-        setForm({ ...form, nights: numNights, endDate: end });
-      } catch {
-        setForm({ ...form, nights: numNights });
+      const numNights = value === "" ? "" : Math.max(1, parseInt(value) || 1);
+      if (typeof numNights === "number" && form.startDate) {
+        try {
+          const start = new Date(form.startDate);
+          const end = new Date(start.getTime() + numNights * 86400000).toISOString().split("T")[0];
+          setForm({ ...form, nights: numNights, endDate: end });
+          return;
+        } catch {}
       }
+      setForm({ ...form, nights: numNights });
     } else if (name === "startDate") {
-      try {
-        const start = new Date(value);
-        const end = new Date(start.getTime() + (form.nights || 5) * 86400000).toISOString().split("T")[0];
-        setForm({ ...form, startDate: value, endDate: end });
-      } catch {
-        setForm({ ...form, startDate: value });
+      if (value && form.nights) {
+        try {
+          const start = new Date(value);
+          const end = new Date(start.getTime() + (Number(form.nights) || 4) * 86400000).toISOString().split("T")[0];
+          setForm({ ...form, startDate: value, endDate: end });
+          return;
+        } catch {}
       }
+      setForm({ ...form, startDate: value });
     } else if (name === "endDate") {
-      try {
-        const start = new Date(form.startDate);
-        const end = new Date(value);
-        const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
-        setForm({ ...form, endDate: value, nights: diffDays });
-      } catch {
-        setForm({ ...form, endDate: value });
+      if (value && form.startDate) {
+        try {
+          const start = new Date(form.startDate);
+          const end = new Date(value);
+          const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+          setForm({ ...form, endDate: value, nights: diffDays });
+          return;
+        } catch {}
       }
+      setForm({ ...form, endDate: value });
     } else {
       setForm({ ...form, [name]: value });
     }
@@ -112,6 +108,12 @@ export default function ItineraryPage() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!form.origin.trim() || !form.destination.trim()) {
+      setError("Please enter both origin and destination cities.");
+      return;
+    }
+
     setLoading(true);
     setApiReady(false);
     setPendingPlan(null);
@@ -119,6 +121,10 @@ export default function ItineraryPage() {
     setError("");
     setResult(null);
     setFinancialSummary(null);
+
+    const effectiveBudget = Number(form.budget) > 0 ? Number(form.budget) : 25000;
+    const effectiveNights = Number(form.nights) > 0 ? Number(form.nights) : 4;
+    const effectiveTravellers = Number(form.travellers) > 0 ? Number(form.travellers) : 2;
 
     const transportPref = [
       form.transportFlight ? `Flight (${form.flightClass})` : "",
@@ -129,7 +135,7 @@ export default function ItineraryPage() {
 
     const effectiveStayBudget = form.stayBudget && Number(form.stayBudget) > 0
       ? Number(form.stayBudget)
-      : Math.max(500, Math.floor((form.budget * 0.4) / (form.nights || 1)));
+      : Math.max(500, Math.floor((effectiveBudget * 0.4) / effectiveNights));
 
     try {
       const res = await fetch("/api/itinerary/v2", {
@@ -137,6 +143,9 @@ export default function ItineraryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           ...form, 
+          budget: effectiveBudget,
+          nights: effectiveNights,
+          travellers: effectiveTravellers,
           stayBudget: effectiveStayBudget,
           transportPref 
         })
@@ -194,9 +203,9 @@ export default function ItineraryPage() {
         isOpen={loading}
         origin={form.origin}
         destination={form.destination}
-        nights={form.nights}
-        travellers={form.travellers}
-        budget={form.budget}
+        nights={Number(form.nights) || 4}
+        travellers={Number(form.travellers) || 2}
+        budget={Number(form.budget) || 25000}
         stayBudget={form.stayBudget ? Number(form.stayBudget) : undefined}
         apiReady={apiReady}
         onComplete={handleLoaderComplete}
@@ -303,7 +312,7 @@ export default function ItineraryPage() {
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="duration-days-nights-label text-xs font-semibold text-slate-300">Days & Nights</label>
                     <span className="duration-days-nights-badge text-[10px] text-emerald-400 font-mono font-medium">
-                      {form.nights}N / {form.nights + 1}D
+                      {form.nights ? `${form.nights}N / ${Number(form.nights) + 1}D` : "e.g. 5N / 6D"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -312,9 +321,10 @@ export default function ItineraryPage() {
                       name="nights" 
                       min="1"
                       max="30"
+                      placeholder="e.g. 5"
                       value={form.nights} 
                       onChange={handleChange} 
-                      className="nights-count-input duration-nights-input w-full bg-slate-950/70 rounded-xl px-3 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition" 
+                      className="nights-count-input duration-nights-input w-full bg-slate-950/70 rounded-xl px-3 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
                     />
                     <span className="duration-nights-unit text-xs text-slate-400 font-mono whitespace-nowrap">Nights</span>
                   </div>
@@ -330,9 +340,10 @@ export default function ItineraryPage() {
                       type="number" 
                       name="travellers" 
                       min="1"
+                      placeholder="e.g. 2"
                       value={form.travellers} 
                       onChange={handleChange} 
-                      className="travellers-count-input w-full bg-slate-950/70 rounded-xl px-2.5 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center" 
+                      className="travellers-count-input w-full bg-slate-950/70 rounded-xl px-2.5 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center placeholder:text-slate-500" 
                     />
                     <ThemeSelect
                       semanticName="group-type"
@@ -355,16 +366,19 @@ export default function ItineraryPage() {
                       <Wallet className="h-3.5 w-3.5" /> Total Group Budget (INR)
                     </label>
                     <span className="budget-per-person-indicator text-[10px] text-slate-400 font-mono">
-                      ~₹{Math.round(form.budget / (form.travellers || 1)).toLocaleString()}/person
+                      {form.budget && form.travellers
+                        ? `~₹${Math.round(Number(form.budget) / (Number(form.travellers) || 1)).toLocaleString()}/person`
+                        : "e.g. ~₹15,000/person"}
                     </span>
                   </div>
                   <input 
                     type="number" 
                     name="budget" 
                     step="1000"
+                    placeholder="e.g. 30000"
                     value={form.budget} 
                     onChange={handleChange} 
-                    className="total-group-budget-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm" 
+                    className="total-group-budget-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm placeholder:text-slate-500" 
                   />
                 </div>
 
@@ -380,10 +394,10 @@ export default function ItineraryPage() {
                     type="number" 
                     name="stayBudget" 
                     step="100"
-                    placeholder={String(Math.max(500, Math.floor((form.budget * 0.4) / (form.nights || 1))))}
+                    placeholder="e.g. 2500"
                     value={form.stayBudget} 
                     onChange={handleChange} 
-                    className="nightly-stay-limit-input stay-budget-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm" 
+                    className="nightly-stay-limit-input stay-budget-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm placeholder:text-slate-500" 
                   />
                 </div>
 
