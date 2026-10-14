@@ -41,14 +41,22 @@ export default function Sidebar({
   const [loading, setLoading] = useState(true);
 
   async function loadGroups() {
+    if (!currentUser?.id) {
+      setGroups([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch("/api/groups");
+      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}`);
       const data = await res.json();
       if (data.ok) {
         setGroups(data.groups);
+      } else {
+        setGroups([]);
       }
     } catch (e) {
       console.error("Failed to load sidebar groups", e);
+      setGroups([]);
     } finally {
       setLoading(false);
     }
@@ -59,7 +67,7 @@ export default function Sidebar({
     const handleRefresh = () => loadGroups();
     window.addEventListener("splitrupee_refresh", handleRefresh);
     return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
-  }, []);
+  }, [currentUser?.id]);
 
   const navLinks = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
