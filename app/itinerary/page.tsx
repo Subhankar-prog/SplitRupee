@@ -29,6 +29,7 @@ import {
   TrendingUp, 
   Compass,
   Info,
+  AlertCircle,
   X 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -67,8 +68,30 @@ export default function ItineraryPage() {
     specialNotes: ""
   });
 
+  const DUMMY_WORDS = [
+    "demo", "test", "testing", "sample", "example", "dummy", "fake", 
+    "placeholder", "asdf", "qwerty", "temp", "trial", "xxx", "foo", "bar", 
+    "none", "null", "undefined", "na", "n/a", "city", "origin", "destination",
+    "somewhere", "anywhere", "abcd", "xyz"
+  ];
+
+  const isInvalidOrDemoLocation = (str: string): boolean => {
+    if (!str || typeof str !== "string") return true;
+    const trimmed = str.trim();
+    if (trimmed.length < 3) return true;
+    const cleaned = trimmed.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+    if (cleaned.length < 3) return true;
+    const tokens = cleaned.split(/\s+/);
+    if (tokens.some((t) => DUMMY_WORDS.includes(t))) return true;
+    if (/\b(demo|test|testing|dummy|fake|sample|placeholder|asdf)\b/i.test(cleaned)) return true;
+    if (!/[a-z]{3,}/i.test(cleaned)) return true;
+    return false;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
+    if (error) setError("");
+
     if (type === "checkbox") {
       setForm({ ...form, [name]: (e.target as HTMLInputElement).checked });
     } else if (name === "nights") {
@@ -83,13 +106,24 @@ export default function ItineraryPage() {
       }
       setForm({ ...form, nights: numNights });
     } else if (name === "startDate") {
-      if (value && form.nights) {
-        try {
-          const start = new Date(value);
-          const end = new Date(start.getTime() + (Number(form.nights) || 4) * 86400000).toISOString().split("T")[0];
-          setForm({ ...form, startDate: value, endDate: end });
-          return;
-        } catch {}
+      if (value) {
+        // If end date exists and is on or before new start date, advance end date
+        if (form.endDate && new Date(value) >= new Date(form.endDate)) {
+          try {
+            const start = new Date(value);
+            const nightsCount = Number(form.nights) || 4;
+            const newEnd = new Date(start.getTime() + nightsCount * 86400000).toISOString().split("T")[0];
+            setForm({ ...form, startDate: value, endDate: newEnd });
+            return;
+          } catch {}
+        } else if (form.nights) {
+          try {
+            const start = new Date(value);
+            const end = new Date(start.getTime() + (Number(form.nights) || 4) * 86400000).toISOString().split("T")[0];
+            setForm({ ...form, startDate: value, endDate: end });
+            return;
+          } catch {}
+        }
       }
       setForm({ ...form, startDate: value });
     } else if (name === "endDate") {
@@ -97,6 +131,11 @@ export default function ItineraryPage() {
         try {
           const start = new Date(form.startDate);
           const end = new Date(value);
+          if (end <= start) {
+            setError("End date (return date) must be strictly after start date.");
+            setForm({ ...form, endDate: value });
+            return;
+          }
           const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
           setForm({ ...form, endDate: value, nights: diffDays });
           return;
@@ -111,9 +150,40 @@ export default function ItineraryPage() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.origin.trim() || !form.destination.trim()) {
+    const orig = form.origin.trim();
+    const dest = form.destination.trim();
+
+    if (!orig || !dest) {
       setError("Please enter both origin and destination cities.");
       return;
+    }
+
+    if (isInvalidOrDemoLocation(orig)) {
+      setError(`"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Bhubaneswar, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`);
+      return;
+    }
+
+    if (isInvalidOrDemoLocation(dest)) {
+      setError(`"${dest}" is not recognized as a valid city. Please enter a real destination city (e.g. Darjeeling, Goa, Manali, Jaipur). Demo or test placeholder inputs are not permitted.`);
+      return;
+    }
+
+    if (orig.toLowerCase() === dest.toLowerCase()) {
+      setError("Origin and destination cannot be the same city. Please enter different departure and arrival destinations.");
+      return;
+    }
+
+    if (form.startDate && form.endDate) {
+      const start = new Date(form.startDate);
+      const end = new Date(form.endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        setError("Please select valid travel dates.");
+        return;
+      }
+      if (start >= end) {
+        setError("Start date must be strictly before the return/end date. Please select a return date that occurs after your departure date.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -296,6 +366,7 @@ export default function ItineraryPage() {
                     type="date" 
                     name="startDate" 
                     value={form.startDate} 
+                    min={new Date().toISOString().split("T")[0]}
                     onChange={handleChange} 
                     className="start-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
                   />
@@ -312,6 +383,7 @@ export default function ItineraryPage() {
                     type="date" 
                     name="endDate" 
                     value={form.endDate} 
+                    min={form.startDate ? new Date(new Date(form.startDate).getTime() + 86400000).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]}
                     onChange={handleChange} 
                     className="end-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
                   />
@@ -644,9 +716,12 @@ export default function ItineraryPage() {
             </form>
 
             {error && (
-              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
-                <span className="font-semibold block mb-1">Error:</span>
-                {error}
+              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-2xl text-sm flex items-start gap-3 backdrop-blur-md">
+                <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-bold text-red-300 block text-xs uppercase tracking-wider font-mono">Validation Warning</span>
+                  <p className="text-xs sm:text-sm text-red-200 leading-relaxed">{error}</p>
+                </div>
               </div>
             )}
           </div>

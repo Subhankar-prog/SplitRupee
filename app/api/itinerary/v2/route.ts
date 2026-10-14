@@ -332,12 +332,73 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
   };
 }
 
+const DUMMY_WORDS = [
+  "demo", "test", "testing", "sample", "example", "dummy", "fake", 
+  "placeholder", "asdf", "qwerty", "temp", "trial", "xxx", "foo", "bar", 
+  "none", "null", "undefined", "na", "n/a", "city", "origin", "destination",
+  "somewhere", "anywhere", "abcd", "xyz"
+];
+
+function isInvalidOrDemoLocation(str: string): boolean {
+  if (!str || typeof str !== "string") return true;
+  const trimmed = str.trim();
+  if (trimmed.length < 3) return true;
+  const cleaned = trimmed.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+  if (cleaned.length < 3) return true;
+  
+  const tokens = cleaned.split(/\s+/);
+  if (tokens.some((t) => DUMMY_WORDS.includes(t))) return true;
+  if (/\b(demo|test|testing|dummy|fake|sample|placeholder|asdf)\b/i.test(cleaned)) return true;
+  if (!/[a-z]{3,}/i.test(cleaned)) return true;
+  return false;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    const orig = (body.origin || "").trim();
+    const dest = (body.destination || "").trim();
+
+    if (!orig || !dest) {
+      return NextResponse.json({ ok: false, error: "Please enter both origin and destination cities." }, { status: 400 });
+    }
+
+    if (isInvalidOrDemoLocation(orig)) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Bhubaneswar, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.` 
+      }, { status: 400 });
+    }
+
+    if (isInvalidOrDemoLocation(dest)) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `"${dest}" is not recognized as a valid city. Please enter a real destination city (e.g. Darjeeling, Goa, Manali). Demo or test placeholder inputs are not permitted.` 
+      }, { status: 400 });
+    }
+
+    if (orig.toLowerCase() === dest.toLowerCase()) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: "Origin and destination cannot be the same city. Please provide different departure and arrival locations." 
+      }, { status: 400 });
+    }
+
+    if (body.startDate && body.endDate) {
+      const start = new Date(body.startDate);
+      const end = new Date(body.endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+        return NextResponse.json({ 
+          ok: false, 
+          error: "Start date must be strictly before the return/end date." 
+        }, { status: 400 });
+      }
+    }
+
     const {
-      origin = "Bhubaneswar",
-      destination = "Darjeeling",
+      origin = orig,
+      destination = dest,
       startDate = new Date().toISOString().split("T")[0],
       endDate = new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0],
       nights = 5,
