@@ -49,6 +49,8 @@ model User {
   upiId            String?
   phone            String?
   passwordHash     String?
+  resetToken       String?        @unique
+  resetTokenExpiry DateTime?
   createdAt        DateTime       @default(now())
   memberships      GroupMember[]
   paidExpenses     Expense[]      @relation("ExpensePayer")
