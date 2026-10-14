@@ -83,30 +83,75 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const [currentTime, setCurrentTime] = useState<string>("");
   const [currentDate, setCurrentDate] = useState<string>("");
 
-  // Notification items
-  const [notifications, setNotifications] = useState<any[]>([
-    {
-      id: "1",
-      title: "New expense added",
-      desc: "Aarav added Curlies Beach Shack Dinner ₹3,600",
-      time: "10m ago",
-      unread: true,
-    },
-    {
-      id: "2",
-      title: "Settlement received",
-      desc: "Diya settled ₹1,200 via UPI (Google Pay)",
-      time: "1h ago",
-      unread: true,
-    },
-    {
-      id: "3",
-      title: "Group invited",
-      desc: "You were added to Goa Beach Trip 🌴",
-      time: "3h ago",
-      unread: false,
-    },
-  ]);
+  // Notification items - dynamically loaded from real user activity
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Fetch real recent notifications for the logged-in user
+  useEffect(() => {
+    const userId = currentUser?.id;
+    if (!userId) {
+      setNotifications([]);
+      return;
+    }
+    const uid: string = userId;
+    let isMounted = true;
+    async function fetchUserNotifications() {
+      try {
+        const res = await fetch(`/api/activity?userId=${encodeURIComponent(uid)}&limit=5`);
+        const data = await res.json();
+        if (isMounted && data.ok && Array.isArray(data.activities)) {
+          const mapped = data.activities.map((a: any) => {
+            const date = new Date(a.createdAt);
+            const diffMins = Math.floor((Date.now() - date.getTime()) / (1000 * 60));
+            let timeStr = "Just now";
+            if (diffMins >= 60 * 24) {
+              timeStr = `${Math.floor(diffMins / (60 * 24))}d ago`;
+            } else if (diffMins >= 60) {
+              timeStr = `${Math.floor(diffMins / 60)}h ago`;
+            } else if (diffMins > 0) {
+              timeStr = `${diffMins}m ago`;
+            }
+
+            const actor = a.user?.name || "Member";
+            let title = "Group Activity";
+            let desc = a.details || a.entityTitle || "Activity recorded";
+
+            if (a.action === "EXPENSE_CREATED") {
+              title = "New expense added";
+              desc = `${actor} added ${a.entityTitle || "an expense"}`;
+            } else if (a.action === "EXPENSE_UPDATED") {
+              title = "Expense updated";
+              desc = `${actor} updated ${a.entityTitle || "an expense"}`;
+            } else if (a.action === "EXPENSE_DELETED") {
+              title = "Expense deleted";
+              desc = `${actor} removed ${a.entityTitle || "an expense"}`;
+            } else if (a.action === "SETTLEMENT_RECORDED") {
+              title = "Settlement received";
+              desc = `${actor} settled ${a.details || ""}`;
+            } else if (a.action === "MEMBER_ADDED") {
+              title = "New member joined";
+              desc = `${actor} joined ${a.group?.name || "the group"}`;
+            }
+
+            return {
+              id: a.id,
+              title,
+              desc,
+              time: timeStr,
+              unread: false,
+            };
+          });
+          setNotifications(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load notifications", err);
+      }
+    }
+    fetchUserNotifications();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -331,22 +376,34 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       </button>
                     </div>
 
-                    <div className="space-y-2">
-                      {notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          className={`rounded-xl p-2.5 text-xs transition ${
-                            n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-white text-[11px]">{n.title}</p>
-                            <span className="text-[9px] text-slate-400">{n.time}</span>
+                    {notifications.length > 0 ? (
+                      <div className="space-y-2">
+                        {notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`rounded-xl p-2.5 text-xs transition ${
+                              n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="font-bold text-white text-[11px]">{n.title}</p>
+                              <span className="text-[9px] text-slate-400">{n.time}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-300 mt-0.5">{n.desc}</p>
                           </div>
-                          <p className="text-[11px] text-slate-300 mt-0.5">{n.desc}</p>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center space-y-2">
+                        <div className="mx-auto w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                          <Bell className="h-4 w-4" />
                         </div>
-                      ))}
-                    </div>
+                        <p className="text-xs font-semibold text-white">No notifications yet</p>
+                        <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto leading-relaxed">
+                          When activity occurs in your groups, you will see it here.
+                        </p>
+                      </div>
+                    )}
 
                     <Link
                       href="/activity"
