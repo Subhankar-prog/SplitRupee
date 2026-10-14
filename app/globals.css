@@ -1,7 +1,18 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "./reference-auth.css";
 
+/* Browser autofill dark-mode protection */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 40px #090d16 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 
 :root {
   color-scheme: dark;
@@ -63,3 +74,25 @@ button, a {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Global Select & Option Theme Styling */
+select {
+  background-color: #020617 !important;
+  color: #f1f5f9 !important;
+  accent-color: #10b981 !important;
+  color-scheme: dark !important;
+}
+
+select option {
+  background-color: #0b1329 !important;
+  color: #e2e8f0 !important;
+  padding: 8px 12px !important;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #064e3b !important;
+  color: #34d399 !important;
+}
+

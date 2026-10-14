@@ -121,13 +121,20 @@ export default function Dashboard() {
   if (!group) {
     return (
       <main className="mx-auto grid min-h-screen max-w-md place-items-center p-6 text-center">
-        <div className={`${glass} p-8`}>
-          <h1 className="text-xl font-semibold">No group yet</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            {sync === "offline"
-              ? "The server could not be reached. Check DATABASE_URL and that the database is running."
-              : "Run npm run db:seed to create a sample group, then refresh."}
+        <div className={`${glass} p-8 space-y-4`}>
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto">
+            <Plus className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl font-bold text-white">No Groups Yet</h1>
+          <p className="text-sm text-slate-400">
+            Create your first group to start splitting bills, tracking expenses, and settling UPI payments seamlessly.
           </p>
+          <a
+            href="/groups"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl hover:from-emerald-400 hover:to-teal-400 transition text-sm shadow-lg shadow-emerald-500/20"
+          >
+            <Plus className="h-4 w-4" /> Create First Group
+          </a>
         </div>
       </main>
     );

@@ -25,9 +25,22 @@ export interface ChatMessage {
 }
 
 interface TravelCopilotChatProps {
-  currentPlan: any;
+  currentPlan?: any;
   origin: string;
   destination: string;
+  startDate?: string;
+  endDate?: string;
+  nights?: number;
+  travellers?: number;
+  budget?: number;
+  stayBudget?: string | number;
+  groupType?: string;
+  stayPreference?: string;
+  pace?: string;
+  trainClass?: string;
+  busClass?: string;
+  flightClass?: string;
+  formData?: any;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -43,14 +56,33 @@ export default function TravelCopilotChat({
   currentPlan,
   origin,
   destination,
+  startDate,
+  endDate,
+  nights,
+  travellers,
+  budget,
+  stayBudget,
+  groupType,
+  stayPreference,
+  pace,
+  trainClass,
+  busClass,
+  flightClass,
+  formData,
   isOpen = true,
   onClose
 }: TravelCopilotChatProps) {
+  const activeStartDate = startDate || formData?.startDate;
+  const activeEndDate = endDate || formData?.endDate;
+  const activeNights = nights || formData?.nights;
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: `👋 Hello! I'm your **SplitRupee Travel Copilot**. I have full context of your verified blueprint from **${origin}** to **${destination}**.\n\nHow can I help you customize or plan your journey today?`,
+      content: `👋 Hello! I'm your **SplitRupee Travel Copilot**. I have full context of your verified blueprint from **${origin}** to **${destination}**${
+        activeStartDate ? ` (${activeStartDate}${activeEndDate ? ` to ${activeEndDate}` : ""}${activeNights ? ` • ${activeNights} Nights` : ""})` : ""
+      }.\n\nHow can I help you customize your travel plan, verify IRCTC train routes, or find budget stays today?`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
   ]);
@@ -83,6 +115,7 @@ export default function TravelCopilotChat({
     setLoading(true);
 
     try {
+      const now = new Date();
       const res = await fetch("/api/itinerary/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,7 +124,28 @@ export default function TravelCopilotChat({
           currentPlan,
           userQuery: query,
           origin,
-          destination
+          destination,
+          startDate: activeStartDate,
+          endDate: activeEndDate,
+          nights: activeNights,
+          travellers: travellers || formData?.travellers,
+          budget: budget || formData?.budget,
+          stayBudget: stayBudget || formData?.stayBudget,
+          groupType: groupType || formData?.groupType,
+          stayPreference: stayPreference || formData?.stayPreference,
+          pace: pace || formData?.pace,
+          trainClass: trainClass || formData?.trainClass,
+          busClass: busClass || formData?.busClass,
+          flightClass: flightClass || formData?.flightClass,
+          clientLocalDate: now.toISOString(),
+          clientLocalFormattedDate: now.toLocaleDateString("en-IN", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            timeZone: "Asia/Kolkata"
+          }),
+          clientLocalTime: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         })
       });
 
@@ -121,11 +175,11 @@ export default function TravelCopilotChat({
   };
 
   return (
-    <div className="flex flex-col h-[600px] w-full rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
+    <div className="travel-copilot-modal-card flex flex-col h-[600px] w-full rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/60">
-        <div className="flex items-center gap-3">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20">
+      <div className="travel-copilot-header flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/60">
+        <div className="travel-copilot-header-info flex items-center gap-3">
+          <div className="travel-copilot-avatar-icon relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20">
             <Bot className="h-5 w-5" />
             <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -134,12 +188,12 @@ export default function TravelCopilotChat({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-white text-base">SplitRupee Copilot</h3>
-              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+              <h3 className="travel-copilot-title font-bold text-white text-base">SplitRupee Copilot</h3>
+              <span className="travel-copilot-badge rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
                 Live AI Grounded
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="travel-copilot-subtitle text-xs text-slate-400">
               Trip context: <span className="text-white font-medium">{origin} → {destination}</span>
             </p>
           </div>
@@ -148,7 +202,7 @@ export default function TravelCopilotChat({
         {onClose && (
           <button
             onClick={onClose}
-            className="rounded-xl bg-white/5 p-2 text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="travel-copilot-close-button rounded-xl bg-white/5 p-2 text-slate-400 hover:text-white hover:bg-white/10 transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -156,7 +210,7 @@ export default function TravelCopilotChat({
       </div>
 
       {/* Suggested Chips Bar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto border-b border-white/5 bg-slate-950/30 scrollbar-none">
+      <div className="travel-copilot-suggested-chips-bar flex items-center gap-2 px-4 py-2.5 overflow-x-auto border-b border-white/5 bg-slate-950/30 scrollbar-none">
         {SUGGESTED_PROMPTS.map((prompt, idx) => {
           const Icon = prompt.icon;
           return (
@@ -164,7 +218,7 @@ export default function TravelCopilotChat({
               key={idx}
               onClick={() => handleSendMessage(prompt.query)}
               disabled={loading}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-white/5 hover:bg-emerald-500/20 hover:border-emerald-500/30 border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-emerald-400 transition disabled:opacity-50 shrink-0"
+              className="travel-copilot-suggested-chip flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-white/5 hover:bg-emerald-500/20 hover:border-emerald-500/30 border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-emerald-400 transition disabled:opacity-50 shrink-0"
             >
               <Icon className="h-3.5 w-3.5 text-emerald-400" />
               <span>{prompt.label}</span>
@@ -174,30 +228,30 @@ export default function TravelCopilotChat({
       </div>
 
       {/* Messages List */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+      <div className="travel-copilot-messages-list flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`travel-copilot-message-row flex gap-3 ${msg.role === "user" ? "travel-copilot-user-row justify-end" : "travel-copilot-assistant-row justify-start"}`}
           >
             {msg.role === "assistant" && (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+              <div className="travel-copilot-assistant-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
                 <Bot className="h-4 w-4" />
               </div>
             )}
 
             <div
-              className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-sm ${
+              className={`travel-copilot-message-bubble max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-sm ${
                 msg.role === "user"
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-medium rounded-tr-none shadow-lg shadow-emerald-500/10"
-                  : "bg-slate-800/80 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md"
+                  ? "travel-copilot-user-bubble bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-medium rounded-tr-none shadow-lg shadow-emerald-500/10"
+                  : "travel-copilot-assistant-bubble bg-slate-800/80 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md"
               }`}
             >
-              <div className="whitespace-pre-wrap leading-relaxed">
+              <div className="travel-copilot-message-text whitespace-pre-wrap leading-relaxed">
                 {msg.content}
               </div>
               <div
-                className={`mt-1.5 text-[10px] text-right ${
+                className={`travel-copilot-message-timestamp mt-1.5 text-[10px] text-right ${
                   msg.role === "user" ? "text-slate-900/70 font-semibold" : "text-slate-400"
                 }`}
               >
@@ -206,7 +260,7 @@ export default function TravelCopilotChat({
             </div>
 
             {msg.role === "user" && (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 border border-teal-500/30 text-teal-400">
+              <div className="travel-copilot-user-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 border border-teal-500/30 text-teal-400">
                 <User className="h-4 w-4" />
               </div>
             )}
@@ -214,11 +268,11 @@ export default function TravelCopilotChat({
         ))}
 
         {loading && (
-          <div className="flex gap-3 justify-start">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+          <div className="travel-copilot-loading-row flex gap-3 justify-start">
+            <div className="travel-copilot-loading-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
               <Bot className="h-4 w-4" />
             </div>
-            <div className="rounded-2xl rounded-tl-none bg-slate-800/80 border border-white/10 p-4 backdrop-blur-md flex items-center gap-2 text-slate-400 text-sm">
+            <div className="travel-copilot-loading-bubble rounded-2xl rounded-tl-none bg-slate-800/80 border border-white/10 p-4 backdrop-blur-md flex items-center gap-2 text-slate-400 text-sm">
               <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
               <span>Analyzing live travel grounding data...</span>
             </div>
@@ -229,13 +283,13 @@ export default function TravelCopilotChat({
       </div>
 
       {/* Input Bar */}
-      <div className="p-4 border-t border-white/10 bg-slate-950/80 backdrop-blur-xl">
+      <div className="travel-copilot-input-bar p-4 border-t border-white/10 bg-slate-950/80 backdrop-blur-xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendMessage();
           }}
-          className="flex items-center gap-2"
+          className="travel-copilot-form flex items-center gap-2"
         >
           <input
             type="text"
@@ -243,13 +297,13 @@ export default function TravelCopilotChat({
             onChange={(e) => setInputQuery(e.target.value)}
             placeholder={`Ask AI anything about your trip from ${origin} to ${destination}...`}
             disabled={loading}
-            className="flex-1 rounded-2xl bg-slate-900 border border-white/10 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none disabled:opacity-50"
+            className="travel-copilot-input flex-1 rounded-2xl bg-slate-900 border border-white/10 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none disabled:opacity-50"
           />
 
           <button
             type="submit"
             disabled={loading || !inputQuery.trim()}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition disabled:opacity-50 shrink-0"
+            className="travel-copilot-send-button flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition disabled:opacity-50 shrink-0"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </button>

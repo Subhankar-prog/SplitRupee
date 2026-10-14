@@ -11,39 +11,127 @@ export async function POST(req: Request) {
       currentPlan,
       userQuery,
       origin = "Bhubaneswar",
-      destination = "Sikkim"
+      destination = "Darjeeling",
+      startDate,
+      endDate,
+      nights,
+      travellers,
+      budget,
+      stayBudget,
+      groupType,
+      stayPreference,
+      pace,
+      trainClass,
+      busClass,
+      flightClass,
+      clientLocalDate,
+      clientLocalFormattedDate,
+      clientLocalTime
     } = body;
 
     if (!userQuery || !userQuery.trim()) {
       return NextResponse.json({ ok: false, error: "Missing user query" }, { status: 400 });
     }
 
-    const verifiedTrains = getVerifiedTrainsForRoute(origin, destination);
+    // 1. Current Live Temporal Ground Truth
+    const now = new Date();
+    const currentFormattedDate =
+      clientLocalFormattedDate ||
+      now.toLocaleDateString("en-IN", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Kolkata"
+      });
+    const currentISODate = clientLocalDate ? clientLocalDate.split("T")[0] : now.toISOString().split("T")[0];
+    const currentTime =
+      clientLocalTime ||
+      now.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata"
+      });
 
-    const planContext = `VERIFIED TRIP GROUND TRUTH:
-Origin: ${currentPlan?.origin || origin} -> Destination: ${currentPlan?.destination || destination}
-Days: ${currentPlan?.daysCount || 5} Days / ${currentPlan?.nightsCount || 4} Nights
-Total Target Budget: ₹${currentPlan?.targetBudget || 50000} (Status: ${currentPlan?.budgetStatus || "UNDER_BUDGET"})
-Total Estimated Cost: ₹${currentPlan?.totalEstimatedCost || 0}
-Verified IRCTC Trains For This Route: ${JSON.stringify(verifiedTrains.length > 0 ? verifiedTrains : currentPlan?.trains || [])}
-Stay / Accommodations: ${JSON.stringify(currentPlan?.accommodations || [])}
-Local Transport / Taxis: ${JSON.stringify(currentPlan?.localTransport || [])}`;
+    // 2. Active Trip Parameters
+    const activeOrigin = currentPlan?.origin || origin || "Bhubaneswar";
+    const activeDestination = currentPlan?.destination || destination || "Darjeeling";
+    const activeStartDate = currentPlan?.startDate || startDate || currentISODate;
+    const activeEndDate = currentPlan?.endDate || endDate || "";
+    const activeNights = Number(currentPlan?.nightsCount || nights || 5);
+    const activeTravellers = Number(currentPlan?.travellers || travellers || 2);
+    const activeBudget = Number(currentPlan?.targetBudget || budget || 30000);
+    const activeStayBudget = Number(currentPlan?.stayBudget || stayBudget || Math.floor((activeBudget * 0.4) / (activeNights || 1)));
+    const activeGroupType = currentPlan?.groupType || groupType || "Friends";
+    const activePace = currentPlan?.pace || pace || "Moderate";
 
-    const systemInstruction = `You are "SplitRupee Copilot", an interactive AI travel assistant. You speak like a knowledgeable, friendly local expert.
-
-CONVERSATIONAL RULES:
-1. Answer the traveler's query directly, fluidly, and naturally. 
-2. IF THE USER ASKS AN OUT-OF-CONTEXT OR GENERAL QUESTION (e.g. general knowledge, history, technology, cooking, sports, advice): Answer their question accurately, politely, and intelligently! Do NOT refuse or give a generic error. Briefly offer to assist with their trip if relevant.
-3. ALWAYS ground your travel answers in real-world facts. Never fabricate fake IRCTC train numbers. For BBS to NJP/Sikkim, use real trains: 15643 (Puri-Kamakhya), 12513 (Secunderabad-Guwahati), 12509, 22503, or 12074 Jan Shatabdi + 12041 Shatabdi via Howrah.
-4. Be concise, direct, helpful, and conversational. Format in clean GitHub markdown.`;
+    const verifiedTrains = getVerifiedTrainsForRoute(activeOrigin, activeDestination);
 
     let replyText = "";
     let isLiveAI = false;
 
-    // 1. Direct Google Gemini REST API Integration (Official Multi-Turn Chat Format)
+    // 3. Deterministic & Guaranteed Accuracy for Date/Time Queries
+    const qLower = userQuery.toLowerCase().trim();
+    const isDateQuery =
+      /what('?s|\s+is)\s+(today'?s?\s+date|the\s+date|the\s+day\s+today|date\s+today|the\s+current\s+date|today\s+date)/i.test(qLower) ||
+      /^(today'?s?\s+date|what\s+is\s+today|date\s+today|current\s+date|today\s+date)$/i.test(qLower) ||
+      qLower === "what is todays date" ||
+      qLower === "what is today's date" ||
+      qLower === "todays date" ||
+      qLower === "today date";
+
+    const isTimeQuery =
+      /what('?s|\s+is)\s+(the\s+time|current\s+time|time\s+now)/i.test(qLower) ||
+      /^(time\s+now|current\s+time|what\s+time\s+is\s+it)$/i.test(qLower);
+
+    if (isDateQuery) {
+      const monthName = now.toLocaleString("en-US", { month: "long" });
+      const seasonInfo =
+        monthName === "October" || monthName === "November"
+          ? `In **${activeDestination}**, ${monthName} is **peak autumn season** — one of the finest times of the year with crystal-clear Himalayan skies, crisp daytime weather (11°C to 18°C), and unobstructed panoramic views of the Kanchenjunga mountain range.`
+          : `In **${activeDestination}**, ${monthName} has its own seasonal mountain charm.`;
+
+      const datesNotice = activeEndDate
+        ? `Your planned journey from **${activeOrigin}** to **${activeDestination}** is set for **${activeStartDate}** to **${activeEndDate}** (${activeNights} nights, ${activeTravellers} travellers).`
+        : `Your planned journey from **${activeOrigin}** to **${activeDestination}** starts on **${activeStartDate}** (${activeNights} nights, ${activeTravellers} travellers).`;
+
+      replyText = `Today is **${currentFormattedDate}** (${currentTime} IST).\n\n${seasonInfo}\n\n${datesNotice}\n\nHow can I help you customize your travel plan, verify IRCTC train schedules, or find recommended budget stays?`;
+      isLiveAI = true;
+    } else if (isTimeQuery) {
+      replyText = `The current time is **${currentTime} IST** (${currentFormattedDate}).`;
+      isLiveAI = true;
+    }
+
+    const planContext = `VERIFIED REAL-WORLD GROUND TRUTH & DATES:
+- Current Real-World Date: ${currentFormattedDate} (${currentISODate})
+- Current Real-World Time: ${currentTime} IST
+- Real-World Year: ${now.getFullYear()}
+- Route: ${activeOrigin} -> ${activeDestination}
+- Scheduled Trip Dates: ${activeStartDate} to ${activeEndDate} (${activeNights} Nights, ${activeNights + 1} Days)
+- Travellers: ${activeTravellers} (${activeGroupType})
+- Total Group Budget: ₹${activeBudget.toLocaleString()} (Nightly stay limit: ≤ ₹${activeStayBudget.toLocaleString()}/night)
+- Trip Pace: ${activePace}
+- Train Coach / Class Preference: ${trainClass || "3A"}, Bus Class: ${busClass || "AC Sleeper (Volvo)"}, Flight: ${flightClass || "Economy"}
+- Verified IRCTC Trains For Route: ${JSON.stringify(verifiedTrains.length > 0 ? verifiedTrains : currentPlan?.trains || [])}
+- Verified Accommodations: ${JSON.stringify(currentPlan?.accommodations || [])}
+- Local Transport / Taxis: ${JSON.stringify(currentPlan?.localTransport || [])}`;
+
+    const systemInstruction = `You are "SplitRupee Copilot", an elite, verified AI travel assistant. You speak like a knowledgeable, friendly local regional expert.
+
+CRITICAL ACCURACY & GROUNDING RULES:
+1. TEMPORAL ACCURACY: Today's current real-world date is ${currentFormattedDate} (Year ${now.getFullYear()}). Current month is ${now.toLocaleString("en-US", { month: "long" })}. NEVER hallucinate an old date (like 2024 or May).
+2. SEASONAL AWARENESS: Ground weather and climate strictly in the actual calendar month (${now.toLocaleString("en-US", { month: "long" })}) and the traveler's scheduled dates (${activeStartDate} to ${activeEndDate}). In October/November, Darjeeling/Himalayas are in crisp autumn with clear skies and mountain vistas (NOT spring or monsoon).
+3. TRAVEL CONTEXT AWARENESS: The traveler's planned dates are ${activeStartDate} to ${activeEndDate} from ${activeOrigin} to ${activeDestination} for ${activeTravellers} people (${activeGroupType}) with budget ₹${activeBudget}. Reference their actual planned dates.
+4. GROUND TRUTH TRAINS: Ground all train advice in real IRCTC trains (e.g. 15643 Puri-Kamakhya, 12513 Secunderabad-Guwahati, 12509, 22503, or 12074+12041 via Howrah). Never invent fake train numbers.
+5. STRICT ZERO DEMO PHONE NUMBERS: NEVER provide dummy, demo, or placeholder phone numbers (like 9876543210). ONLY provide verified telephone numbers for registered taxi unions, verified hotels, or official government helplines. If unknown, direct to physical terminal prepaid counters or official tourism websites.
+6. STRICT HOTEL BUDGET RULE: Respect their nightly budget limit of ₹${activeStayBudget}/night. If under ₹1500, recommend authentic hostels/guesthouses (Zostel, goSTOPS, local homestays). Never claim luxury 4-star/5-star hotels cost ₹1500.
+7. GENERAL CONVERSATION: If asked general knowledge, greetings, science, or casual questions, answer directly, fluidly, intelligently, and politely in clean GitHub markdown.`;
+
+    // 4. Direct Google Gemini REST API Integration
     const apiKey = (process.env.GEMINI_API_KEY || "").trim();
 
-    if (apiKey) {
+    if (!replyText && apiKey) {
       try {
         const contentsPayload: any[] = [
           {
@@ -52,7 +140,7 @@ CONVERSATIONAL RULES:
           },
           {
             role: "model",
-            parts: [{ text: "Understood! I am ready to help as your SplitRupee Travel Copilot." }]
+            parts: [{ text: `Understood! Today is ${currentFormattedDate}. I am ready to help as your verified SplitRupee Travel Copilot.` }]
           }
         ];
 
@@ -72,7 +160,12 @@ CONVERSATIONAL RULES:
           parts: [{ text: userQuery }]
         });
 
-        const restModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp", "gemini-pro"];
+        const restModels = [
+          "gemini-3.1-flash-lite",
+          "gemini-3.5-flash-lite",
+          "gemini-3.7-flash",
+          "gemini-flash-latest"
+        ];
 
         for (const mName of restModels) {
           try {

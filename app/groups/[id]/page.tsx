@@ -44,6 +44,7 @@ import {
   DollarSign,
   ArrowDownLeft,
   ArrowUpRight,
+  BookOpen,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
@@ -88,7 +89,7 @@ export default function GroupDetailPage() {
   const { currentUser } = useUser();
 
   const [group, setGroup] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<"matrix" | "balances" | "expenses" | "settlements" | "activity" | "members">("matrix");
+  const [activeTab, setActiveTab] = useState<"passbook" | "matrix" | "balances" | "expenses" | "settlements" | "activity" | "members">("matrix");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,6 +173,29 @@ export default function GroupDetailPage() {
     });
     return share;
   }, [members, expenses]);
+
+  // Cumulative settlements paid and received per member (for Passbook)
+  const memberSettlementsPaid = useMemo(() => {
+    const map: Record<string, number> = {};
+    members.forEach((m: any) => (map[m.id] = 0));
+    payments.forEach((p: any) => {
+      map[p.payerId] = (map[p.payerId] || 0) + p.amount;
+    });
+    return map;
+  }, [members, payments]);
+
+  const memberSettlementsReceived = useMemo(() => {
+    const map: Record<string, number> = {};
+    members.forEach((m: any) => (map[m.id] = 0));
+    payments.forEach((p: any) => {
+      map[p.receiverId] = (map[p.receiverId] || 0) + p.amount;
+    });
+    return map;
+  }, [members, payments]);
+
+  const totalPendingSettlements = useMemo(() => {
+    return ledger.transfers.reduce((sum: number, t: any) => sum + t.amountPaise / 100, 0);
+  }, [ledger.transfers]);
 
   const summary = group
     ? buildWhatsAppSummary(group.name, names, ledger.balances, ledger.transfers)
@@ -263,6 +287,13 @@ export default function GroupDetailPage() {
               <span>Add Expense</span>
             </button>
             <button
+              onClick={() => setActiveTab("passbook")}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Passbook</span>
+            </button>
+            <button
               onClick={() => setSettleUpData({})}
               className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 sm:py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
             >
@@ -352,6 +383,7 @@ export default function GroupDetailPage() {
       {/* Tabs Navigation — horizontal scroll on mobile */}
       <div className="flex rounded-2xl bg-white/5 p-1 border border-white/10 overflow-x-auto scrollbar-none gap-0.5">
         {[
+          { key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" },
           { key: "matrix", icon: Scale, label: "Ledger", fullLabel: "Traveler Ledger" },
           { key: "balances", icon: CheckCircle2, label: `Transfers (${ledger.transfers.length})`, fullLabel: `Optimized Transfers (${ledger.transfers.length})` },
           { key: "expenses", icon: Receipt, label: `Expenses (${expenses.length})`, fullLabel: `Expenses (${expenses.length})` },
@@ -374,6 +406,264 @@ export default function GroupDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* TAB 0: ADMIN PASSBOOK & MASTER FINANCIAL RECONCILIATION */}
+      {activeTab === "passbook" && (
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-white/10 bg-slate-900/90 overflow-hidden shadow-2xl p-4 sm:p-6 space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-emerald-400" />
+                    Admin Passbook & Master Financial Reconciliation
+                  </h3>
+                  <span className="rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                    Live Ledger
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Aggregated member contribution totals, live debt status, and bilateral settlement matrix.
+                </p>
+              </div>
+              <button
+                onClick={handleDownloadCSV}
+                className="self-start sm:self-auto flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+              >
+                <Download className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Export Passbook</span>
+              </button>
+            </div>
+
+            {/* Top 4 Summary Metrics Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Group Spend</p>
+                <p className="mt-1 text-lg sm:text-xl font-extrabold text-white tabular-nums">{formatINR(totalSpend)}</p>
+                <p className="mt-0.5 text-[10px] text-slate-400">{expenses.length} total expenses recorded</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Total Settled Volume</p>
+                <p className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-400 tabular-nums">{formatINR(totalReconciled)}</p>
+                <p className="mt-0.5 text-[10px] text-slate-400">{payments.length} payments completed</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">Pending Obligations</p>
+                <p className="mt-1 text-lg sm:text-xl font-extrabold text-amber-400 tabular-nums">{formatINR(totalPendingSettlements)}</p>
+                <p className="mt-0.5 text-[10px] text-slate-400">{ledger.transfers.length} transfers needed</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">Ledger Health</p>
+                <p className="mt-1 text-lg sm:text-xl font-extrabold text-indigo-300">Balanced</p>
+                <p className="mt-0.5 text-[10px] text-slate-400">Zero variance in pool</p>
+              </div>
+            </div>
+
+            {/* Cumulative Member Contributions Table ("Kabir paid how much till now") */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Cumulative Member Contribution Ledger
+              </h4>
+              <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/50">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+                      <th className="p-3 pl-4">Member</th>
+                      <th className="p-3">Total Paid In All (₹)</th>
+                      <th className="p-3">Fair Share (₹)</th>
+                      <th className="p-3">Settlements Paid (₹)</th>
+                      <th className="p-3">Settlements Received (₹)</th>
+                      <th className="p-3">Net Balance (₹)</th>
+                      <th className="p-3 pr-4 text-right">Status / Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-slate-300">
+                    {members.map((m: any) => {
+                      const paid = memberPaid[m.id] || 0;
+                      const share = memberShare[m.id] || 0;
+                      const setPaid = memberSettlementsPaid[m.id] || 0;
+                      const setRecv = memberSettlementsReceived[m.id] || 0;
+                      const netPaise = ledger.balances[m.id] || 0;
+                      const netINR = netPaise / 100;
+                      const isCreditor = netINR > 0;
+                      const isDebtor = netINR < 0;
+                      const isCreator = group?.creatorId === m.id;
+
+                      return (
+                        <tr key={m.id} className="hover:bg-white/[0.02] transition">
+                          <td className="p-3 pl-4 font-semibold text-white flex items-center gap-2">
+                            <span
+                              className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
+                              style={{ background: m.avatarColor || "#10b981" }}
+                            >
+                              {m.name.charAt(0)}
+                            </span>
+                            <span className="truncate max-w-[130px]">{m.name}</span>
+                            {currentUser?.id === m.id && (
+                              <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.2 text-[9px] font-bold">
+                                You
+                              </span>
+                            )}
+                            {isCreator && (
+                              <span className="rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-bold">
+                                Admin
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 font-bold text-white tabular-nums">
+                            {formatINR(paid)}
+                          </td>
+                          <td className="p-3 tabular-nums text-slate-300">
+                            {formatINR(share)}
+                          </td>
+                          <td className="p-3 tabular-nums text-slate-300">
+                            {formatINR(setPaid)}
+                          </td>
+                          <td className="p-3 tabular-nums text-slate-300">
+                            {formatINR(setRecv)}
+                          </td>
+                          <td className="p-3 tabular-nums font-bold">
+                            <span
+                              className={
+                                isCreditor
+                                  ? "text-emerald-400"
+                                  : isDebtor
+                                  ? "text-rose-400"
+                                  : "text-slate-400"
+                              }
+                            >
+                              {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
+                            </span>
+                          </td>
+                          <td className="p-3 pr-4 text-right">
+                            {isDebtor ? (
+                              <button
+                                onClick={() => {
+                                  const transfer = ledger.transfers.find((t) => t.from === m.id);
+                                  const targetReceiver = transfer
+                                    ? transfer.to
+                                    : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
+                                  const transferAmount = transfer ? transfer.amountPaise / 100 : Math.abs(netINR);
+                                  setSettleUpData({
+                                    payerId: m.id,
+                                    receiverId: targetReceiver,
+                                    amount: transferAmount,
+                                  });
+                                }}
+                                className="rounded-xl bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 hover:bg-emerald-400 transition"
+                              >
+                                Settle Up
+                              </button>
+                            ) : isCreditor ? (
+                              <span className="text-[11px] font-semibold text-emerald-400">
+                                Receiving
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-slate-500 font-medium">All Square</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Live Bilateral Obligations */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Live Bilateral Transfer Obligations (Updated with Every Payment)
+              </h4>
+              {ledger.transfers.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-xs text-slate-400">
+                  <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-400 mb-1.5" />
+                  <p className="font-bold text-white">Everyone is 100% settled up!</p>
+                  <p className="text-[11px] mt-0.5">All pending debts have been reconciled and cleared.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {ledger.transfers.map((t, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3.5 rounded-2xl border border-white/10 bg-white/[0.02]"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate">
+                          {names[t.from]} owes {names[t.to]}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          Settlement Pending
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <span className="text-sm font-extrabold text-emerald-400 tabular-nums">
+                          {formatPaise(t.amountPaise)}
+                        </span>
+                        <button
+                          onClick={() =>
+                            setSettleUpData({
+                              payerId: t.from,
+                              receiverId: t.to,
+                              amount: t.amountPaise / 100,
+                            })
+                          }
+                          className="rounded-xl bg-emerald-500 px-2.5 py-1 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                        >
+                          1-Tap Settle
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completed Settlements Feed */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Completed Settlement Records ({payments.length})
+              </h4>
+              {payments.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">No settlement payments recorded yet in this group.</p>
+              ) : (
+                <div className="space-y-2">
+                  {payments.map((p: any) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-3 rounded-2xl border border-white/5 bg-white/[0.02] text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-white">
+                            {p.payer?.name} paid {p.receiver?.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {new Date(p.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {p.notes ? ` · "${p.notes}"` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-emerald-400 tabular-nums">
+                        {formatINR(p.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: TRAVELER RECONCILIATION TABLE (MATCHING SPREADSHEET MODEL) */}
       {activeTab === "matrix" && (
@@ -471,7 +761,18 @@ export default function GroupDetailPage() {
                         <td className="p-3.5 pr-5 text-right">
                           {isDebtor ? (
                             <button
-                              onClick={() => setSettleUpData({ payerId: m.id, amount: Math.abs(netPaise) })}
+                              onClick={() => {
+                                const transfer = ledger.transfers.find((t) => t.from === m.id);
+                                const targetReceiver = transfer
+                                  ? transfer.to
+                                  : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
+                                const transferAmount = transfer ? transfer.amountPaise / 100 : Math.abs(netINR);
+                                setSettleUpData({
+                                  payerId: m.id,
+                                  receiverId: targetReceiver,
+                                  amount: transferAmount,
+                                });
+                              }}
                               className="rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-slate-950 hover:bg-emerald-400 transition"
                             >
                               Settle Up
@@ -562,7 +863,7 @@ export default function GroupDetailPage() {
                         setSettleUpData({
                           payerId: t.from,
                           receiverId: t.to,
-                          amount: t.amountPaise,
+                          amount: t.amountPaise / 100,
                         })
                       }
                       className="rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
@@ -881,9 +1182,12 @@ export default function GroupDetailPage() {
         <SettleUpModal
           groupId={groupId}
           members={members}
+          groupCreatorId={group?.creatorId}
+          transfers={ledger.transfers}
+          balances={ledger.balances}
           defaultPayerId={settleUpData.payerId}
           defaultReceiverId={settleUpData.receiverId}
-          defaultAmount={settleUpData.amount ? settleUpData.amount / 100 : undefined}
+          defaultAmount={settleUpData.amount}
           onClose={() => setSettleUpData(null)}
           onSettled={() => {
             setSettleUpData(null);

@@ -37,6 +37,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, currentUser, isAppRoute, pathname, router]);
 
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password");
+
+  // Authentication Pages Layout (No Website Header/Footer)
+  if (isAuthRoute) {
+    return (
+      <div className="min-h-screen text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+        <main className="flex-1 w-full">{children}</main>
+      </div>
+    );
+  }
+
   // Public Marketing / Content Pages Layout
   if (!isAppRoute) {
     return (

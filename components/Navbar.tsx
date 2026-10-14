@@ -21,12 +21,15 @@ import {
   Clock,
   ChevronDown,
   ShieldCheck,
+  QrCode,
+  Check,
+  Edit2,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
-  const { currentUser, logout } = useUser();
+  const { currentUser, logout, refreshUsers } = useUser();
   const [showGlobalAddExpense, setShowGlobalAddExpense] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -34,6 +37,46 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Quick UPI Edit in Profile Dropdown
+  const [isEditingUpi, setIsEditingUpi] = useState(false);
+  const [upiInput, setUpiInput] = useState("");
+  const [savingUpi, setSavingUpi] = useState(false);
+  const [upiSaved, setUpiSaved] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      setUpiInput(currentUser.upiId || "");
+    }
+  }, [currentUser]);
+
+  async function handleSaveUpi() {
+    if (!currentUser) return;
+    setSavingUpi(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          upiId: upiInput.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await refreshUsers();
+        setUpiSaved(true);
+        setTimeout(() => {
+          setUpiSaved(false);
+          setIsEditingUpi(false);
+        }, 1000);
+      }
+    } catch (err) {
+      console.error("Failed to save UPI ID", err);
+    } finally {
+      setSavingUpi(false);
+    }
+  }
 
   // Live Clock & Date State
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -359,21 +402,104 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 {profileDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-60 sm:w-64 rounded-2xl border border-white/15 bg-slate-900 p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
                     {/* User Header Box */}
-                    <div className="rounded-xl bg-white/5 p-3 space-y-1 mb-2">
+                    <div className="rounded-xl bg-white/5 p-3 space-y-2 mb-2">
                       <div className="flex items-center gap-2">
                         <div
-                          className="h-6 w-6 rounded-lg grid place-items-center text-[11px] font-bold text-slate-950"
+                          className="h-7 w-7 rounded-lg grid place-items-center text-xs font-bold text-slate-950 shrink-0"
                           style={{ background: currentUser.avatarColor || "#10b981" }}
                         >
                           {currentUser.name.charAt(0)}
                         </div>
-                        <p className="font-bold text-white text-xs truncate">
-                          {currentUser.name}
-                        </p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-white text-xs truncate">
+                            {currentUser.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {currentUser.email || currentUser.phone || "SplitRupee User"}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {currentUser.email || "No email"}
-                      </p>
+
+                      {/* Active UPI Address Card with Quick Edit */}
+                      <div className="pt-2 border-t border-white/10">
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-slate-400 flex items-center gap-1 font-medium">
+                            <QrCode className="h-3 w-3 text-emerald-400" />
+                            UPI Address:
+                          </span>
+                          {!isEditingUpi && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUpiInput(currentUser.upiId || "");
+                                setIsEditingUpi(true);
+                              }}
+                              className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition"
+                            >
+                              {currentUser.upiId ? "Edit" : "+ Add UPI"}
+                            </button>
+                          )}
+                        </div>
+
+                        {isEditingUpi ? (
+                          <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={upiInput}
+                              onChange={(e) => setUpiInput(e.target.value.toLowerCase().trim())}
+                              placeholder="e.g. 9876543210@ybl"
+                              className="w-full text-[11px] font-mono bg-slate-950 border border-emerald-500/60 rounded-lg px-2.5 py-1.5 text-white outline-none focus:ring-1 focus:ring-emerald-500"
+                              autoFocus
+                            />
+                            {/* Quick handle suggestions */}
+                            <div className="flex flex-wrap gap-1">
+                              {["@ybl", "@paytm", "@okaxis", "@okhdfcbank"].map((h) => (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  onClick={() => {
+                                    const base = upiInput.includes("@")
+                                      ? upiInput.split("@")[0]
+                                      : upiInput || (currentUser.phone ? currentUser.phone.slice(-10) : currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+                                    setUpiInput(`${base}${h}`);
+                                  }}
+                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 hover:border-emerald-500 hover:text-white"
+                                >
+                                  {h}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex gap-1.5 pt-0.5">
+                              <button
+                                onClick={handleSaveUpi}
+                                disabled={savingUpi}
+                                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-bold py-1 rounded-md transition shadow flex items-center justify-center gap-1"
+                              >
+                                {savingUpi ? "Saving..." : upiSaved ? "Saved! ✓" : "Save UPI"}
+                              </button>
+                              <button
+                                onClick={() => setIsEditingUpi(false)}
+                                className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-white/10 transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between bg-black/40 rounded-lg px-2 py-1.5 border border-white/5">
+                            <span className="text-[11px] font-mono font-medium text-emerald-300 truncate">
+                              {currentUser.upiId || (
+                                <span className="text-slate-500 italic font-sans text-[10px]">
+                                  No UPI linked yet
+                                </span>
+                              )}
+                            </span>
+                            {currentUser.upiId ? (
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0 ml-1.5" />
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Actions Menu */}

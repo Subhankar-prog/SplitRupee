@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getVerifiedTrainsForRoute, VerifiedTrainRoute } from "@/lib/irctcData";
+import { getVerifiedGroundData, getVerifiedHotelForBudget, isDemoPhoneNumber } from "@/lib/localGroundData";
 
 export const dynamic = "force-dynamic";
 
@@ -56,13 +57,13 @@ export async function POST(req: Request) {
 
         try {
           model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-3.8-flash",
             tools: [{ googleSearch: {} }] as any,
             systemInstruction
           });
         } catch {
           model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-3.8-flash",
             systemInstruction
           });
         }
@@ -206,7 +207,13 @@ Output strictly VALID JSON (without markdown code blocks) matching this schema:
 }`;
 
         let text = "";
-        const modelNames = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
+        const modelNames = [
+          "gemini-3.1-flash-lite",
+          "gemini-3.5-flash-lite",
+          "gemini-3.7-flash",
+          "gemini-flash-latest",
+          "gemini-pro-latest"
+        ];
 
         for (const modelName of modelNames) {
           try {
@@ -439,6 +446,26 @@ function verifyAndFixItineraryMath(
     });
   }
 
+  // 5. Sanitize any demo/dummy phone numbers from AI generation
+  if (Array.isArray(plan.localTransport)) {
+    plan.localTransport.forEach((leg: any) => {
+      if (Array.isArray(leg.driverContacts)) {
+        leg.driverContacts.forEach((dc: any) => {
+          if (isDemoPhoneNumber(dc.phone)) {
+            dc.phone = "Physical Terminal Prepaid Counter";
+          }
+        });
+      }
+    });
+  }
+  if (Array.isArray(plan.accommodations)) {
+    plan.accommodations.forEach((acc: any) => {
+      if (isDemoPhoneNumber(acc.contactPhone)) {
+        acc.contactPhone = "Front Desk on Check-In";
+      }
+    });
+  }
+
   return plan;
 }
 
@@ -531,22 +558,42 @@ function generateUniversalMasterItinerary(opts: any) {
         mode: "Private SUV / Shared Vehicle",
         recommendation: `1 dedicated vehicle for ${gSize} travelers.`,
         estimatedCost: taxiCost,
-        driverContacts: [{ name: `${destination} Tourist Cab Desk`, phone: "+91-98765-43210", vehicle: "SUV / Sedan" }]
+        driverContacts: (() => {
+          const groundData = getVerifiedGroundData(destination);
+          if (groundData?.taxiServices && groundData.taxiServices.length > 0) {
+            return groundData.taxiServices.slice(0, 2).map((ts) => ({
+              name: ts.name,
+              phone: ts.phone || "Physical Prepaid Booth on Arrival",
+              vehicle: ts.type === "Taxi Union" ? "Shared Jeep / Syndicate Taxi" : "Prepaid Counter Taxi"
+            }));
+          }
+          return [
+            {
+              name: `${destination} Official Prepaid Taxi Booth`,
+              phone: "Terminal / Station Prepaid Counter on Arrival",
+              vehicle: "SUV / Sedan"
+            }
+          ];
+        })()
       }
     ],
-    accommodations: [
-      {
-        hotelName: `${destination} Central Homestay & Resort`,
-        location: `Central ${destination}`,
-        type: stayPreference,
-        pricePerNight: Math.round(totalStayCost / (nightsCount || 1) / gSize) * gSize,
-        nights: nightsCount,
-        totalStayCost,
-        bookingTip: "Direct booking discount.",
-        contactName: "Front Desk Host",
-        contactPhone: "+91-98765-12345"
-      }
-    ],
+    accommodations: (() => {
+      const perNightRate = Math.max(500, Math.round(totalStayCost / (nightsCount || 1) / gSize));
+      const matchedHotel = getVerifiedHotelForBudget(destination, perNightRate);
+      return [
+        {
+          hotelName: matchedHotel?.name || `${destination} Verified Guesthouse & Homestay`,
+          location: matchedHotel?.address || `Central ${destination}`,
+          type: stayPreference,
+          pricePerNight: matchedHotel?.approxRatePerNight ? matchedHotel.approxRatePerNight * gSize : perNightRate * gSize,
+          nights: nightsCount,
+          totalStayCost,
+          bookingTip: matchedHotel?.bookingTip || "Book in advance directly or via official regional tourism portal.",
+          contactName: "Front Desk / Booking Desk",
+          contactPhone: matchedHotel?.phone || "Direct Front Desk on Check-In"
+        }
+      ];
+    })(),
     days: daysArr,
     bookingSummary: [
       { leg: `${origin} → ${destination}`, preferredClass: trainClass, bookingApproach: "Book in advance on IRCTC portal" }

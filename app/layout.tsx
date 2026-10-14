@@ -4,7 +4,7 @@ import { UserProvider } from "@/lib/userContext";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "SplitRupee — Indian Splitwise for Shared Expenses",
+  title: "SplitRupee — Indian Split Expenses app",
   description: "Split expenses, manage group budgets, minimize debts and settle up with friends in India.",
 };
 
@@ -15,6 +15,8 @@ export const viewport: Viewport = {
   userScalable: false,
   themeColor: "#020617",
 };
+
+import Script from "next/script";
 
 export default function RootLayout({
   children,
@@ -27,6 +29,7 @@ export default function RootLayout({
         <UserProvider>
           <AppShell>{children}</AppShell>
         </UserProvider>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </body>
     </html>
   );

@@ -12,7 +12,7 @@ function hashPassword(password: string): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, phone, password, authMethod, avatarColor } = body;
+    const { name, email, phone, password, authMethod, avatarColor, upiId } = body;
 
     if (!name || typeof name !== "string") {
       return NextResponse.json({ ok: false, error: "Full Name is required" }, { status: 400 });
@@ -36,8 +36,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "Password must be at least 4 characters long" }, { status: 400 });
       }
     } else if (authMethod === "google") {
-      if (!userEmail) {
-        userEmail = `${name.toLowerCase().replace(/\s+/g, ".")}@gmail.com`;
+      if (!userEmail || !userEmail.includes("@")) {
+        return NextResponse.json({ ok: false, error: "Valid Google email address is required" }, { status: 400 });
       }
     }
 
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         phone: userPhone || null,
         passwordHash,
         avatarColor: chosenColor,
-        upiId: `${name.toLowerCase().replace(/[^a-z0-9]/g, "")}@upi`,
+        upiId: (upiId || "").trim() || null,
       },
       select: {
         id: true,

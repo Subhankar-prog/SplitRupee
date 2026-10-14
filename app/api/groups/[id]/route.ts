@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: Params) {
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true, avatarColor: true } },
+            user: { select: { id: true, name: true, email: true, avatarColor: true, upiId: true } },
           },
           orderBy: { joinedAt: "asc" },
         },
@@ -52,6 +52,11 @@ export async function GET(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "GROUP_NOT_FOUND" }, { status: 404 });
     }
 
+    const creatorId =
+      group.activityLogs.find((l) => l.action === "GROUP_CREATED")?.userId ||
+      group.members[0]?.userId ||
+      null;
+
     return NextResponse.json({
       ok: true,
       group: {
@@ -59,6 +64,7 @@ export async function GET(req: Request, { params }: Params) {
         name: group.name,
         type: group.type,
         currency: group.currency,
+        creatorId,
         createdAt: group.createdAt.toISOString(),
         updatedAt: group.updatedAt.toISOString(),
         members: group.members.map((m) => m.user),

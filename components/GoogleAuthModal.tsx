@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 interface Props {
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (data: any) => void;
 }
 
 export default function GoogleAuthModal({ onClose, onSuccess }: Props) {
@@ -29,11 +29,10 @@ export default function GoogleAuthModal({ onClose, onSuccess }: Props) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          authMethod: "google",
           googleUser: { name: selectedName, email: selectedEmail },
         }),
       });
@@ -41,11 +40,16 @@ export default function GoogleAuthModal({ onClose, onSuccess }: Props) {
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Google authorization failed");
       }
-      login(data.user);
-      await refreshUsers();
       onClose();
-      if (onSuccess) onSuccess();
-      router.push("/dashboard");
+      if (onSuccess) {
+        onSuccess(data);
+      } else {
+        if (!data.isNewUser && data.user) {
+          login(data.user);
+          await refreshUsers();
+          router.push("/dashboard");
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google");
     } finally {
@@ -76,6 +80,14 @@ export default function GoogleAuthModal({ onClose, onSuccess }: Props) {
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+
+        {/* Setup Tip Banner */}
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-[11px] text-emerald-300 space-y-1">
+          <p className="font-semibold text-emerald-200">🚀 Ready for real accounts.google.com popup</p>
+          <p className="text-emerald-400/80 leading-relaxed">
+            Add <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> to your <code>.env</code> to open Google's live account chooser. In the meantime, you can test one-click sign in below:
+          </p>
         </div>
 
         {error && (

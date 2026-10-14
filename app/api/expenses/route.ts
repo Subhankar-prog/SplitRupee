@@ -146,6 +146,10 @@ export async function GET(req: Request) {
     const userId = searchParams.get("userId");
     const includeDeleted = searchParams.get("includeDeleted") === "true";
 
+    if (!groupId && !userId) {
+      return fail(400, "MISSING_PARAM", ["groupId or userId is required"]);
+    }
+
     const where: any = {};
     if (!includeDeleted) where.isDeleted = false;
     if (groupId) where.groupId = groupId;
@@ -172,7 +176,7 @@ export async function GET(req: Request) {
       expenses: expenses.map((e) => ({
         id: e.id,
         groupId: e.groupId,
-        groupName: e.group.name,
+        groupName: e.group?.name || "",
         paidById: e.paidById,
         title: e.title,
         totalAmount: e.totalAmount,
@@ -181,12 +185,12 @@ export async function GET(req: Request) {
         notes: e.notes,
         receiptUrl: e.receiptUrl,
         isDeleted: e.isDeleted,
-        deletedAt: e.deletedAt ? e.deletedAt.toISOString() : null,
-        date: e.date.toISOString(),
-        createdAt: e.createdAt.toISOString(),
-        updatedAt: e.updatedAt.toISOString(),
+        deletedAt: e.deletedAt ? new Date(e.deletedAt).toISOString() : null,
+        date: e.date ? new Date(e.date).toISOString() : new Date().toISOString(),
+        createdAt: e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: e.updatedAt ? new Date(e.updatedAt).toISOString() : new Date().toISOString(),
         paidBy: e.paidBy,
-        splits: e.splits.map((s) => ({
+        splits: (e.splits || []).map((s: any) => ({
           id: s.id,
           userId: s.userId,
           amount: s.amount,

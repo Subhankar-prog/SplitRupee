@@ -90,8 +90,7 @@ class MaxHeap {
 export function minimizeTransfers(balances: Record<string, number>): Transfer[] {
   const total = Object.values(balances).reduce((a, b) => a + b, 0);
   if (Math.abs(total) > 2) {
-    // Tolerating minor 1-2 paise rounding discrepancy if any
-    console.warn(`Ledger discrepancy of ${total} paise`);
+    throw new Error(`unbalanced ledger: net sum is ${total} paise`);
   }
 
   const debtors: { id: string; v: number }[] = [];

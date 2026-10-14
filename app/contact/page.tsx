@@ -11,6 +11,7 @@ import {
   Sparkles,
   HelpCircle,
 } from "lucide-react";
+import ThemeSelect from "@/components/ThemeSelect";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -54,7 +55,14 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-white">WhatsApp Support</p>
-                  <p className="text-slate-400 text-[11px]">+91 98765 43210</p>
+                  <a 
+                    href="https://wa.me/916372466462" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-emerald-400 hover:text-emerald-300 text-[11px] font-mono transition"
+                  >
+                    +91 6372466462
+                  </a>
                   <p className="text-[10px] text-emerald-400 mt-0.5">Instant reply (10am - 8pm IST)</p>
                 </div>
               </div>
@@ -65,7 +73,12 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-white">Email Us</p>
-                  <p className="text-slate-400 text-[11px]">support@splitrupee.com</p>
+                  <a 
+                    href="mailto:pandasubhankar24@gmail.com" 
+                    className="text-slate-300 hover:text-teal-300 text-[11px] transition"
+                  >
+                    pandasubhankar24@gmail.com
+                  </a>
                   <p className="text-[10px] text-slate-500 mt-0.5">Response within 2 hours</p>
                 </div>
               </div>
@@ -143,16 +156,16 @@ export default function ContactPage() {
                   <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
                     Topic
                   </label>
-                  <select
+                  <ThemeSelect
                     value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="support">Help with a Group or Split</option>
-                    <option value="feedback">Feature Suggestion & Feedback</option>
-                    <option value="upi">UPI Settlement Inquiry</option>
-                    <option value="business">Partnership / College Event</option>
-                  </select>
+                    onChange={(val) => setTopic(val)}
+                    options={[
+                      { value: "support", label: "Help with a Group or Split" },
+                      { value: "feedback", label: "Feature Suggestion & Feedback" },
+                      { value: "upi", label: "UPI Settlement Inquiry" },
+                      { value: "business", label: "Partnership / College Event" },
+                    ]}
+                  />
                 </div>
 
                 <div>

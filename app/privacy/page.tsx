@@ -41,7 +41,7 @@ export default function PrivacyPage() {
         <section className="space-y-2">
           <h2 className="text-base font-bold text-white">4. Data Deletion & Account Erasure</h2>
           <p>
-            You have full control over your data. You can export your transaction history or request permanent deletion of your profile at any time by reaching out to support@splitrupee.com.
+            You have full control over your data. You can export your transaction history or request permanent deletion of your profile at any time by reaching out to pandasubhankar24@gmail.com.
           </p>
         </section>
       </div>

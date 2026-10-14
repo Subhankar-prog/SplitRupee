@@ -40,6 +40,7 @@ export interface GroupDTO {
   name: string;
   type: GroupTypeName;
   currency: string;
+  creatorId?: string | null;
   createdAt: string;
   updatedAt: string;
   members: MemberDTO[];

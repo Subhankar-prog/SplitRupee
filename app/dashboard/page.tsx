@@ -55,6 +55,9 @@ export default function DashboardPage() {
   const [settleUpData, setSettleUpData] = useState<{
     groupId: string;
     members: any[];
+    groupCreatorId?: string | null;
+    transfers?: any[];
+    balances?: Record<string, number>;
     payerId?: string;
     receiverId?: string;
     amount?: number;
@@ -436,15 +439,27 @@ export default function DashboardPage() {
                       </div>
 
                       <button
-                        onClick={() =>
+                        onClick={() => {
+                          const gDetail = groupDetails[groupId];
+                          const gLedger = gDetail
+                            ? buildLedger(
+                                gDetail.expenses.map((e: any) => ({ paidById: e.paidById, splits: e.splits })),
+                                gDetail.members.map((m: any) => m.id),
+                                gDetail.payments.map((p: any) => ({ payerId: p.payerId, receiverId: p.receiverId, amount: p.amount }))
+                              )
+                            : { transfers: [], balances: {} };
+
                           setSettleUpData({
                             groupId,
-                            members: groupObj?.members || [currentUser, user],
+                            members: gDetail?.members || [currentUser, user],
+                            groupCreatorId: gDetail?.creatorId,
+                            transfers: gLedger.transfers,
+                            balances: gLedger.balances,
                             payerId: isOwed ? user.id : currentUser.id,
                             receiverId: isOwed ? currentUser.id : user.id,
-                            amount: Math.abs(net),
-                          })
-                        }
+                            amount: Math.abs(net) / 100,
+                          });
+                        }}
                         className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 transition"
                       >
                         Settle Up
@@ -501,6 +516,9 @@ export default function DashboardPage() {
         <SettleUpModal
           groupId={settleUpData.groupId}
           members={settleUpData.members}
+          groupCreatorId={settleUpData.groupCreatorId}
+          transfers={settleUpData.transfers}
+          balances={settleUpData.balances}
           defaultPayerId={settleUpData.payerId}
           defaultReceiverId={settleUpData.receiverId}
           defaultAmount={settleUpData.amount}

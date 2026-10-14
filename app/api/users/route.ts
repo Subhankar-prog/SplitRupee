@@ -13,6 +13,7 @@ export async function GET() {
         name: true,
         email: true,
         avatarColor: true,
+        upiId: true,
         _count: { select: { memberships: true } },
       },
     });
@@ -27,7 +28,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, avatarColor } = body;
+    const { name, email, avatarColor, upiId } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ ok: false, error: "Name is required" }, { status: 400 });
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
         name: name.trim(),
         email: cleanEmail,
         avatarColor: avatarColor || randomColor,
+        upiId: (upiId || "").trim() || null,
       },
     });
 
@@ -57,5 +59,28 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("[POST /api/users]", e);
     return NextResponse.json({ ok: false, error: "Could not create user" }, { status: 500 });
+  }
+}
+
+/** PATCH /api/users: update user UPI ID or profile */
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { userId, upiId } = body;
+
+    if (!userId) {
+      return NextResponse.json({ ok: false, error: "userId is required" }, { status: 400 });
+    }
+
+    const cleanUPI = (upiId || "").trim();
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { upiId: cleanUPI || null },
+    });
+
+    return NextResponse.json({ ok: true, user: updated });
+  } catch (e: any) {
+    console.error("[PATCH /api/users]", e);
+    return NextResponse.json({ ok: false, error: e.message || "Failed to update user" }, { status: 500 });
   }
 }
