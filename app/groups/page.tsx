@@ -19,6 +19,7 @@ import {
   UserPlus
 } from "lucide-react";
 import CreateGroupModal from "@/components/CreateGroupModal";
+import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 
 const TYPE_ICONS: Record<string, any> = {
   TRIP: Plane,
@@ -142,10 +143,11 @@ export default function GroupsPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="h-10 w-10 text-emerald-400 animate-spin mb-4" />
-            <p className="text-slate-400 text-sm font-medium">Loading your groups...</p>
-          </div>
+          <SplitRupeeLoader
+            fullScreen={false}
+            text="Your Groups"
+            subtext="Loading your active expense groups..."
+          />
         ) : !currentUser ? (
           <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-12 text-center backdrop-blur-xl">
             <Users className="mx-auto h-12 w-12 text-emerald-400/60 mb-4" />

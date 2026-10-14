@@ -22,27 +22,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUsers = useCallback(async () => {
     try {
-      const res = await fetch("/api/users");
+      const savedUserStr =
+        typeof window !== "undefined"
+          ? localStorage.getItem("splitrupee_session_user")
+          : null;
+
+      let parsedUser: any = null;
+      if (savedUserStr) {
+        try {
+          parsedUser = JSON.parse(savedUserStr);
+        } catch {}
+      }
+
+      const queryUrl = parsedUser?.id
+        ? `/api/users?userId=${encodeURIComponent(parsedUser.id)}`
+        : "/api/users";
+      const res = await fetch(queryUrl);
       const json = await res.json();
       if (json.ok && Array.isArray(json.users)) {
         setUsers(json.users);
 
-        const savedUserStr =
-          typeof window !== "undefined"
-            ? localStorage.getItem("splitrupee_session_user")
-            : null;
-
-        if (savedUserStr) {
-          try {
-            const parsed = JSON.parse(savedUserStr);
-            const freshUser = json.users.find((u: MemberDTO) => u.id === parsed.id);
-            if (freshUser) {
-              setCurrentUser(freshUser);
-            } else {
-              setCurrentUser(parsed);
+        if (parsedUser?.id) {
+          const freshUser = json.users.find((u: MemberDTO) => u.id === parsedUser.id);
+          if (freshUser) {
+            setCurrentUser(freshUser);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("splitrupee_session_user", JSON.stringify(freshUser));
             }
-          } catch {
-            setCurrentUser(null);
+          } else {
+            setCurrentUser(parsedUser);
           }
         } else {
           setCurrentUser(null);

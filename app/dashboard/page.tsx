@@ -33,6 +33,7 @@ import AddExpenseModal from "@/components/AddExpenseModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
 import SettleUpModal from "@/components/SettleUpModal";
 import ActivityLogList from "@/components/ActivityLogList";
+import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 
 const TYPE_ICONS = {
   TRIP: Plane,
@@ -162,12 +163,11 @@ export default function DashboardPage() {
 
   if (usersLoading || (!initialLoaded && !currentUser)) {
     return (
-      <div className="grid min-h-[60vh] place-items-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          <p className="text-xs text-slate-400">Loading your SplitRupee dashboard...</p>
-        </div>
-      </div>
+      <SplitRupeeLoader
+        fullScreen={false}
+        text="SplitRupee Dashboard"
+        subtext="Loading your groups, expenses and balances..."
+      />
     );
   }
 

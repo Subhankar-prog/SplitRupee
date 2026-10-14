@@ -20,16 +20,13 @@ export default function AddMemberModal({
   onClose: () => void;
   onAdded: () => void;
 }) {
-  const { users, currentUser, refreshUsers } = useUser();
-  const [tab, setTab] = useState<"link" | "existing" | "new">("link");
+  const { currentUser, refreshUsers } = useUser();
+  const [tab, setTab] = useState<"link" | "new">("link");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
-
-  const existingIds = new Set(existingMembers.map((m) => m.id));
-  const availableUsers = users.filter((u) => !existingIds.has(u.id));
 
   const effectiveCode = inviteCode || groupId;
   const joinUrl = typeof window !== "undefined"
@@ -51,25 +48,6 @@ export default function AddMemberModal({
   function handleShareWhatsApp() {
     const text = `Join our group "${groupName || "SplitRupee"}" to split bills and track expenses: ${joinUrl}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-  }
-
-  async function handleAddExisting(userId: string) {
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/groups/${groupId}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, addedById: currentUser?.id }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to add member");
-      onAdded();
-    } catch (e: any) {
-      setError(e.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function handleCreateAndAdd(e: React.FormEvent) {
@@ -135,15 +113,7 @@ export default function AddMemberModal({
               tab === "link" ? "bg-emerald-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
-            Invite Link
-          </button>
-          <button
-            onClick={() => setTab("existing")}
-            className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
-              tab === "existing" ? "bg-emerald-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Select User
+            Invite Link & QR
           </button>
           <button
             onClick={() => setTab("new")}
@@ -151,7 +121,7 @@ export default function AddMemberModal({
               tab === "new" ? "bg-emerald-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
-            By Email
+            Add by Name / Email
           </button>
         </div>
 
@@ -186,44 +156,7 @@ export default function AddMemberModal({
           </div>
         )}
 
-        {tab === "existing" && (
-          <div className="mt-4 space-y-2">
-            {availableUsers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-400">
-                All registered users are already in this group!
-              </p>
-            ) : (
-              <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-                {availableUsers.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-2.5 hover:border-white/15 hover:bg-white/[0.06] transition"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-slate-950 shadow"
-                        style={{ background: u.avatarColor || "#10b981" }}
-                      >
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-200 truncate">{u.name}</p>
-                        <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
-                      </div>
-                    </div>
-                    <button
-                      disabled={loading}
-                      onClick={() => handleAddExisting(u.id)}
-                      className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-950 transition disabled:opacity-50"
-                    >
-                      + Add
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+
 
         {tab === "new" && (
           <form onSubmit={handleCreateAndAdd} className="mt-4 space-y-3">

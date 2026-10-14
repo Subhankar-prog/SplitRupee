@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useUser } from "@/lib/userContext";
-import { X, Plane, Home, Heart, Tag, Check, Users, Plus } from "lucide-react";
+import { X, Plane, Home, Heart, Tag, Check, Users, Plus, UserPlus, Info } from "lucide-react";
 import type { GroupTypeName } from "@/lib/types";
 
 const GROUP_TYPES: { type: GroupTypeName; label: string; icon: typeof Plane }[] = [
@@ -19,25 +19,11 @@ export default function CreateGroupModal({
   onClose: () => void;
   onCreated: (groupId: string) => void;
 }) {
-  const { users, currentUser } = useUser();
+  const { currentUser } = useUser();
   const [name, setName] = useState("");
   const [type, setType] = useState<GroupTypeName>("TRIP");
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>(
-    currentUser ? [currentUser.id] : []
-  );
-  const [extraEmail, setExtraEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const toggleUser = (id: string) => {
-    if (selectedUserIds.includes(id)) {
-      if (selectedUserIds.length > 1) {
-        setSelectedUserIds(selectedUserIds.filter((u) => u !== id));
-      }
-    } else {
-      setSelectedUserIds([...selectedUserIds, id]);
-    }
-  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,8 +31,8 @@ export default function CreateGroupModal({
       setError("Please enter a group name");
       return;
     }
-    if (selectedUserIds.length === 0) {
-      setError("Please select at least one member");
+    if (!currentUser) {
+      setError("You must be logged in to create a group");
       return;
     }
 
@@ -61,8 +47,8 @@ export default function CreateGroupModal({
           name: name.trim(),
           type,
           currency: "INR",
-          memberUserIds: selectedUserIds,
-          createdById: currentUser?.id,
+          memberUserIds: [currentUser.id],
+          createdById: currentUser.id,
         }),
       });
 
@@ -146,49 +132,15 @@ export default function CreateGroupModal({
             </div>
           </div>
 
-          {/* Select Members */}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-300">
-                Group Members ({selectedUserIds.length} selected)
-              </label>
-              <span className="text-[11px] text-slate-500">
-                Click to add or remove
-              </span>
+          {/* Invite Members Guidance Card */}
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+              <UserPlus className="h-4 w-4 shrink-0" />
+              <span>Inviting Group Members</span>
             </div>
-
-            <div className="mt-2 max-h-40 overflow-y-auto space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-2">
-              {users.map((u) => {
-                const isSelected = selectedUserIds.includes(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => toggleUser(u.id)}
-                    className={`w-full flex items-center justify-between rounded-lg p-2 text-left transition border ${
-                      isSelected
-                        ? "border-emerald-500/40 bg-emerald-500/10 text-white"
-                        : "border-transparent bg-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-slate-950 shadow"
-                        style={{ background: u.avatarColor || "#10b981" }}
-                      >
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-xs font-medium truncate">{u.name}</span>
-                    </div>
-                    {isSelected && (
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-slate-950">
-                        <Check className="h-3 w-3 stroke-[3]" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              You will automatically be added as the group creator. Once the group is created, you can invite your flatmates, friends, or travel companions anytime via private invite link or WhatsApp.
+            </p>
           </div>
 
           {/* Actions */}

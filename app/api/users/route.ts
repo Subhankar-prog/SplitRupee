@@ -3,10 +3,18 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/users: list all users in the system for fast multi-user switching or adding to groups */
-export async function GET() {
+/** GET /api/users: fetch user details with optional userId filter */
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    const where: any = {};
+    if (userId) {
+      where.id = userId;
+    }
+
     const users = await prisma.user.findMany({
+      where,
       orderBy: { name: "asc" },
       select: {
         id: true,

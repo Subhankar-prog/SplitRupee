@@ -4,8 +4,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useUser } from "@/lib/userContext";
 import type { ActivityLogDTO, ActionTypeName } from "@/lib/types";
 import { ACTION_TYPES } from "@/lib/types";
-import { Activity, Clock, Filter, Loader2, Sparkles } from "lucide-react";
+import { Activity, Clock, Filter, Sparkles } from "lucide-react";
 import ActivityLogList from "@/components/ActivityLogList";
+import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 
 export default function ActivityPage() {
   const { currentUser } = useUser();
@@ -39,12 +40,11 @@ export default function ActivityPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          <p className="text-xs text-slate-400">Loading activity feed...</p>
-        </div>
-      </div>
+      <SplitRupeeLoader
+        fullScreen={false}
+        text="Recent Activity & Audit Log"
+        subtext="Loading real-time expense and settlement history..."
+      />
     );
   }
 

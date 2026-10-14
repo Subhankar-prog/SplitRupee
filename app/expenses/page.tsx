@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
+import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
   Food: { icon: Utensils, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -87,12 +88,11 @@ export default function AllExpensesPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[60vh] place-items-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          <p className="text-xs text-slate-400">Loading expenses across all groups...</p>
-        </div>
-      </div>
+      <SplitRupeeLoader
+        fullScreen={false}
+        text="All Expenses"
+        subtext="Fetching transactions across your groups..."
+      />
     );
   }
 
