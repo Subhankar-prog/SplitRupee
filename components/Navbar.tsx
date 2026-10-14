@@ -24,6 +24,7 @@ import {
   QrCode,
   Check,
   Edit2,
+  Plane,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
