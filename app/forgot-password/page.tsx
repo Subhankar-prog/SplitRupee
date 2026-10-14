@@ -97,6 +97,14 @@ export default function ForgotPasswordPage() {
               </p>
             </div>
 
+            {/* Account Security Notice about 7-Day Limit */}
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-[11.5px] text-slate-300 flex items-start gap-2.5 text-left leading-relaxed">
+              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>
+                For account protection, password reset requests are limited to <strong>once every 7 days</strong>. The secure link sent to your email remains valid for <strong>15 minutes</strong>.
+              </span>
+            </div>
+
             {error && (
               <div
                 role="alert"
@@ -150,7 +158,7 @@ export default function ForgotPasswordPage() {
 
             <div className="pt-2 border-t border-white/5 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-              <span>100% Free & Secure · Magic Links delivered via Resend</span>
+              <span>Protected by 256-bit encryption · SplitRupee Security</span>
             </div>
           </div>
         )}
@@ -230,8 +238,8 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-white/5 text-center text-[10.5px] text-slate-500">
-              Zero-cost security · Accounts limited to 1 reset request per week
+            <div className="pt-2 border-t border-white/5 text-center text-[11px] text-slate-400">
+              For security, password reset requests are limited to once every 7 days
             </div>
           </div>
         )}

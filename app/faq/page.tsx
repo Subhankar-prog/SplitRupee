@@ -56,6 +56,12 @@ const faqs: FaqItem[] = [
     answer:
       "No, SplitRupee is a non-custodial expense ledger. We never hold your funds. All money transfers happen directly between your bank accounts via NPCI's official UPI network on Google Pay, PhonePe, and Paytm.",
   },
+  {
+    category: "privacy",
+    question: "How often can I reset my password?",
+    answer:
+      "For account security and protection against unauthorized access, password reset requests are limited to once every 7 days per account. Each secure reset link delivered to your registered email remains valid for 15 minutes.",
+  },
 ];
 
 export default function FaqPage() {
