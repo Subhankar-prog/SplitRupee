@@ -1,0 +1,19 @@
+{
+  "name": "SplitRupee — Indian Split Expenses & Travel",
+  "short_name": "SplitRupee",
+  "description": "Split expenses, manage group budgets, minimize debts and travel effortlessly across India.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "travel", "utilities"]
+}

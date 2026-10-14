@@ -3,6 +3,25 @@ import type { MemberDTO, ExpenseDTO, PaymentDTO } from "./types";
 import type { Transfer } from "./debt";
 
 /**
+ * Cleans string of Unicode characters that break in standard jsPDF WinAnsi fonts.
+ * Converts arrows, bullets, rupee signs, and non-ASCII chars to clean, safe equivalents.
+ */
+function cleanPdfText(str: any): string {
+  if (str === null || str === undefined) return "";
+  const s = String(str);
+  return s
+    .replace(/[➔→➜➤]/g, " -> ")
+    .replace(/[•●·]/g, " - ")
+    .replace(/₹/g, "INR ")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/…/g, "...")
+    .replace(/[^\x00-\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Generates an elegant, theme-based printable PDF for travel itineraries.
  */
 export function exportItineraryPDF(itineraryData: {
@@ -29,26 +48,20 @@ export function exportItineraryPDF(itineraryData: {
         to: string;
         mode: string;
         depart?: string;
+        arrive?: string;
         duration?: string;
-        cost?: string;
-      }>;
-      activities?: Array<{
-        time?: string;
-        activity: string;
-        description?: string;
         cost?: string | number;
-        tips?: string;
+        note?: string;
       }>;
+      activities?: any;
+      hotelDetails?: {
+        name: string;
+        costPerNight: number;
+        contact?: string;
+      };
     }>;
-    equipments?: Array<{
-      item: string;
-      category?: string;
-      importance?: string;
-    }>;
-    tips?: Array<{
-      title: string;
-      description?: string;
-    }>;
+    equipments?: any[];
+    tips?: any[];
   };
   financialSummary?: {
     totalEstimatedCost: number;
@@ -57,6 +70,7 @@ export function exportItineraryPDF(itineraryData: {
     totalHotelCost: number;
     budgetDifference: number;
     budgetStatus: string;
+    targetNightlyStayBudget?: number;
   };
 }) {
   const { form, result, financialSummary } = itineraryData;
@@ -81,7 +95,9 @@ export function exportItineraryPDF(itineraryData: {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
-    doc.text(`SPLITRUPEE ITINERARY • ${form.origin.toUpperCase()} ➔ ${form.destination.toUpperCase()}`, margin + 3, y + 5.5);
+    const cleanOrigin = cleanPdfText(form.origin).toUpperCase();
+    const cleanDest = cleanPdfText(form.destination).toUpperCase();
+    doc.text(`SPLITRUPEE ITINERARY | ${cleanOrigin} -> ${cleanDest}`, margin + 3, y + 5.5);
     doc.setTextColor(16, 185, 129);
     doc.text("SMART TRAVEL BLUEPRINT", pageWidth - margin - 3, y + 5.5, { align: "right" });
     y += 12;
@@ -95,9 +111,9 @@ export function exportItineraryPDF(itineraryData: {
   doc.setFillColor(16, 185, 129); // Emerald
   doc.roundedRect(margin + 4, y + 4, 10, 10, 2, 2, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text("INR", margin + 5.2, y + 11);
+  doc.text("INR", margin + 4.8, y + 10.5);
 
   // App Title
   doc.setFont("helvetica", "bold");
@@ -110,11 +126,12 @@ export function exportItineraryPDF(itineraryData: {
   doc.setTextColor(148, 163, 184); // slate-400
   doc.text("Curated itinerary with transit telemetry, stays, and budget optimization", margin + 17, y + 15);
 
-  // Trip Route Header
+  // Trip Route Header (Bhubaneswar -> Goa with clean ASCII arrow)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(52, 211, 153); // emerald-400
-  doc.text(`${form.origin}  ➔  ${form.destination}`, margin + 5, y + 26);
+  const routeText = `${cleanPdfText(form.origin)}   ->   ${cleanPdfText(form.destination)}`;
+  doc.text(routeText, margin + 5, y + 26);
 
   // Meta Pill line
   doc.setFont("helvetica", "normal");
@@ -123,7 +140,7 @@ export function exportItineraryPDF(itineraryData: {
   const nightsText = form.nights ? `${form.nights} Nights` : "Multi-day";
   const paxText = form.travellers ? `${form.travellers} Travelers (${form.groupType || "Trip"})` : "Travel Group";
   const datesText = form.startDate && form.endDate ? `${form.startDate} to ${form.endDate}` : "Flexible Dates";
-  doc.text(`${nightsText}  •  ${paxText}  •  ${datesText}`, margin + 5, y + 31.5);
+  doc.text(`${nightsText}   |   ${paxText}   |   ${datesText}`, margin + 5, y + 31.5);
 
   y += 41;
 
@@ -131,18 +148,19 @@ export function exportItineraryPDF(itineraryData: {
   if (financialSummary) {
     doc.setFillColor(241, 245, 249); // slate-100
     doc.setDrawColor(203, 213, 225);
-    doc.roundedRect(margin, y, contentWidth, 22, 2, 2, "FD");
+    doc.roundedRect(margin, y, contentWidth, 23, 2, 2, "FD");
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(15, 23, 42);
-    doc.text("ESTIMATED TRIP BUDGET", margin + 4, y + 6);
+    const budgetBadge = financialSummary.budgetStatus === "UNDER_BUDGET" ? "[ UNDER BUDGET ]" : "[ AT BUDGET LIMIT ]";
+    doc.text(`ESTIMATED TRIP BUDGET   ${budgetBadge}`, margin + 4, y + 6);
 
     const colW = contentWidth / 4;
 
     // Total Cost
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(5, 150, 105); // emerald-600
     doc.text(`INR ${financialSummary.totalEstimatedCost.toLocaleString()}`, margin + 4, y + 14);
     doc.setFontSize(7);
@@ -178,7 +196,7 @@ export function exportItineraryPDF(itineraryData: {
     doc.setTextColor(100, 116, 139);
     doc.text("Per traveler share", margin + colW * 3 + 4, y + 18);
 
-    y += 26;
+    y += 27;
   }
 
   // 3. DAY BY DAY ITINERARY
@@ -204,112 +222,305 @@ export function exportItineraryPDF(itineraryData: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(241, 245, 249);
-    doc.text(`Stay: ${d.stay || "Recommended Hotel"}`, pageWidth - margin - 4, y + 5.5, { align: "right" });
+    const stayLabel = cleanPdfText(d.stay || d.hotelDetails?.name || "Recommended Hotel");
+    doc.text(`Stay: ${stayLabel}`, pageWidth - margin - 4, y + 5.5, { align: "right" });
     y += 11;
 
     // Legs / Transit
     if (d.legs && d.legs.length > 0) {
       d.legs.forEach((leg) => {
-        checkPageBreak(12);
+        const cleanFrom = cleanPdfText(leg.from);
+        const cleanTo = cleanPdfText(leg.to);
+        const legDetails = [
+          leg.mode ? `Mode: ${cleanPdfText(leg.mode)}` : "",
+          leg.depart ? `Depart: ${cleanPdfText(leg.depart)}` : "",
+          leg.arrive ? `Arrive: ${cleanPdfText(leg.arrive)}` : "",
+          leg.duration ? `Duration: ${cleanPdfText(leg.duration)}` : "",
+          leg.cost ? `Cost: INR ${cleanPdfText(leg.cost)}` : "",
+        ]
+          .filter(Boolean)
+          .join("  |  ");
+
+        // Check if there is an exact train name, helpline or transit note
+        const noteText = leg.note ? cleanPdfText(leg.note) : "";
+        const noteLines = noteText ? doc.splitTextToSize(`Info / Note: ${noteText}`, contentWidth - 8) : [];
+        const legHeight = 11 + (noteLines.length > 0 ? noteLines.length * 3.6 + 4 : 0);
+
+        checkPageBreak(legHeight + 2);
+
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin, y, contentWidth, 10, 1, 1, "FD");
+        doc.roundedRect(margin, y, contentWidth, legHeight, 1, 1, "FD");
+
+        // Blue accent left bar for Transit
+        doc.setFillColor(14, 165, 233); // sky-500
+        doc.rect(margin, y, 1.5, legHeight, "F");
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
         doc.setTextColor(15, 23, 42);
-        doc.text(`Transit: ${leg.from}  ➔  ${leg.to}`, margin + 3, y + 4.5);
+        doc.text(`Transit: ${cleanFrom}   ->   ${cleanTo}`, margin + 4, y + 4.5);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(71, 85, 105);
-        const legDetails = [
-          leg.mode ? `Mode: ${leg.mode}` : "",
-          leg.depart ? `Depart: ${leg.depart}` : "",
-          leg.duration ? `Duration: ${leg.duration}` : "",
-          leg.cost ? `Cost: ${leg.cost}` : "",
-        ]
-          .filter(Boolean)
-          .join("  |  ");
-        doc.text(legDetails, margin + 3, y + 8);
+        doc.text(legDetails, margin + 4, y + 8.5);
 
-        y += 12;
+        // Render Train Name & Helpline if present
+        if (noteLines.length > 0) {
+          doc.setFillColor(241, 245, 249);
+          doc.roundedRect(margin + 3, y + 10.5, contentWidth - 6, noteLines.length * 3.6 + 2, 0.8, 0.8, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(30, 41, 59);
+          doc.text(noteLines, margin + 5, y + 13.5);
+        }
+
+        y += legHeight + 2.5;
       });
     }
 
-    // Activities
-    if (d.activities && d.activities.length > 0) {
-      d.activities.forEach((act) => {
-        const descLines = doc.splitTextToSize(act.description || "", contentWidth - 32);
-        const cardHeight = Math.max(12, 7 + descLines.length * 3.5);
+    // Daily Activities (Morning, Afternoon, Evening, Food)
+    if (d.activities) {
+      if (typeof d.activities === "object" && !Array.isArray(d.activities)) {
+        // Structured periods: morning, afternoon, evening, food
+        const periods: Array<{ key: string; label: string; color: [number, number, number] }> = [
+          { key: "morning", label: "MORNING", color: [16, 185, 129] }, // emerald
+          { key: "afternoon", label: "AFTERNOON", color: [20, 184, 166] }, // teal
+          { key: "evening", label: "EVENING", color: [99, 102, 241] }, // indigo
+          { key: "food", label: "FOOD & DINING", color: [245, 158, 11] }, // amber
+        ];
 
-        checkPageBreak(cardHeight + 2);
+        periods.forEach(({ key, label, color }) => {
+          const text = (d.activities as any)[key];
+          if (text && typeof text === "string" && text.trim().length > 0) {
+            const cleanText = cleanPdfText(text);
+            const textLines = doc.splitTextToSize(cleanText, contentWidth - 32);
+            const actHeight = Math.max(8, textLines.length * 3.6 + 3.5);
 
-        doc.setFillColor(255, 255, 255);
+            checkPageBreak(actHeight + 2);
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(241, 245, 249);
+            doc.roundedRect(margin, y, contentWidth, actHeight, 1, 1, "FD");
+
+            // Left period color strip
+            doc.setFillColor(color[0], color[1], color[2]);
+            doc.rect(margin, y, 1.5, actHeight, "F");
+
+            // Period badge text
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(7);
+            doc.setTextColor(color[0], color[1], color[2]);
+            doc.text(label, margin + 4, y + 4.5);
+
+            // Period description
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7.5);
+            doc.setTextColor(51, 65, 85);
+            doc.text(textLines, margin + 28, y + 4.5);
+
+            y += actHeight + 1.5;
+          }
+        });
+      } else if (Array.isArray(d.activities) && d.activities.length > 0) {
+        // Array of activity objects
+        d.activities.forEach((act: any) => {
+          const actTitle = cleanPdfText(act.activity || act.time || "Activity");
+          const actDesc = cleanPdfText(act.description || "");
+          const descLines = doc.splitTextToSize(actDesc, contentWidth - 32);
+          const cardHeight = Math.max(10, 6 + descLines.length * 3.5);
+
+          checkPageBreak(cardHeight + 2);
+
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(margin, y, contentWidth, cardHeight, 1, 1, "FD");
+
+          doc.setFillColor(16, 185, 129);
+          doc.rect(margin, y, 1.5, cardHeight, "F");
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.setTextColor(13, 148, 136);
+          doc.text(cleanPdfText(act.time || "Activity"), margin + 4, y + 4.5);
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(15, 23, 42);
+          doc.text(actTitle, margin + 28, y + 4.5);
+
+          if (act.cost) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7.5);
+            doc.setTextColor(5, 150, 105);
+            doc.text(`INR ${cleanPdfText(act.cost)}`, pageWidth - margin - 3, y + 4.5, { align: "right" });
+          }
+
+          if (descLines.length > 0) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7.5);
+            doc.setTextColor(71, 85, 105);
+            doc.text(descLines, margin + 28, y + 8.5);
+          }
+
+          y += cardHeight + 2;
+        });
+      }
+    }
+
+    // Accommodation & Night Stay Card
+    if (d.hotelDetails && d.hotelDetails.name) {
+      const hotelName = cleanPdfText(d.hotelDetails.name);
+      const contactText = d.hotelDetails.contact ? cleanPdfText(d.hotelDetails.contact) : "";
+      const priceText = d.hotelDetails.costPerNight ? `INR ${d.hotelDetails.costPerNight} / night` : "";
+
+      checkPageBreak(14);
+
+      doc.setFillColor(240, 253, 244); // emerald-50
+      doc.setDrawColor(187, 247, 208); // emerald-200
+      doc.roundedRect(margin, y, contentWidth, 12, 1, 1, "FD");
+
+      doc.setFillColor(16, 185, 129);
+      doc.rect(margin, y, 1.5, 12, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(5, 150, 105);
+      doc.text("HOTEL & NIGHT STAY:", margin + 4, y + 4.5);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(hotelName, margin + 40, y + 4.5);
+
+      if (priceText) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(5, 150, 105);
+        doc.text(priceText, pageWidth - margin - 4, y + 4.5, { align: "right" });
+      }
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105);
+      const deskLine = contactText
+        ? `Verified Reception / Front Desk: ${contactText}`
+        : "Reservation via official hotel front desk or verified online booking portal";
+      doc.text(deskLine, margin + 4, y + 8.5);
+
+      y += 14;
+    }
+
+    y += 3;
+  });
+
+  // 4. EQUIPMENTS & PACKING GEAR CHECKLIST
+  const equipments = Array.isArray(result.equipments) ? result.equipments : [];
+  if (equipments.length > 0) {
+    checkPageBreak(30);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text("EQUIPMENTS & PACKING CHECKLIST", margin, y + 3);
+    y += 6;
+
+    // Render packing checklist in 2-column or list format
+    const colWidth = (contentWidth - 4) / 2;
+    for (let i = 0; i < equipments.length; i += 2) {
+      checkPageBreak(9);
+
+      const item1 = equipments[i];
+      const item2 = i + 1 < equipments.length ? equipments[i + 1] : null;
+
+      const renderItem = (itemData: any, posX: number) => {
+        let text = "";
+        if (typeof itemData === "string") {
+          text = cleanPdfText(itemData);
+        } else if (itemData && typeof itemData === "object") {
+          text = cleanPdfText(itemData.item || itemData.name || "");
+          if (itemData.category) {
+            text += ` (${cleanPdfText(itemData.category)})`;
+          }
+        }
+        if (!text) return;
+
+        doc.setFillColor(248, 250, 252);
         doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin, y, contentWidth, cardHeight, 1, 1, "FD");
+        doc.roundedRect(posX, y, colWidth, 7.5, 1, 1, "FD");
 
-        // Green left border bar
-        doc.setFillColor(16, 185, 129);
-        doc.rect(margin, y, 1.5, cardHeight, "F");
+        // Checkbox square
+        doc.setDrawColor(16, 185, 129);
+        doc.rect(posX + 2.5, y + 2, 3.5, 3.5);
 
-        // Time pill
-        doc.setFont("helvetica", "bold");
+        doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
-        doc.setTextColor(13, 148, 136);
-        doc.text(act.time || "Activity", margin + 4, y + 4.5);
+        doc.setTextColor(51, 65, 85);
+        const truncated = text.length > 38 ? text.slice(0, 36) + "..." : text;
+        doc.text(truncated, posX + 8, y + 4.8);
+      };
 
-        // Activity Title
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8.5);
-        doc.setTextColor(15, 23, 42);
-        doc.text(act.activity, margin + 28, y + 4.5);
+      renderItem(item1, margin);
+      if (item2) {
+        renderItem(item2, margin + colWidth + 4);
+      }
 
-        // Cost if present
-        if (act.cost) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(7.5);
-          doc.setTextColor(5, 150, 105);
-          doc.text(String(act.cost), pageWidth - margin - 3, y + 4.5, { align: "right" });
-        }
-
-        // Description
-        if (descLines.length > 0) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(7.5);
-          doc.setTextColor(71, 85, 105);
-          doc.text(descLines, margin + 28, y + 8.5);
-        }
-
-        y += cardHeight + 2;
-      });
+      y += 9;
     }
 
     y += 4;
-  });
+  }
 
-  // 4. TRAVEL TIPS & PACKING
-  if (result.tips && result.tips.length > 0) {
-    checkPageBreak(25);
+  // 5. SMART TRAVEL TIPS & ADVICE
+  const tips = Array.isArray(result.tips) ? result.tips : [];
+  if (tips.length > 0) {
+    checkPageBreak(30);
+
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(10.5);
     doc.setTextColor(15, 23, 42);
-    doc.text("SMART TRAVEL TIPS & ADVICE", margin, y + 2);
+    doc.text("SMART TRAVEL TIPS & ADVICE", margin, y + 3);
     y += 6;
 
-    result.tips.slice(0, 4).forEach((tip) => {
-      const tipLines = doc.splitTextToSize(`${tip.title}: ${tip.description || ""}`, contentWidth - 8);
-      const boxH = Math.max(8, tipLines.length * 3.5 + 4);
+    tips.forEach((tip) => {
+      let formattedTip = "";
+      if (typeof tip === "string") {
+        formattedTip = cleanPdfText(tip);
+      } else if (tip && typeof tip === "object") {
+        const title = cleanPdfText(tip.title || "");
+        const desc = cleanPdfText(tip.description || tip.text || "");
+        if (title && desc) {
+          formattedTip = `${title}: ${desc}`;
+        } else {
+          formattedTip = title || desc;
+        }
+      }
+
+      if (!formattedTip) return;
+
+      const tipLines = doc.splitTextToSize(formattedTip, contentWidth - 14);
+      const boxH = Math.max(8, tipLines.length * 3.6 + 4);
       checkPageBreak(boxH + 2);
 
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
       doc.roundedRect(margin, y, contentWidth, boxH, 1, 1, "FD");
 
+      // Left amber indicator bar
+      doc.setFillColor(245, 158, 11); // amber-500
+      doc.rect(margin, y, 1.5, boxH, "F");
+
+      // Clean dash bullet
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(245, 158, 11);
+      doc.text("-", margin + 3.5, y + 4.5);
+
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(51, 65, 85);
-      doc.text(tipLines, margin + 4, y + 4.5);
+      doc.text(tipLines, margin + 7, y + 4.5);
 
       y += boxH + 2;
     });
@@ -325,13 +536,16 @@ export function exportItineraryPDF(itineraryData: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(148, 163, 184);
-    doc.text("Generated with SplitRupee • splitrupee.vercel.app", margin, pageHeight - 8);
+    doc.text("Generated with SplitRupee - splitrupee.vercel.app", margin, pageHeight - 8);
     doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: "right" });
   }
 
   // Save PDF
-  const filename = `${form.destination.toLowerCase().replace(/[^a-z0-9]/g, "_")}_trip_itinerary.pdf`;
-  doc.save(filename);
+  const safeFilename = `${cleanPdfText(form.destination).toLowerCase().replace(/[^a-z0-9]/g, "_")}_trip_itinerary.pdf`;
+  if (typeof window !== "undefined") {
+    doc.save(safeFilename);
+  }
+  return doc;
 }
 
 /**
