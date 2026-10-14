@@ -70,7 +70,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setCurrentUser(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("splitrupee_session_user");
-      window.location.href = "/login";
+      window.location.replace("/login");
     }
   };
 

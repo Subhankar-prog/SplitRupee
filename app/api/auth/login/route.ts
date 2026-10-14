@@ -47,7 +47,7 @@ export async function POST(req: Request) {
             name: name || "Google User",
             email: email.toLowerCase() || `user.${Date.now()}@gmail.com`,
             avatarColor: "#10b981",
-            upiId: `${(name || "user").toLowerCase().replace(/[^a-z0-9]/g, "")}@upi`,
+            upiId: null,
           },
           select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true, createdAt: true },
         });

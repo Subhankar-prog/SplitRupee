@@ -3,16 +3,18 @@
 import React, { Suspense } from "react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import ReferenceAuthCard from "@/components/auth/ReferenceAuthCard";
-import { Loader2 } from "lucide-react";
+import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 
 export default function LoginPage() {
   return (
     <AuthLayout>
       <Suspense
         fallback={
-          <div className="flex min-h-[50vh] items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          </div>
+          <SplitRupeeLoader
+            fullScreen={false}
+            text="SplitRupee"
+            subtext="Preparing secure sign in..."
+          />
         }
       >
         <ReferenceAuthCard initialMode="login" />

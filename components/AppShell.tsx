@@ -7,11 +7,13 @@ import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { useUser } from "@/lib/userContext";
 import { useRealtimeSync } from "@/lib/useRealtimeSync";
-import { Loader2, Lock } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle } from "lucide-react";
+import SplitRupeeLoader from "./SplitRupeeLoader";
+import AddUpiModal from "./AddUpiModal";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAddUpiModal, setShowAddUpiModal] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, isLoading } = useUser();
@@ -56,62 +58,68 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
         <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+        {currentUser && !currentUser.upiId && (
+          <div className="w-full bg-gradient-to-r from-amber-500/20 via-orange-500/25 to-amber-500/20 border-b border-amber-500/35 px-4 py-2 text-center text-xs font-medium text-amber-200 flex items-center justify-center gap-2 z-20 shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
+            <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+            <span>
+              For one tap settlement, add your UPI ID.{" "}
+              <button
+                type="button"
+                onClick={() => setShowAddUpiModal(true)}
+                className="font-bold underline text-amber-300 hover:text-white transition ml-1 cursor-pointer"
+              >
+                Click here to add
+              </button>
+            </span>
+          </div>
+        )}
         <main className="flex-1 w-full">{children}</main>
         <Footer />
+        <AddUpiModal isOpen={showAddUpiModal} onClose={() => setShowAddUpiModal(false)} />
       </div>
     );
   }
 
-  // If loading session on protected routes
+  // If loading session on protected routes: render theme-standard loader
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          <p className="text-xs text-slate-400 font-medium">Checking authentication...</p>
-        </div>
+        <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Checking session..." />
       </div>
     );
   }
 
-  // If not logged in on protected route
+  // If not logged in on protected route: smoothly redirect with branded loader (no jarring box flash)
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-        <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-8 text-center space-y-5 shadow-2xl">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Lock className="h-6 w-6" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Login Required</h2>
-            <p className="text-xs text-slate-400">
-              You must sign in or create an account to access groups, expenses, and your dashboard.
-            </p>
-            <div className="flex gap-3 pt-2">
-              <Link
-                href="/login"
-                className="flex-1 rounded-xl bg-emerald-500 py-3 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="flex-1 rounded-xl border border-white/15 bg-white/5 py-3 text-xs font-semibold text-white hover:bg-white/10 transition"
-              >
-                Sign Up
-              </Link>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Redirecting to sign in..." />
       </div>
     );
   }
 
-  // Logged-in App Dashboard Layout with Sidebar
+  // Logged-in App Dashboard Layout with Sidebar & Top UPI Banner
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
       <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+
+      {/* Orange One-Tap Settlement Banner if User has no UPI ID */}
+      {!currentUser.upiId && (
+        <div className="w-full bg-gradient-to-r from-amber-500/20 via-orange-500/25 to-amber-500/20 border-b border-amber-500/35 px-4 py-2 text-center text-xs font-medium text-amber-200 flex items-center justify-center gap-2 z-20 shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+          <span>
+            For one tap settlement, add your UPI ID.{" "}
+            <button
+              type="button"
+              onClick={() => setShowAddUpiModal(true)}
+              className="font-bold underline text-amber-300 hover:text-white transition ml-1 cursor-pointer"
+            >
+              Click here to add
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-1">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         {/* Mobile: full width (sidebar is an overlay). Desktop (md+): offset by sidebar width */}
@@ -122,6 +130,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+
+      <AddUpiModal isOpen={showAddUpiModal} onClose={() => setShowAddUpiModal(false)} />
     </div>
   );
 }
