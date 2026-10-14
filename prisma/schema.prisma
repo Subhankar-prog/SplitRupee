@@ -51,6 +51,7 @@ model User {
   passwordHash     String?
   resetToken       String?        @unique
   resetTokenExpiry DateTime?
+  lastResetRequested DateTime?
   createdAt        DateTime       @default(now())
   memberships      GroupMember[]
   paidExpenses     Expense[]      @relation("ExpensePayer")

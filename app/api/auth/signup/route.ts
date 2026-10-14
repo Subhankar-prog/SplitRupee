@@ -21,23 +21,13 @@ export async function POST(req: Request) {
     let userEmail = (email || "").trim().toLowerCase();
     let userPhone = (phone || "").trim();
 
-    if (authMethod === "phone") {
-      if (!userPhone || userPhone.length < 10) {
-        return NextResponse.json({ ok: false, error: "Valid 10-digit mobile number is required" }, { status: 400 });
-      }
-      if (!userEmail) {
-        userEmail = `${userPhone.slice(-10)}@splitrupee.in`;
-      }
-    } else if (authMethod === "email") {
-      if (!userEmail || !userEmail.includes("@")) {
-        return NextResponse.json({ ok: false, error: "Valid email address is required" }, { status: 400 });
-      }
+    if (!userEmail || !userEmail.includes("@")) {
+      return NextResponse.json({ ok: false, error: "A valid email address is required for account security and password recovery." }, { status: 400 });
+    }
+
+    if (authMethod !== "google") {
       if (!password || password.length < 4) {
-        return NextResponse.json({ ok: false, error: "Password must be at least 4 characters long" }, { status: 400 });
-      }
-    } else if (authMethod === "google") {
-      if (!userEmail || !userEmail.includes("@")) {
-        return NextResponse.json({ ok: false, error: "Valid Google email address is required" }, { status: 400 });
+        return NextResponse.json({ ok: false, error: "Password must be at least 4 characters long." }, { status: 400 });
       }
     }
 

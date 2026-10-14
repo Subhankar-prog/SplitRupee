@@ -21,19 +21,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Reset token is missing" }, { status: 400 });
     }
 
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: {
-          gt: new Date(),
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-      },
-    });
+    const users: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, email, name FROM "User" WHERE "resetToken" = $1 AND "resetTokenExpiry" > NOW() LIMIT 1`,
+      token
+    );
+    const user = users[0];
 
     if (!user) {
       return NextResponse.json(
@@ -75,22 +67,21 @@ export async function POST(req: Request) {
     // 1. Phone-verified reset
     if (phone) {
       const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-      const user = await prisma.user.findFirst({
-        where: { phone: cleanPhone },
-      });
+      const users: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id FROM "User" WHERE phone = $1 LIMIT 1`,
+        cleanPhone
+      );
+      const user = users[0];
 
       if (!user) {
         return NextResponse.json({ ok: false, error: "No account found with this phone number." }, { status: 404 });
       }
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          passwordHash: hashPassword(newPassword.trim()),
-          resetToken: null,
-          resetTokenExpiry: null,
-        },
-      });
+      await prisma.$executeRawUnsafe(
+        `UPDATE "User" SET "passwordHash" = $1, "resetToken" = NULL, "resetTokenExpiry" = NULL WHERE "id" = $2`,
+        hashPassword(newPassword.trim()),
+        user.id
+      );
 
       return NextResponse.json({
         ok: true,
@@ -99,14 +90,11 @@ export async function POST(req: Request) {
     }
 
     // 2. Email token-verified reset
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: {
-          gt: new Date(),
-        },
-      },
-    });
+    const users: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id FROM "User" WHERE "resetToken" = $1 AND "resetTokenExpiry" > NOW() LIMIT 1`,
+      token
+    );
+    const user = users[0];
 
     if (!user) {
       return NextResponse.json(
@@ -115,14 +103,11 @@ export async function POST(req: Request) {
       );
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash: hashPassword(newPassword.trim()),
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
+    await prisma.$executeRawUnsafe(
+      `UPDATE "User" SET "passwordHash" = $1, "resetToken" = NULL, "resetTokenExpiry" = NULL WHERE "id" = $2`,
+      hashPassword(newPassword.trim()),
+      user.id
+    );
 
     return NextResponse.json({
       ok: true,

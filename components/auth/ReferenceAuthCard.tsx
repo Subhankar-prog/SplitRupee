@@ -201,10 +201,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
     // --- STANDARD REGISTRATION ---
     const isEmail = trimmedId.includes("@");
-    const cleanPhone = trimmedId.replace(/\D/g, "").slice(-10);
 
-    if (!isEmail && cleanPhone.length !== 10) {
-      setSignupError("Please enter a valid email address or 10-digit mobile number.");
+    if (!isEmail) {
+      setSignupError("Please enter a valid email address for password recovery.");
       return;
     }
 
@@ -223,17 +222,12 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
     const payload: any = {
       name: signupName.trim(),
+      email: trimmedId.toLowerCase(),
       password: signupPassword.trim(),
-      authMethod: isEmail ? "email" : "phone",
+      authMethod: "email",
       avatarColor: "#10b981",
       upiId: signupUpiId.trim() || undefined,
     };
-
-    if (isEmail) {
-      payload.email = trimmedId.toLowerCase();
-    } else {
-      payload.phone = cleanPhone;
-    }
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -601,13 +595,13 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                 title={isGoogleOnboarding ? "Email verified by Google (cannot be changed)" : undefined}
               />
               <label htmlFor="signup-id">
-                {isGoogleOnboarding ? "Google Email (Verified)" : "Email or Mobile Number"}
+                {isGoogleOnboarding ? "Google Email (Verified)" : "Email Address (for password recovery)"}
               </label>
               <div className="field-icon">
                 {isGoogleOnboarding ? (
                   <Lock className="h-4 w-4 text-emerald-400/80" />
                 ) : (
-                  <Phone className="h-4 w-4" />
+                  <Mail className="h-4 w-4" />
                 )}
               </div>
             </div>

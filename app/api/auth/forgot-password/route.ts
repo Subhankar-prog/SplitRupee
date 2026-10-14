@@ -20,15 +20,18 @@ export async function POST(req: Request) {
 
     // 1. Locate user by email or phone
     const cleanPhone = cleanId.replace(/\D/g, "").slice(-10);
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: { equals: cleanId, mode: "insensitive" } },
-          ...(cleanPhone.length === 10 ? [{ phone: cleanPhone }] : []),
-        ],
-      },
-    });
+    const users: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, name, email, phone, "resetToken", "resetTokenExpiry", "lastResetRequested",
+              CASE WHEN "lastResetRequested" IS NOT NULL AND "lastResetRequested" > (NOW() - INTERVAL '24 hours') THEN true ELSE false END AS "isRateLimited",
+              CASE WHEN "lastResetRequested" IS NOT NULL THEN EXTRACT(EPOCH FROM (NOW() - "lastResetRequested")) ELSE 999999 END AS "secondsSinceReset"
+       FROM "User"
+       WHERE LOWER(email) = LOWER($1) OR (phone IS NOT NULL AND phone = $2)
+       LIMIT 1`,
+      cleanId,
+      cleanPhone || "none"
+    );
 
+    const user = users[0];
     if (!user) {
       return NextResponse.json(
         { ok: false, error: "No account found matching this email or mobile number." },
@@ -36,18 +39,42 @@ export async function POST(req: Request) {
       );
     }
 
+    // Harsh 24-Hour Rate Limit per account (guarantees ₹0 cost and prevents Resend quota abuse)
+    if (user.isRateLimited) {
+      const secondsLeft = Math.max(0, 24 * 3600 - Number(user.secondsSinceReset || 0));
+      const hoursLeft = Math.min(24, Math.max(1, Math.ceil(secondsLeft / 3600)));
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Password reset is limited to once every 24 hours for account security. Please check your existing email (including spam/junk) or try again in ${hoursLeft} hour${hoursLeft > 1 ? "s" : ""}.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    // Safeguard against dummy placeholder emails
+    if (user.email.endsWith("@splitrupee.in")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "This account was registered without a valid recovery email address. Please sign in with your password or use Google Sign-in.",
+        },
+        { status: 400 }
+      );
+    }
+
     // 2. Generate cryptographically secure token & 15-minute expiry
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    // Save token to database
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken,
-        resetTokenExpiry,
-      },
-    });
+    // Save token and lastResetRequested to database
+    await prisma.$executeRawUnsafe(
+      `UPDATE "User" SET "resetToken" = $1, "resetTokenExpiry" = $2, "lastResetRequested" = $3 WHERE "id" = $4`,
+      resetToken,
+      resetTokenExpiry,
+      new Date(),
+      user.id
+    );
 
     // 3. Determine base URL (works in local development and production)
     const host = req.headers.get("host") || "localhost:3000";
