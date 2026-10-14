@@ -201,9 +201,10 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
     // --- STANDARD REGISTRATION ---
     const isEmail = trimmedId.includes("@");
+    const cleanPhone = trimmedId.replace(/\D/g, "").slice(-10);
 
-    if (!isEmail) {
-      setSignupError("Please enter a valid email address for password recovery.");
+    if (!isEmail && cleanPhone.length !== 10) {
+      setSignupError("Please enter a valid email address or 10-digit mobile number.");
       return;
     }
 
@@ -222,12 +223,17 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
     const payload: any = {
       name: signupName.trim(),
-      email: trimmedId.toLowerCase(),
       password: signupPassword.trim(),
-      authMethod: "email",
+      authMethod: isEmail ? "email" : "phone",
       avatarColor: "#10b981",
       upiId: signupUpiId.trim() || undefined,
     };
+
+    if (isEmail) {
+      payload.email = trimmedId.toLowerCase();
+    } else {
+      payload.phone = cleanPhone;
+    }
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -351,7 +357,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               />
               <label htmlFor="login-id">Email or Mobile Number</label>
               <div className="field-icon">
-                <User className="h-4 w-4" />
+                <Phone className="h-4 w-4" />
               </div>
             </div>
 
@@ -413,7 +419,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             <div className="slide-element flex items-center gap-2 pt-3 pb-1.5">
               <div className="flex-1 border-t border-white/10" />
               <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider">
-                OR CONTINUE WITH EMAIL OR MOBILE
+                OR CONTINUE WITH GOOGLE
               </span>
               <div className="flex-1 border-t border-white/10" />
             </div>
@@ -595,13 +601,13 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                 title={isGoogleOnboarding ? "Email verified by Google (cannot be changed)" : undefined}
               />
               <label htmlFor="signup-id">
-                {isGoogleOnboarding ? "Google Email (Verified)" : "Email Address (for password recovery)"}
+                {isGoogleOnboarding ? "Google Email (Verified)" : "Email or Mobile Number"}
               </label>
               <div className="field-icon">
                 {isGoogleOnboarding ? (
                   <Lock className="h-4 w-4 text-emerald-400/80" />
                 ) : (
-                  <Mail className="h-4 w-4" />
+                  <Phone className="h-4 w-4" />
                 )}
               </div>
             </div>

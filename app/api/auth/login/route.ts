@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     // 2. Username / Email / Phone + Password Login
     const cleanId = (identifier || "").trim();
     if (!cleanId) {
-      return NextResponse.json({ ok: false, error: "Please enter your Email, Phone number, or Username" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Please enter your Email, Mobile number, or Username" }, { status: 400 });
     }
 
     if (!password) {
@@ -67,11 +67,13 @@ export async function POST(req: Request) {
     }
 
     // Find matching user by email, phone, or name
+    const cleanPhone = cleanId.replace(/\D/g, "").slice(-10);
     const user = await prisma.user.findFirst({
       where: {
         OR: [
           { email: { equals: cleanId, mode: "insensitive" } },
           { phone: cleanId },
+          ...(cleanPhone.length === 10 ? [{ phone: cleanPhone }] : []),
           { name: { equals: cleanId, mode: "insensitive" } },
         ],
       },
