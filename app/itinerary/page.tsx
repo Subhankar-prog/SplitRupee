@@ -27,6 +27,8 @@ import {
   Sparkles, 
   MessageSquare, 
   TrendingUp, 
+  Compass,
+  Info,
   X 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -251,65 +253,73 @@ export default function ItineraryPage() {
               <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-40">
                 {/* 1. Origin */}
                 <div className="origin-field origin-container">
-                  <label className="origin-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-emerald-400" /> Origin
-                  </label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="origin-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Origin
+                    </label>
+                  </div>
                   <input 
                     name="origin" 
                     value={form.origin} 
                     onChange={handleChange} 
                     required
                     placeholder="e.g. Bhubaneswar, Mumbai"
-                    className="origin-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition" 
+                    className="origin-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
                   />
                 </div>
 
                 {/* 2. Destination */}
                 <div className="destination-field destination-container">
-                  <label className="destination-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-teal-400" /> Destination
-                  </label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="destination-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <MapPin className="h-3.5 w-3.5 text-teal-400 shrink-0" /> Destination
+                    </label>
+                  </div>
                   <input 
                     name="destination" 
                     value={form.destination} 
                     onChange={handleChange} 
                     required
                     placeholder="e.g. Darjeeling, Goa, Manali"
-                    className="destination-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition" 
+                    className="destination-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
                   />
                 </div>
 
                 {/* 3. Start Date */}
                 <div className="start-date-field start-date-container">
-                  <label className="start-date-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-emerald-400" /> Start Date
-                  </label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="start-date-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <Calendar className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Start Date
+                    </label>
+                  </div>
                   <input 
                     type="date" 
                     name="startDate" 
                     value={form.startDate} 
                     onChange={handleChange} 
-                    className="start-date-input w-full bg-slate-950/70 rounded-xl px-3 py-2 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
+                    className="start-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
                   />
                 </div>
 
                 {/* 4. End Date (Return Date) */}
                 <div className="end-date-field end-date-container">
-                  <label className="end-date-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-teal-400" /> End Date (Return)
-                  </label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="end-date-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <Calendar className="h-3.5 w-3.5 text-teal-400 shrink-0" /> End Date (Return)
+                    </label>
+                  </div>
                   <input 
                     type="date" 
                     name="endDate" 
                     value={form.endDate} 
                     onChange={handleChange} 
-                    className="end-date-input w-full bg-slate-950/70 rounded-xl px-3 py-2 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
+                    className="end-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
                   />
                 </div>
 
                 {/* 5. Duration (Days & Nights) */}
                 <div className="duration-days-nights-field duration-days-nights-container">
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="h-7 flex items-center justify-between mb-1.5">
                     <label className="duration-days-nights-label text-xs font-semibold text-slate-300">Days & Nights</label>
                     <span className="duration-days-nights-badge text-[10px] text-emerald-400 font-mono font-medium">
                       {form.nights ? `${form.nights}N / ${Number(form.nights) + 1}D` : "e.g. 5N / 6D"}
@@ -324,7 +334,7 @@ export default function ItineraryPage() {
                       placeholder="e.g. 5"
                       value={form.nights} 
                       onChange={handleChange} 
-                      className="nights-count-input duration-nights-input w-full bg-slate-950/70 rounded-xl px-3 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
+                      className="nights-count-input duration-nights-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
                     />
                     <span className="duration-nights-unit text-xs text-slate-400 font-mono whitespace-nowrap">Nights</span>
                   </div>
@@ -332,9 +342,11 @@ export default function ItineraryPage() {
 
                 {/* 6. Travellers & Group Type */}
                 <div className="travellers-group-field travellers-group-container">
-                  <label className="travellers-group-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                    <Users className="h-3.5 w-3.5 text-emerald-400" /> Travellers & Group
-                  </label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="travellers-group-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <Users className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Travellers & Group
+                    </label>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input 
                       type="number" 
@@ -343,7 +355,7 @@ export default function ItineraryPage() {
                       placeholder="e.g. 2"
                       value={form.travellers} 
                       onChange={handleChange} 
-                      className="travellers-count-input w-full bg-slate-950/70 rounded-xl px-2.5 py-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center placeholder:text-slate-500" 
+                      className="travellers-count-input h-11 w-full bg-slate-950/70 rounded-xl px-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center placeholder:text-slate-500" 
                     />
                     <ThemeSelect
                       semanticName="group-type"
@@ -351,7 +363,7 @@ export default function ItineraryPage() {
                       value={form.groupType}
                       onChange={(val) => setForm({ ...form, groupType: val })}
                       options={["Friends", "Couple", "Solo", "Family"]}
-                      buttonClassName="py-2.5 px-2 text-xs"
+                      buttonClassName="h-11 py-0 px-2 text-xs flex items-center justify-between"
                     />
                   </div>
                 </div>
@@ -361,11 +373,11 @@ export default function ItineraryPage() {
               <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-30">
                 {/* Total Budget */}
                 <div className="total-group-budget-field total-group-budget-container">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="total-group-budget-label flex items-center gap-1 text-xs font-semibold text-emerald-400">
-                      <Wallet className="h-3.5 w-3.5" /> Total Group Budget (INR)
+                  <div className="h-7 flex items-center justify-between mb-1.5">
+                    <label className="total-group-budget-label flex items-center gap-1.5 text-xs font-semibold text-emerald-400 truncate">
+                      <Wallet className="h-3.5 w-3.5 shrink-0" /> Group Budget (INR)
                     </label>
-                    <span className="budget-per-person-indicator text-[10px] text-slate-400 font-mono">
+                    <span className="budget-per-person-indicator text-[10px] text-slate-400 font-mono shrink-0 ml-1">
                       {form.budget && form.travellers
                         ? `~₹${Math.round(Number(form.budget) / (Number(form.travellers) || 1)).toLocaleString()}/person`
                         : "e.g. ~₹15,000/person"}
@@ -378,17 +390,17 @@ export default function ItineraryPage() {
                     placeholder="e.g. 30000"
                     value={form.budget} 
                     onChange={handleChange} 
-                    className="total-group-budget-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm placeholder:text-slate-500" 
+                    className="total-group-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm placeholder:text-slate-500" 
                   />
                 </div>
 
                 {/* Nightly Stay Budget Limit */}
                 <div className="nightly-stay-limit-field nightly-stay-limit-container">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="nightly-stay-limit-label flex items-center gap-1 text-xs font-semibold text-teal-400">
-                      <Hotel className="h-3.5 w-3.5" /> Nightly Stay Limit (INR)
+                  <div className="h-7 flex items-center justify-between mb-1.5">
+                    <label className="nightly-stay-limit-label flex items-center gap-1.5 text-xs font-semibold text-teal-400 truncate">
+                      <Hotel className="h-3.5 w-3.5 shrink-0" /> Stay Limit / Night (INR)
                     </label>
-                    <span className="stay-budget-customizable-tag text-[10px] text-teal-300">Customizable</span>
+                    <span className="stay-budget-customizable-tag text-[10px] text-teal-300 shrink-0 ml-1">Customizable</span>
                   </div>
                   <input 
                     type="number" 
@@ -397,13 +409,15 @@ export default function ItineraryPage() {
                     placeholder="e.g. 2500"
                     value={form.stayBudget} 
                     onChange={handleChange} 
-                    className="nightly-stay-limit-input stay-budget-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm placeholder:text-slate-500" 
+                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm placeholder:text-slate-500" 
                   />
                 </div>
 
                 {/* Accommodation Style */}
                 <div className="accommodation-style-field accommodation-style-container">
-                  <label className="accommodation-style-label block text-xs font-semibold text-slate-300 mb-1.5">Accommodation Style</label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="accommodation-style-label block text-xs font-semibold text-slate-300">Accommodation Style</label>
+                  </div>
                   <ThemeSelect
                     semanticName="accommodation-style"
                     id="accommodation-style-select"
@@ -415,15 +429,17 @@ export default function ItineraryPage() {
                       "Boutique Homestays & Heritage",
                       "Premium 4/5-Star Resorts",
                     ]}
-                    buttonClassName="py-2.5 px-3.5 text-xs"
+                    buttonClassName="h-11 py-0 px-3.5 text-xs flex items-center justify-between"
                   />
                 </div>
 
                 {/* Trip Pace */}
                 <div className="trip-pace-field trip-pace-container">
-                  <label className="trip-pace-label flex items-center gap-1 text-xs font-semibold text-slate-300 mb-1.5">
-                    <Activity className="h-3.5 w-3.5 text-emerald-400" /> Trip Pace
-                  </label>
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="trip-pace-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <Activity className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Trip Pace
+                    </label>
+                  </div>
                   <ThemeSelect
                     semanticName="trip-pace"
                     id="trip-pace-select"
@@ -434,7 +450,7 @@ export default function ItineraryPage() {
                       { value: "Relaxed", label: "Relaxed (Slow & Leisurely)" },
                       { value: "Fast-Paced", label: "Fast-Paced / Packed" },
                     ]}
-                    buttonClassName="py-2.5 px-3.5 text-xs"
+                    buttonClassName="h-11 py-0 px-3.5 text-xs flex items-center justify-between"
                   />
                 </div>
               </div>
@@ -568,49 +584,62 @@ export default function ItineraryPage() {
                 </div>
               </div>
 
-              {/* Row 4: Interests & Remark Section (Special Notes) & Generate CTA Button */}
-              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end relative z-10">
+              {/* Row 4: Interests & Remarks Customization */}
+              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-10">
                 {/* Interests */}
-                <div className="interests-activities-field interests-activities-container lg:col-span-3">
-                  <label className="interests-activities-label block text-xs font-semibold text-slate-300 mb-1.5">
-                    Interests & Activities
-                  </label>
+                <div className="interests-activities-field interests-activities-container lg:col-span-5">
+                  <div className="h-7 flex items-center mb-1.5">
+                    <label className="interests-activities-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" /> Interests & Activities
+                    </label>
+                  </div>
                   <input 
                     name="interests" 
                     value={form.interests} 
                     onChange={handleChange} 
-                    placeholder="Culture, Scenery, Trekking, Cafes, Food"
-                    className="interests-activities-input w-full bg-slate-950/70 rounded-xl px-3.5 py-2 text-white text-xs border border-white/10 focus:border-emerald-500/50 outline-none transition" 
+                    placeholder="e.g. Culture, Scenery, Trekking, Cafes, Local Food"
+                    className="interests-activities-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500" 
                   />
                 </div>
 
-                {/* Remarks & Special Instructions Section */}
-                <div className="remarks-special-instructions-field remarks-special-instructions-container lg:col-span-6">
-                  <label className="remarks-special-instructions-label block text-xs font-semibold text-slate-300 mb-1.5">
-                    Remarks & Special Instructions (Dietary, Senior Citizens, Early Departure, Views...)
-                  </label>
-                  <textarea 
+                {/* Remarks & Special Instructions */}
+                <div className="remarks-special-instructions-field remarks-special-instructions-container lg:col-span-7">
+                  <div className="h-7 flex items-center justify-between mb-1.5">
+                    <label className="remarks-special-instructions-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 truncate">
+                      <Info className="h-3.5 w-3.5 text-cyan-400 shrink-0" /> Remarks & Special Instructions
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">Dietary, senior citizens, views...</span>
+                  </div>
+                  <input 
                     name="specialNotes" 
                     value={form.specialNotes} 
                     onChange={handleChange} 
-                    rows={2} 
-                    placeholder="E.g., early morning departure, pure vegetarian food, senior-friendly stairs, mountain/beach view, pet-friendly..." 
-                    className="remarks-special-instructions-textarea w-full bg-slate-950/70 rounded-xl px-3.5 py-1.5 text-white text-xs border border-white/10 focus:border-emerald-500/50 outline-none transition resize-none" 
+                    placeholder="e.g. Early departure, pure vegetarian food, senior-friendly stairs, mountain/beach view..." 
+                    className="remarks-special-instructions-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500" 
                   />
                 </div>
+              </div>
 
-                {/* Generate Elite Itinerary Button */}
-                <div className="generate-itinerary-cta-container lg:col-span-3">
-                  <button 
-                    type="submit" 
-                    disabled={loading}
-                    className="generate-elite-itinerary-button w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-4 rounded-xl transition-all shadow-xl shadow-emerald-500/25 disabled:opacity-50 text-sm tracking-wide"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    <span>Generate Elite Itinerary</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+              {/* Row 5: Action Button at Bottom */}
+              <div className="itinerary-bottom-cta-section pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5 text-xs text-slate-400">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+                    <Compass className="h-4 w-4" />
+                  </div>
+                  <span>
+                    Compiles verified IRCTC berths, state RTC/Volvo coaches, stay caps & day-wise plan.
+                  </span>
                 </div>
+
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="generate-elite-itinerary-button w-full sm:w-auto min-w-[260px] flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-8 rounded-xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 text-sm tracking-wide shrink-0"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Generate Elite Itinerary</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             </form>
 
@@ -625,13 +654,53 @@ export default function ItineraryPage() {
           {/* Results Column (Full Width directly below on the bottom) */}
           <div className="itinerary-results-canvas-card w-full relative z-10 bg-slate-900/60 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl min-h-[500px] flex flex-col shadow-2xl shadow-black/50 print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
             {!result && !loading && (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm gap-4 py-16 print:hidden">
-                <div className="p-4 bg-slate-950/50 rounded-full border border-white/5">
-                  <FileText className="h-12 w-12 text-slate-600" />
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm py-16 px-4 print:hidden">
+                <div className="relative mb-6">
+                  <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-full blur-xl opacity-70 animate-pulse"></div>
+                  <div className="relative p-5 bg-slate-950/80 rounded-2xl border border-emerald-500/30 shadow-xl shadow-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                    <Compass className="h-10 w-10" />
+                  </div>
                 </div>
-                <div className="text-center space-y-1">
-                  <h4 className="text-slate-300 font-semibold text-lg">Your Journey Canvas</h4>
-                  <p className="text-slate-500 max-w-sm">Configure your trip details above and click Generate Elite Itinerary to view your verified day-by-day blueprint.</p>
+
+                <div className="text-center max-w-xl space-y-2.5">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                    Smart Travel Blueprint Studio
+                  </h3>
+                  <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+                    Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-400 font-semibold">Generate Elite Itinerary</strong> to create a verified day-by-day travel plan.
+                  </p>
+                </div>
+
+                {/* Feature highlight cards */}
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-4xl w-full text-left">
+                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-cyan-500/30 transition">
+                    <Train className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">Verified Rail & Transit</div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches & cab rates.</div>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-emerald-500/30 transition">
+                    <Wallet className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">Real Budget Allocation</div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Stay limits, daily food allowances & per-person splits.</div>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-teal-500/30 transition">
+                    <MapPin className="h-5 w-5 text-teal-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">Hour-by-Hour Schedules</div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Scenic viewpoints, monuments & local cuisine spots.</div>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-amber-500/30 transition">
+                    <Users className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">Group Customization</div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
