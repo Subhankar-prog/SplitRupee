@@ -259,9 +259,12 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <span className="font-extrabold tracking-tight text-white text-sm sm:text-base">
                     SplitRupee
                   </span>
-                  <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/30">
-                    PRO
-                  </span>
+                  {currentUser?.isPro && (
+                    <span className="rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-1.5 py-0.5 text-[9px] font-extrabold text-slate-950 shadow-sm shadow-amber-500/30 flex items-center gap-0.5 animate-in fade-in duration-200">
+                      <Crown className="h-2.5 w-2.5 fill-slate-950" />
+                      PRO
+                    </span>
+                  )}
                 </div>
                 <span className="text-[9px] sm:text-[10px] text-slate-400 block -mt-0.5 tracking-wider uppercase font-semibold">
                   Expense Mgmt
@@ -434,48 +437,83 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-white/15 bg-white/[0.06] p-1 sm:p-1.5 sm:pr-2.5 text-left hover:border-emerald-500/40 hover:bg-white/10 transition shadow-sm"
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-2xl border p-1 sm:p-1.5 sm:pr-2.5 text-left transition shadow-sm ${
+                    currentUser.isPro
+                      ? "border-amber-500/40 bg-amber-500/[0.08] hover:border-amber-400 hover:bg-amber-500/15 shadow-amber-500/10"
+                      : "border-white/15 bg-white/[0.06] hover:border-emerald-500/40 hover:bg-white/10"
+                  }`}
                 >
                   {/* Avatar */}
                   <div className="relative">
                     <div
-                      className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl font-bold text-slate-950 text-xs shadow"
-                      style={{ background: currentUser.avatarColor || "#10b981" }}
+                      className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl font-bold text-xs shadow transition-all ${
+                        currentUser.isPro
+                          ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-slate-950 ring-2 ring-amber-400/90 shadow-lg shadow-amber-500/30"
+                          : "text-slate-950 shadow"
+                      }`}
+                      style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
                     >
                       {currentUser.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
+                    {currentUser.isPro ? (
+                      <span
+                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-slate-950 shadow-md ring-1 ring-slate-950"
+                        title="SplitRupee Pro Member"
+                      >
+                        👑
+                      </span>
+                    ) : (
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
+                    )}
                   </div>
 
                   {/* Name — hidden on small mobile */}
                   <div className="hidden sm:block leading-tight text-left min-w-0">
-                    <p className="font-bold text-white text-xs truncate max-w-[100px] sm:max-w-[120px]">
-                      {currentUser.name.split(" ")[0]}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">
-                      Active
+                    <div className="flex items-center gap-1">
+                      <p className="font-bold text-white text-xs truncate max-w-[100px] sm:max-w-[120px]">
+                        {currentUser.name.split(" ")[0]}
+                      </p>
+                      {currentUser.isPro && (
+                        <span className="text-[8px] font-extrabold text-amber-400 bg-amber-500/20 px-1 rounded border border-amber-500/30">
+                          PRO
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-[10px] truncate font-medium ${currentUser.isPro ? "text-amber-400/90" : "text-slate-400"}`}>
+                      {currentUser.isPro ? "Pro Member" : "Active"}
                     </p>
                   </div>
 
-                  <ChevronDown className={`hidden sm:block h-3.5 w-3.5 text-slate-400 transition-transform ${profileDropdownOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`hidden sm:block h-3.5 w-3.5 transition-transform ${currentUser.isPro ? "text-amber-400" : "text-slate-400"} ${profileDropdownOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {/* Profile Dropdown Menu */}
                 {profileDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-60 sm:w-64 rounded-2xl border border-white/15 bg-slate-900 p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
                     {/* User Header Box */}
-                    <div className="rounded-xl bg-white/5 p-3 space-y-2 mb-2">
+                    <div className={`rounded-xl p-3 space-y-2 mb-2 ${currentUser.isPro ? "bg-gradient-to-br from-amber-500/10 via-white/5 to-transparent border border-amber-500/20" : "bg-white/5"}`}>
                       <div className="flex items-center gap-2">
                         <div
-                          className="h-7 w-7 rounded-lg grid place-items-center text-xs font-bold text-slate-950 shrink-0"
-                          style={{ background: currentUser.avatarColor || "#10b981" }}
+                          className={`h-7 w-7 rounded-lg grid place-items-center text-xs font-bold shrink-0 ${
+                            currentUser.isPro
+                              ? "bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-950 ring-1 ring-amber-400"
+                              : "text-slate-950"
+                          }`}
+                          style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
                         >
                           {currentUser.name.charAt(0)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-white text-xs truncate">
-                            {currentUser.name}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-white text-xs truncate">
+                              {currentUser.name}
+                            </p>
+                            {currentUser.isPro && (
+                              <span className="rounded-full bg-amber-400/20 px-1.5 py-0.2 text-[8px] font-extrabold text-amber-400 border border-amber-400/30">
+                                👑 PRO
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-slate-400 truncate">
                             {currentUser.email || currentUser.phone || "SplitRupee User"}
                           </p>

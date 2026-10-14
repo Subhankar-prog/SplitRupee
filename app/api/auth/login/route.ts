@@ -33,7 +33,7 @@ export async function POST(req: Request) {
             { name: { equals: name, mode: "insensitive" } },
           ],
         },
-        select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true, createdAt: true },
+        select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true, isPro: true, createdAt: true },
       });
 
       if (!user) {
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
             avatarColor: "#10b981",
             upiId: null,
           },
-          select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true, createdAt: true },
+          select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true, isPro: true, createdAt: true },
         });
       }
 

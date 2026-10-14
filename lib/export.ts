@@ -35,15 +35,14 @@ export function buildWhatsAppSummary(
   return lines.join("\n");
 }
 
-/** Generates CSV matching the comprehensive Trip Sheet Calculation Ledger model */
+/** Generates a standard, clean Excel & CSV compatible Financial Ledger */
 export function buildGroupLedgerCSV(
   groupName: string,
   members: MemberDTO[],
   expenses: ExpenseDTO[],
   payments: PaymentDTO[],
   balances: Record<string, number>,
-  transfers: Transfer[],
-  fxRateNPR: number = 1.6
+  transfers: Transfer[]
 ): string {
   const names: Record<string, string> = {};
   members.forEach((m) => (names[m.id] = m.name));
@@ -69,97 +68,95 @@ export function buildGroupLedgerCSV(
 
   const lines: string[] = [];
 
-  // 1. Header Summary Table
-  lines.push(`"FX Rate (NPR per 1 INR)","Total Group Spend (INR Eqv.)","Total Reconciled Paid (INR)","Group Balance Health"`);
-  lines.push(`"${fxRateNPR.toFixed(2)}","₹ ${totalSpend.toFixed(2)}","₹ ${totalReconciled.toFixed(2)}","Balanced (Variance: ₹ 0.00)"`);
+  // Title & Group Metadata
+  lines.push(`"SPLITRUPEE FINANCIAL STATEMENT & EXPENSE LEDGER"`);
+  lines.push(`"Group Name:",${JSON.stringify(groupName)}`);
+  lines.push(`"Export Date:",${JSON.stringify(new Date().toLocaleDateString("en-IN"))}`);
+  lines.push(`"Total Group Spend (INR):",${totalSpend.toFixed(2)}`);
+  lines.push(`"Total Reconciled Paid (INR):",${totalReconciled.toFixed(2)}`);
+  lines.push(`"Group Ledger Health:","Balanced (Variance: 0.00)"`);
   lines.push("");
 
-  // 2. Traveler / Member Balances & Fair Share Table + Transfers
+  // SECTION 1: Member Balances
+  lines.push(`"--- 1. MEMBER BALANCES & FAIR SHARE ---"`);
+  lines.push(`"Member Name","Total Paid (INR)","Fair Share (INR)","Net Balance (INR)","Status"`);
+
+  members.forEach((m) => {
+    const netPaise = balances[m.id] || 0;
+    const netINR = netPaise / 100;
+    const status =
+      netINR > 0
+        ? `Gets Back INR ${netINR.toFixed(2)}`
+        : netINR < 0
+        ? `Owes INR ${Math.abs(netINR).toFixed(2)}`
+        : "Settled (All Square)";
+
+    const paid = (memberPaid[m.id] || 0).toFixed(2);
+    const share = (memberShare[m.id] || 0).toFixed(2);
+    lines.push(`${JSON.stringify(m.name)},${paid},${share},${netINR.toFixed(2)},${JSON.stringify(status)}`);
+  });
+
   lines.push(
-    `"Traveler / Member","Total Paid (INR)","Fair Share (INR)","Net Balance (INR)","Status","Settlement Action","Debtor (Pays)","Transfer","Creditor (Receives)","Amount (INR)","Settlement Status"`
+    `"Total",${totalSpend.toFixed(2)},${totalSpend.toFixed(2)},0.00,"Balanced"`
   );
+  lines.push("");
+  lines.push("");
 
-  const maxRows = Math.max(members.length, transfers.length);
-  for (let i = 0; i < maxRows; i++) {
-    const m = members[i];
-    let memberCols = `"-","₹ 0.00","₹ 0.00","₹ 0.00","-","-"`;
-    if (m) {
-      const netPaise = balances[m.id] || 0;
-      const netINR = netPaise / 100;
-      const status =
-        netINR > 0
-          ? `Gets Back ₹ ${netINR.toFixed(2)}`
-          : netINR < 0
-          ? `Owes ₹ ${(-netINR).toFixed(2)}`
-          : "Settled (All Square)";
-      const action = netINR !== 0 ? "1-Click UPI Settle" : "All Square";
-      memberCols = `"${m.name}","₹ ${(memberPaid[m.id] || 0).toFixed(2)}","₹ ${(
-        memberShare[m.id] || 0
-      ).toFixed(2)}","₹ ${netINR.toFixed(2)}","${status}","${action}"`;
-    }
+  // SECTION 2: Debt Settlement Plan (Who pays whom)
+  lines.push(`"--- 2. OPTIMIZED SETTLEMENT PLAN (WHO PAYS WHOM) ---"`);
+  lines.push(`"Debtor (Pays)","Creditor (Receives)","Amount (INR)","Recommended Method"`);
 
-    const t = transfers[i];
-    let transferCols = `"-","➔","-","₹ 0.00","-"`;
-    if (t) {
+  if (transfers.length === 0) {
+    lines.push(`"All Square","All Square",0.00,"Everyone is settled up"`);
+  } else {
+    transfers.forEach((t) => {
       const amountINR = (t.amountPaise / 100).toFixed(2);
-      transferCols = `"${nm(t.from)}","➔","${nm(t.to)}","₹ ${amountINR}","Pending UPI / Cash"`;
-    }
-
-    lines.push(`${memberCols},${transferCols}`);
+      lines.push(`${JSON.stringify(nm(t.from))},${JSON.stringify(nm(t.to))},${amountINR},"1-Tap UPI / Cash"`);
+    });
   }
-
-  lines.push(
-    `"Total Group Pool","₹ ${totalSpend.toFixed(2)}","₹ ${totalSpend.toFixed(
-      2
-    )}","₹ 0.00","Net Balanced","Variance: ₹ 0.00","* Optimized minimal cash-flow transfers settling all balances to zero."`
-  );
   lines.push("");
   lines.push("");
 
-  // 3. Circuit / Expense Matrix
-  const memberHeaders = members.map((m) => `"${m.name}"`).join(",");
+  // SECTION 3: Itemized Expenses Register
+  lines.push(`"--- 3. ITEMIZED EXPENSES REGISTER ---"`);
   lines.push(
-    `"Date","Expense Description","Category","Paid By","Amount","Currency","Converted (INR Eqv)",${memberHeaders},"Split / Person"`
+    `"Date","Expense Title","Category","Paid By","Split Type","Total Amount (INR)","Splits Count","Share Per Person (INR)"`
   );
 
   expenses.forEach((e) => {
     const dateStr = new Date(e.date || e.createdAt).toLocaleDateString("en-IN");
-    const involvedSet = new Set(e.splits.map((s) => s.userId));
-    const memberChecks = members
-      .map((m) => (involvedSet.has(m.id) ? `"TRUE"` : `"FALSE"`))
-      .join(",");
-    const perPerson = e.splits.length > 0 ? (e.totalAmount / e.splits.length).toFixed(2) : "0.00";
+    const count = e.splits.length;
+    const perPerson = count > 0 ? (e.totalAmount / count).toFixed(2) : "0.00";
 
     lines.push(
-      `"${dateStr}","${e.title.replace(/"/g, '""')}","${e.category}","${nm(
-        e.paidById
-      )}","${e.totalAmount.toFixed(2)}","INR","₹ ${e.totalAmount.toFixed(
-        2
-      )}",${memberChecks},"₹ ${perPerson}"`
+      `${JSON.stringify(dateStr)},${JSON.stringify(e.title)},${JSON.stringify(e.category)},${JSON.stringify(
+        nm(e.paidById)
+      )},${JSON.stringify(e.splitType || "EQUAL")},${e.totalAmount.toFixed(2)},${count},${perPerson}`
     );
   });
 
+  lines.push(`"Total Expenses (${expenses.length})","","","","",${totalSpend.toFixed(2)},"",""`);
   lines.push("");
   lines.push("");
 
-  // 4. Direct Person-to-Person Settlements (UPI / Cash)
-  lines.push(`"DIRECT PERSON-TO-PERSON SETTLEMENTS (UPI / CASH)"`);
-  lines.push(`"Date","Transfer Description","Sender (Paid By)","Receiver (Paid To)","Amount","Currency","Amount (INR Eqv)"`);
+  // SECTION 4: Direct Settlements
+  lines.push(`"--- 4. DIRECT RECONCILED SETTLEMENTS ---"`);
+  lines.push(`"Date","Sender (Payer)","Receiver (Paid To)","Amount (INR)","Notes"`);
 
   if (payments.length === 0) {
-    lines.push(`"-","No direct settlements recorded yet","-","-","0.00","INR","₹ 0.00"`);
+    lines.push(`"-","No direct settlements recorded yet","-",0.00,"-"`);
   } else {
     payments.forEach((p) => {
       const pDate = new Date(p.createdAt).toLocaleDateString("en-IN");
       lines.push(
-        `"${pDate}","${(p.notes || "Direct UPI Settle").replace(/"/g, '""')}","${nm(
-          p.payerId
-        )}","${nm(p.receiverId)}","${p.amount.toFixed(2)}","INR","₹ ${p.amount.toFixed(2)}"`
+        `${JSON.stringify(pDate)},${JSON.stringify(nm(p.payerId))},${JSON.stringify(
+          nm(p.receiverId)
+        )},${p.amount.toFixed(2)},${JSON.stringify(p.notes || "Direct UPI Settle")}`
       );
     });
   }
 
-  lines.push(`"Total Direct Settlements Log","","","","₹ ${totalReconciled.toFixed(2)}","INR","₹ ${totalReconciled.toFixed(2)}"`);
+  lines.push(`"Total Reconciled Settlements (${payments.length})","","",${totalReconciled.toFixed(2)},""`);
 
   return lines.join("\n");
 }

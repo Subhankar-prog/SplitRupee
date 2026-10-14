@@ -49,6 +49,7 @@ model User {
   upiId            String?
   phone            String?
   passwordHash     String?
+  isPro            Boolean        @default(false)
   resetToken       String?        @unique
   resetTokenExpiry DateTime?
   lastResetRequested DateTime?

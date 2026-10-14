@@ -33,6 +33,7 @@ export interface MemberDTO {
   avatarColor: string;
   phone?: string | null;
   upiId?: string | null;
+  isPro?: boolean;
 }
 
 export interface GroupDTO {

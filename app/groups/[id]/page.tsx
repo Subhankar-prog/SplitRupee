@@ -11,8 +11,9 @@ import {
   CATEGORIES,
   type CategoryName,
 } from "@/lib/types";
-import { buildLedger } from "@/lib/debt";
+import { buildLedger, type Transfer } from "@/lib/debt";
 import { buildWhatsAppSummary, buildGroupLedgerCSV } from "@/lib/export";
+import { exportGroupLedgerPDF } from "@/lib/pdfExport";
 import { formatINR, formatPaise } from "@/lib/money";
 import {
   Users,
@@ -39,6 +40,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  FileText,
   Globe2,
   Scale,
   DollarSign,
@@ -94,7 +96,6 @@ export default function GroupDetailPage() {
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [fxRateNPR, setFxRateNPR] = useState<number>(1.60);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -207,6 +208,18 @@ export default function GroupDetailPage() {
     setTimeout(() => setCopied(false), 2200);
   }
 
+  function handleDownloadPDF() {
+    if (!group) return;
+    exportGroupLedgerPDF(
+      group,
+      members,
+      expenses,
+      payments,
+      ledger.balances,
+      ledger.transfers
+    );
+  }
+
   function handleDownloadCSV() {
     if (!group) return;
     const csvContent = buildGroupLedgerCSV(
@@ -215,8 +228,7 @@ export default function GroupDetailPage() {
       expenses,
       payments,
       ledger.balances,
-      ledger.transfers,
-      fxRateNPR
+      ledger.transfers
     );
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -308,17 +320,26 @@ export default function GroupDetailPage() {
               <span>{copied ? "Copied!" : "WhatsApp"}</span>
             </button>
             <button
+              onClick={handleDownloadPDF}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition"
+              title="Download Theme-Based Financial Statement PDF"
+            >
+              <FileText className="h-3.5 w-3.5 text-emerald-400" />
+              <span>PDF</span>
+            </button>
+            <button
               onClick={handleDownloadCSV}
-              className="hidden sm:flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 sm:py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+              title="Download Standard Excel / CSV Ledger"
             >
               <Download className="h-3.5 w-3.5 text-sky-400" />
-              <span>CSV</span>
+              <span>Excel/CSV</span>
             </button>
           </div>
         </div>
 
         {/* Summary Stats */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 border-t border-white/10 pt-4 text-xs">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 border-t border-white/10 pt-4 text-xs">
           <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2.5 sm:p-3 space-y-1">
             <span className="text-[11px] text-slate-400 block">Total Spend</span>
             <span className="text-sm sm:text-base font-extrabold text-white block tabular-nums">
@@ -338,23 +359,6 @@ export default function GroupDetailPage() {
             <span className="text-xs font-bold text-white flex items-center gap-1">
               <Scale className="h-3.5 w-3.5 text-emerald-400" /> Balanced
             </span>
-          </div>
-
-          <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2.5 sm:p-3 space-y-1">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1">
-              <Globe2 className="h-3 w-3 text-sky-400" /> FX (NPR)
-            </div>
-            <div className="flex items-baseline gap-1">
-              <input
-                type="number"
-                step="0.01"
-                min="0.1"
-                value={fxRateNPR}
-                onChange={(e) => setFxRateNPR(parseFloat(e.target.value) || 1.6)}
-                className="w-14 rounded-lg bg-slate-900 px-1.5 py-0.5 text-xs font-bold text-white border border-white/15 outline-none focus:border-emerald-500"
-              />
-              <span className="text-[10px] text-slate-400">/INR</span>
-            </div>
           </div>
         </div>
 

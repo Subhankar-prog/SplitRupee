@@ -6,6 +6,7 @@ import TravelCopilotChat from "@/components/TravelCopilotChat";
 import MovieTrailerItineraryLoader from "@/components/MovieTrailerItineraryLoader";
 import ThemeSelect from "@/components/ThemeSelect";
 import { isDemoPhoneNumber } from "@/lib/localGroundData";
+import { exportItineraryPDF } from "@/lib/pdfExport";
 import { 
   Loader2, 
   ArrowRight, 
@@ -248,7 +249,12 @@ export default function ItineraryPage() {
   };
 
   const handleDownloadPDF = () => {
-    window.print();
+    if (!result) return;
+    exportItineraryPDF({
+      form,
+      result,
+      financialSummary,
+    });
   };
 
   const getLegIcon = (mode: string = "") => {
@@ -803,9 +809,10 @@ export default function ItineraryPage() {
                     </button>
                     <button 
                       onClick={handleDownloadPDF} 
-                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm transition"
+                      className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
+                      title="Download Theme-Based Trip Blueprint PDF"
                     >
-                      <Download className="h-4 w-4" /> Download PDF
+                      <Download className="h-4 w-4 stroke-[2.5]" /> Download PDF
                     </button>
                   </div>
                 </div>

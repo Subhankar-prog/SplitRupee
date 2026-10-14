@@ -14,6 +14,8 @@ export async function GET() {
         email: true,
         avatarColor: true,
         upiId: true,
+        phone: true,
+        isPro: true,
         _count: { select: { memberships: true } },
       },
     });
