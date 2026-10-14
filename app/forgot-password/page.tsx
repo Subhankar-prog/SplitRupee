@@ -231,7 +231,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             <div className="pt-2 border-t border-white/5 text-center text-[10.5px] text-slate-500">
-              Zero-cost security · Accounts limited to 1 reset request per 24 hours
+              Zero-cost security · Accounts limited to 1 reset request per week
             </div>
           </div>
         )}

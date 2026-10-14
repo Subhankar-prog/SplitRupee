@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const cleanPhone = cleanId.replace(/\D/g, "").slice(-10);
     const users: any[] = await prisma.$queryRawUnsafe(
       `SELECT id, name, email, phone, "resetToken", "resetTokenExpiry", "lastResetRequested",
-              CASE WHEN "lastResetRequested" IS NOT NULL AND "lastResetRequested" > (NOW() - INTERVAL '24 hours') THEN true ELSE false END AS "isRateLimited",
+              CASE WHEN "lastResetRequested" IS NOT NULL AND "lastResetRequested" > (NOW() - INTERVAL '7 days') THEN true ELSE false END AS "isRateLimited",
               CASE WHEN "lastResetRequested" IS NOT NULL THEN EXTRACT(EPOCH FROM (NOW() - "lastResetRequested")) ELSE 999999 END AS "secondsSinceReset"
        FROM "User"
        WHERE LOWER(email) = LOWER($1) OR (phone IS NOT NULL AND phone = $2)
@@ -39,14 +39,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Harsh 24-Hour Rate Limit per account (guarantees ₹0 cost and prevents Resend quota abuse)
+    // Strict Rate Limit: 1 password reset per week (7 days) per account
     if (user.isRateLimited) {
-      const secondsLeft = Math.max(0, 24 * 3600 - Number(user.secondsSinceReset || 0));
-      const hoursLeft = Math.min(24, Math.max(1, Math.ceil(secondsLeft / 3600)));
+      const secondsLeft = Math.max(0, 7 * 24 * 3600 - Number(user.secondsSinceReset || 0));
+      const daysLeft = Math.ceil(secondsLeft / (24 * 3600));
+      const hoursLeft = Math.ceil(secondsLeft / 3600);
+      const timeRemaining = daysLeft > 1 ? `${daysLeft} days` : `${hoursLeft} hours`;
       return NextResponse.json(
         {
           ok: false,
-          error: `Password reset is limited to once every 24 hours for account security. Please check your existing email (including spam/junk) or try again in ${hoursLeft} hour${hoursLeft > 1 ? "s" : ""}.`,
+          error: `Password reset is limited to once every week. Please check your existing email (including spam/junk) or try again in ${timeRemaining}.`,
         },
         { status: 429 }
       );
