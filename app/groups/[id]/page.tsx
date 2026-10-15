@@ -1300,9 +1300,15 @@ export default function GroupDetailPage() {
             loadGroup();
           }}
           onGroupDeleted={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("splitrupee_refresh", { detail: { groupId: group.id } }));
+            }
             router.push("/dashboard");
           }}
           onExitedGroup={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("splitrupee_refresh", { detail: { groupId: group.id } }));
+            }
             router.push("/dashboard");
           }}
         />
@@ -1319,6 +1325,9 @@ export default function GroupDetailPage() {
           memberCount={members.length}
           userBalance={myNet}
           onExited={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("splitrupee_refresh", { detail: { groupId: group.id } }));
+            }
             router.push("/dashboard");
           }}
         />

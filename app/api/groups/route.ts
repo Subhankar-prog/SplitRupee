@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /** GET /api/groups: list groups (optionally filtered by userId) */
 export async function GET(req: Request) {
@@ -32,22 +33,37 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json({
-      ok: true,
-      groups: groups.map((g) => ({
-        id: g.id,
-        name: g.name,
-        type: g.type,
-        currency: g.currency,
-        createdAt: g.createdAt.toISOString(),
-        updatedAt: g.updatedAt.toISOString(),
-        members: g.members.map((m) => m.user),
-        _count: g._count,
-      })),
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        groups: groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          type: g.type,
+          currency: g.currency,
+          createdAt: g.createdAt.toISOString(),
+          updatedAt: g.updatedAt.toISOString(),
+          members: g.members.map((m) => m.user),
+          _count: g._count,
+        })),
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      }
+    );
   } catch (e) {
     console.error("[GET /api/groups]", e);
-    return NextResponse.json({ ok: false, error: "FETCH_FAILED", issues: ["Could not load groups"] }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "FETCH_FAILED", issues: ["Could not load groups"] },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   }
 }
 

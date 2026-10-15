@@ -9,6 +9,7 @@ import { buildLedger } from "@/lib/debt";
 import { buildWhatsAppSummary } from "@/lib/export";
 import { formatINR, formatPaise } from "@/lib/money";
 import AddExpenseModal from "./AddExpenseModal";
+import { useUser } from "@/lib/userContext";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; bar: string }> = {
   Food: { icon: Utensils, bar: "#f59e0b" },
@@ -37,6 +38,7 @@ async function copyText(text: string) {
 }
 
 export default function Dashboard() {
+  const { currentUser } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>([]);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<ExpenseDTO[]>([]);
@@ -51,11 +53,14 @@ export default function Dashboard() {
 
   const loadGroups = useCallback(async () => {
     try {
-      const res = await fetch("/api/groups", { cache: "no-store" });
+      const url = currentUser?.id
+        ? `/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`
+        : `/api/groups?_t=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache, no-store, must-revalidate" } });
       const json = await res.json();
       if (!res.ok) throw new Error();
       setGroups(json.groups);
-      setGroupId((cur) => cur ?? json.groups[0]?.id ?? null);
+      setGroupId((cur) => (json.groups.some((g: any) => g.id === cur) ? cur : json.groups[0]?.id ?? null));
       setViewerId((cur) => cur || json.groups[0]?.members[0]?.id || "");
       setSync("live");
     } catch {
@@ -63,12 +68,15 @@ export default function Dashboard() {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [currentUser?.id]);
 
   const loadExpenses = useCallback(async () => {
     if (!groupId) return;
     try {
-      const res = await fetch(`/api/expenses?groupId=${encodeURIComponent(groupId)}`, { cache: "no-store" });
+      const res = await fetch(`/api/expenses?groupId=${encodeURIComponent(groupId)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const json = await res.json();
       if (!res.ok) throw new Error();
       setExpenses(json.expenses);
@@ -78,7 +86,19 @@ export default function Dashboard() {
     }
   }, [groupId]);
 
-  useEffect(() => { loadGroups(); }, [loadGroups]);
+  useEffect(() => {
+    loadGroups();
+    const handleRefresh = (e?: any) => {
+      const exitedId = e?.detail?.groupId;
+      if (exitedId) {
+        setGroups((prev) => prev.filter((g) => g.id !== exitedId));
+        setGroupId((cur) => (cur === exitedId ? null : cur));
+      }
+      loadGroups();
+    };
+    window.addEventListener("splitrupee_refresh", handleRefresh as EventListener);
+    return () => window.removeEventListener("splitrupee_refresh", handleRefresh as EventListener);
+  }, [loadGroups]);
   useEffect(() => {
     if (!groupId) return;
     loadExpenses();

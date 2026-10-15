@@ -106,6 +106,9 @@ export default function ManageGroupModal({
       }
 
       setSuccessMsg("Group settings updated successfully!");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("splitrupee_refresh"));
+      }
       onGroupUpdated();
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err: any) {
@@ -134,6 +137,9 @@ export default function ManageGroupModal({
         throw new Error(data.message || data.error || "Failed to change role");
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("splitrupee_refresh"));
+      }
       onGroupUpdated();
     } catch (err: any) {
       setError(err.message || "Failed to change member role");
@@ -158,6 +164,9 @@ export default function ManageGroupModal({
       }
 
       setMemberToRemove(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("splitrupee_refresh"));
+      }
       onGroupUpdated();
     } catch (err: any) {
       setError(err.message || "Failed to remove member");
@@ -182,6 +191,10 @@ export default function ManageGroupModal({
         throw new Error(data.message || data.error || "Failed to exit group");
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("splitrupee_refresh", { detail: { groupId: group.id } }));
+      }
+
       onExitedGroup();
     } catch (err: any) {
       setError(err.message || "Failed to exit group");
@@ -202,6 +215,10 @@ export default function ManageGroupModal({
       const data = await res.json();
       if (!res.ok || !data.ok) {
         throw new Error(data.message || data.error || "Failed to delete group");
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("splitrupee_refresh", { detail: { groupId: group.id } }));
       }
 
       onGroupDeleted();

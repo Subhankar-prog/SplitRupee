@@ -47,7 +47,10 @@ export default function Sidebar({
       return;
     }
     try {
-      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}`);
+      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const data = await res.json();
       if (data.ok) {
         setGroups(data.groups);
@@ -62,11 +65,22 @@ export default function Sidebar({
     }
   }
 
+  // Reload groups whenever current user changes OR route pathname changes (e.g. redirected after exiting/deleting group)
   useEffect(() => {
     loadGroups();
-    const handleRefresh = () => loadGroups();
-    window.addEventListener("splitrupee_refresh", handleRefresh);
-    return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
+  }, [currentUser?.id, pathname]);
+
+  // Listen for real-time splitrupee_refresh events across the app
+  useEffect(() => {
+    const handleRefresh = (e?: any) => {
+      const exitedId = e?.detail?.groupId;
+      if (exitedId) {
+        setGroups((prev) => prev.filter((g) => g.id !== exitedId));
+      }
+      loadGroups();
+    };
+    window.addEventListener("splitrupee_refresh", handleRefresh as EventListener);
+    return () => window.removeEventListener("splitrupee_refresh", handleRefresh as EventListener);
   }, [currentUser?.id]);
 
   const navLinks = [

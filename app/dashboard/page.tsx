@@ -68,7 +68,10 @@ export default function DashboardPage() {
     if (!currentUser) return;
     try {
       // 1. Fetch groups
-      const gRes = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}`);
+      const gRes = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const gData = await gRes.json();
       const userGroups: GroupDTO[] = gData.ok ? gData.groups : [];
       setGroups(userGroups);
@@ -77,7 +80,10 @@ export default function DashboardPage() {
       const detailsMap: Record<string, any> = {};
       await Promise.all(
         userGroups.map(async (g) => {
-          const detailRes = await fetch(`/api/groups/${g.id}`);
+          const detailRes = await fetch(`/api/groups/${g.id}?_t=${Date.now()}`, {
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+          });
           const detailData = await detailRes.json();
           if (detailData.ok) {
             detailsMap[g.id] = detailData.group;
@@ -87,12 +93,18 @@ export default function DashboardPage() {
       setGroupDetails(detailsMap);
 
       // 3. Fetch all expenses for user
-      const eRes = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}`);
+      const eRes = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const eData = await eRes.json();
       if (eData.ok) setExpenses(eData.expenses);
 
       // 4. Fetch recent activities
-      const aRes = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=10`);
+      const aRes = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=10&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const aData = await aRes.json();
       if (aData.ok) setActivities(aData.activities);
     } catch (e) {
@@ -104,9 +116,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
-    const handleRefresh = () => loadDashboardData();
-    window.addEventListener("splitrupee_refresh", handleRefresh);
-    return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
+    const handleRefresh = (e?: any) => {
+      const exitedId = e?.detail?.groupId;
+      if (exitedId) {
+        setGroups((prev) => prev.filter((g) => g.id !== exitedId));
+        setGroupDetails((prev) => {
+          const next = { ...prev };
+          delete next[exitedId];
+          return next;
+        });
+      }
+      loadDashboardData();
+    };
+    window.addEventListener("splitrupee_refresh", handleRefresh as EventListener);
+    return () => window.removeEventListener("splitrupee_refresh", handleRefresh as EventListener);
   }, [loadDashboardData]);
 
   // Overall Balances Calculation across all groups

@@ -45,6 +45,10 @@ export default function ExitGroupModal({
         throw new Error(data.message || data.error || "Failed to exit group");
       }
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("splitrupee_refresh", { detail: { groupId } }));
+      }
+
       onExited();
     } catch (err: any) {
       setError(err.message || "An error occurred while exiting the group");

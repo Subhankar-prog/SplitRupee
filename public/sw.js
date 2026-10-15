@@ -1,5 +1,5 @@
 // SplitRupee Production Service Worker (PWA Offline Engine)
-const CACHE_NAME = "splitrupee-pwa-v1";
+const CACHE_NAME = "splitrupee-pwa-v3";
 
 const PRECACHE_URLS = [
   "/",
@@ -40,8 +40,20 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignore non-GET requests (e.g. POST, PUT, DELETE)
+  // When a mutation (POST, PUT, DELETE, PATCH) happens, invalidate cached API responses immediately
   if (request.method !== "GET") {
+    if (url.pathname.startsWith("/api/")) {
+      event.waitUntil(
+        caches.open(CACHE_NAME).then(async (cache) => {
+          const keys = await cache.keys();
+          return Promise.all(
+            keys
+              .filter((key) => new URL(key.url).pathname.startsWith("/api/"))
+              .map((key) => cache.delete(key))
+          );
+        })
+      );
+    }
     return;
   }
 
@@ -83,10 +95,13 @@ self.addEventListener("fetch", (event) => {
       .then((networkResponse) => {
         // Only cache valid 200 responses
         if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
+          const isNoCacheApi = url.pathname.startsWith("/api/") && (url.searchParams.has("_t") || request.headers.get("Cache-Control")?.includes("no-cache"));
+          if (!isNoCacheApi) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
         }
         return networkResponse;
       })

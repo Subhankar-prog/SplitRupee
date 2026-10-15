@@ -41,7 +41,10 @@ export default function GroupsPage() {
     if (!currentUser) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}`);
+      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const data = await res.json();
       if (data.ok) {
         setGroups(data.groups);
@@ -59,6 +62,16 @@ export default function GroupsPage() {
     } else if (!usersLoading) {
       setLoading(false);
     }
+
+    const handleRefresh = (e?: any) => {
+      const exitedId = e?.detail?.groupId;
+      if (exitedId) {
+        setGroups((prev) => prev.filter((g) => g.id !== exitedId));
+      }
+      fetchGroups();
+    };
+    window.addEventListener("splitrupee_refresh", handleRefresh as EventListener);
+    return () => window.removeEventListener("splitrupee_refresh", handleRefresh as EventListener);
   }, [currentUser, usersLoading]);
 
   const handleJoinGroup = async (e: React.FormEvent) => {
