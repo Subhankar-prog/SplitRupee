@@ -8,18 +8,25 @@ export default function PwaRegister() {
   const [showReconnected, setShowReconnected] = useState(false);
 
   useEffect(() => {
-    // 1. Register Service Worker in production
+    // 1. Register Service Worker reliably in production & client hydration
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("/sw.js")
-          .then((reg) => {
-            console.log("SplitRupee PWA Service Worker active. Scope:", reg.scope);
-          })
-          .catch((err) => {
-            console.warn("ServiceWorker registration failed:", err);
-          });
-      });
+      const registerSW = async () => {
+        try {
+          const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+          console.log("[PWA] Service Worker registered. Scope:", reg.scope);
+
+          // Force check for updates
+          reg.update().catch(() => {});
+        } catch (err) {
+          console.warn("[PWA] ServiceWorker registration failed:", err);
+        }
+      };
+
+      if (document.readyState === "complete" || document.readyState === "interactive") {
+        registerSW();
+      } else {
+        window.addEventListener("load", registerSW, { once: true });
+      }
     }
 
     // 2. Monitor network online/offline state

@@ -58,11 +58,16 @@ export default function Dashboard() {
         : `/api/groups?_t=${Date.now()}`;
       const res = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache, no-store, must-revalidate" } });
       const json = await res.json();
-      if (!res.ok) throw new Error();
-      setGroups(json.groups);
-      setGroupId((cur) => (json.groups.some((g: any) => g.id === cur) ? cur : json.groups[0]?.id ?? null));
-      setViewerId((cur) => cur || json.groups[0]?.members[0]?.id || "");
-      setSync("live");
+      if (json.ok && Array.isArray(json.groups)) {
+        setGroups(json.groups);
+        setGroupId((cur) => (json.groups.some((g: any) => g.id === cur) ? cur : json.groups[0]?.id ?? null));
+        setViewerId((cur) => cur || json.groups[0]?.members[0]?.id || "");
+        setSync("live");
+      } else if (json.offline) {
+        setSync("offline");
+      } else {
+        throw new Error();
+      }
     } catch {
       setSync("offline");
     } finally {
@@ -78,9 +83,14 @@ export default function Dashboard() {
         headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
       });
       const json = await res.json();
-      if (!res.ok) throw new Error();
-      setExpenses(json.expenses);
-      setSync("live");
+      if (json.ok && Array.isArray(json.expenses)) {
+        setExpenses(json.expenses);
+        setSync("live");
+      } else if (json.offline) {
+        setSync("offline");
+      } else {
+        throw new Error();
+      }
     } catch {
       setSync("offline");
     }

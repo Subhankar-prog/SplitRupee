@@ -52,14 +52,13 @@ export default function Sidebar({
         headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && Array.isArray(data.groups)) {
         setGroups(data.groups);
-      } else {
+      } else if (!data.offline) {
         setGroups([]);
       }
     } catch (e) {
-      console.error("Failed to load sidebar groups", e);
-      setGroups([]);
+      console.warn("Failed to load sidebar groups (offline mode active):", e);
     } finally {
       setLoading(false);
     }
