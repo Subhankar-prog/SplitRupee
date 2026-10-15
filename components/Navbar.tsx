@@ -236,10 +236,10 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   // Fullscreen toggle handler
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
       setIsFullscreen(false);
     }
   }
@@ -384,9 +384,8 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                             {notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`rounded-xl p-2.5 text-xs transition ${
-                                  n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
-                                }`}
+                                className={`rounded-xl p-2.5 text-xs transition ${n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
+                                  }`}
                               >
                                 <div className="flex items-center justify-between">
                                   <p className="font-bold text-white text-[11px]">{n.title}</p>
@@ -447,7 +446,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       ? pendingQueueCount > 0
                         ? `Online • ${pendingQueueCount} pending sync`
                         : "Online • Synced ✓"
-                      : "Offline Mode • Local Cache"}
+                      : "Offline Mode • Local Storage"}
                   </span>
                 </div>
 
@@ -645,9 +644,8 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         {notifications.map((n) => (
                           <div
                             key={n.id}
-                            className={`rounded-xl p-2.5 text-xs transition ${
-                              n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
-                            }`}
+                            className={`rounded-xl p-2.5 text-xs transition ${n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
+                              }`}
                           >
                             <div className="flex items-center justify-between">
                               <p className="font-bold text-white text-[11px]">{n.title}</p>
@@ -698,20 +696,18 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-2xl border p-1 sm:p-1.5 sm:pr-2.5 text-left transition shadow-sm ${
-                    currentUser.isPro
+                  className={`flex items-center gap-1.5 sm:gap-2 rounded-2xl border p-1 sm:p-1.5 sm:pr-2.5 text-left transition shadow-sm ${currentUser.isPro
                       ? "border-amber-500/40 bg-amber-500/[0.08] hover:border-amber-400 hover:bg-amber-500/15 shadow-amber-500/10"
                       : "border-white/15 bg-white/[0.06] hover:border-emerald-500/40 hover:bg-white/10"
-                  }`}
+                    }`}
                 >
                   {/* Avatar */}
                   <div className="relative">
                     <div
-                      className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl font-bold text-xs shadow transition-all ${
-                        currentUser.isPro
+                      className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl font-bold text-xs shadow transition-all ${currentUser.isPro
                           ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-slate-950 ring-2 ring-amber-400/90 shadow-lg shadow-amber-500/30"
                           : "text-slate-950 shadow"
-                      }`}
+                        }`}
                       style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
                     >
                       {currentUser.name.charAt(0).toUpperCase()}
@@ -755,11 +751,10 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     <div className={`rounded-xl p-3 space-y-2 mb-2 ${currentUser.isPro ? "bg-gradient-to-br from-amber-500/10 via-white/5 to-transparent border border-amber-500/20" : "bg-white/5"}`}>
                       <div className="flex items-center gap-2">
                         <div
-                          className={`h-7 w-7 rounded-lg grid place-items-center text-xs font-bold shrink-0 ${
-                            currentUser.isPro
+                          className={`h-7 w-7 rounded-lg grid place-items-center text-xs font-bold shrink-0 ${currentUser.isPro
                               ? "bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-950 ring-1 ring-amber-400"
                               : "text-slate-950"
-                          }`}
+                            }`}
                           style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
                         >
                           {currentUser.name.charAt(0)}

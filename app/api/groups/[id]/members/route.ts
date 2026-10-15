@@ -7,25 +7,53 @@ interface Params {
   params: { id: string };
 }
 
-/** POST /api/groups/[id]/members: add member to group by userId or email/name */
+/** POST /api/groups/[id]/members: add member to group by userId, email, or phone number */
 export async function POST(req: Request, { params }: Params) {
   try {
     const { id: groupId } = params;
     const body = await req.json();
-    const { userId, email, name, addedById } = body;
+    const { userId, email, phone, name, addedById } = body;
 
     let targetUserId = userId;
 
-    if (!targetUserId && email) {
-      const cleanEmail = email.trim().toLowerCase();
-      let user = await prisma.user.findUnique({ where: { email: cleanEmail } });
-      if (!user) {
-        const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899"];
+    if (!targetUserId && (email || phone)) {
+      const cleanEmail = email ? email.trim().toLowerCase() : null;
+      const cleanPhone = phone ? phone.trim().replace(/\D/g, "").slice(-10) : null;
+
+      // 1. Search for existing registered or placeholder user by email OR phone
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(cleanEmail ? [{ email: cleanEmail }] : []),
+            ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+          ],
+        },
+      });
+
+      // 2. If user already exists, update their phone if previously missing
+      if (user) {
+        if (cleanPhone && !user.phone) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { phone: cleanPhone },
+          });
+        }
+      } else {
+        // 3. User does not exist yet: create a placeholder account
+        // When they later sign up using this email or mobile, they can claim the account & their groups auto-fetch!
+        const fallbackEmail =
+          cleanEmail ||
+          (cleanPhone ? `${cleanPhone}@splitrupee.in` : `user.${Date.now()}@splitrupee.in`);
+        const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#3b82f6"];
+        const chosenColor = colors[Math.floor(Math.random() * colors.length)];
+
         user = await prisma.user.create({
           data: {
-            name: (name || cleanEmail.split("@")[0]).trim(),
-            email: cleanEmail,
-            avatarColor: colors[Math.floor(Math.random() * colors.length)],
+            name: (name || (cleanEmail ? cleanEmail.split("@")[0] : `Member ${cleanPhone}`)).trim(),
+            email: fallbackEmail,
+            phone: cleanPhone || null,
+            avatarColor: chosenColor,
+            passwordHash: null, // Invited placeholder until sign up
           },
         });
       }
@@ -33,7 +61,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     if (!targetUserId) {
-      return NextResponse.json({ ok: false, error: "User ID or Email is required" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "User ID, Email, or Phone number is required" }, { status: 400 });
     }
 
     const existingMembership = await prisma.groupMember.findUnique({

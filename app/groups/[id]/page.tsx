@@ -636,13 +636,13 @@ export default function GroupDetailPage() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 uppercase text-[10px] font-bold tracking-wider">
-                      <th className="p-3 pl-4">Member</th>
-                      <th className="p-3">Total Paid In All (₹)</th>
-                      <th className="p-3">Fair Share (₹)</th>
-                      <th className="p-3">Settlements Paid (₹)</th>
-                      <th className="p-3">Settlements Received (₹)</th>
-                      <th className="p-3">Net Balance (₹)</th>
-                      <th className="p-3 pr-4 text-right">Status / Action</th>
+                      <th className="p-3 pl-4 align-middle">Member</th>
+                      <th className="p-3 align-middle">Total Paid In All (₹)</th>
+                      <th className="p-3 align-middle">Fair Share (₹)</th>
+                      <th className="p-3 align-middle">Settlements Paid (₹)</th>
+                      <th className="p-3 align-middle">Settlements Received (₹)</th>
+                      <th className="p-3 align-middle">Net Balance (₹)</th>
+                      <th className="p-3 pr-4 align-middle text-right">Status / Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-slate-300">
@@ -659,38 +659,40 @@ export default function GroupDetailPage() {
 
                       return (
                         <tr key={m.id} className="hover:bg-white/[0.02] transition">
-                          <td className="p-3 pl-4 font-semibold text-white flex items-center gap-2">
-                            <span
-                              className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
-                              style={{ background: m.avatarColor || "#10b981" }}
-                            >
-                              {m.name.charAt(0)}
-                            </span>
-                            <span className="truncate max-w-[130px]">{m.name}</span>
-                            {currentUser?.id === m.id && (
-                              <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.2 text-[9px] font-bold">
-                                You
+                          <td className="p-3 pl-4 align-middle font-semibold text-white whitespace-nowrap">
+                            <div className="flex items-center gap-2 min-w-max">
+                              <span
+                                className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
+                                style={{ background: m.avatarColor || "#10b981" }}
+                              >
+                                {m.name.charAt(0)}
                               </span>
-                            )}
-                            {isCreator && (
-                              <span className="rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-bold">
-                                Admin
-                              </span>
-                            )}
+                              <span className="truncate max-w-[130px]">{m.name}</span>
+                              {currentUser?.id === m.id && (
+                                <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 text-[9px] font-bold">
+                                  You
+                                </span>
+                              )}
+                              {isCreator && (
+                                <span className="rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td className="p-3 font-bold text-white tabular-nums">
+                          <td className="p-3 align-middle font-bold text-white tabular-nums">
                             {formatINR(paid)}
                           </td>
-                          <td className="p-3 tabular-nums text-slate-300">
+                          <td className="p-3 align-middle tabular-nums text-slate-300">
                             {formatINR(share)}
                           </td>
-                          <td className="p-3 tabular-nums text-slate-300">
+                          <td className="p-3 align-middle tabular-nums text-slate-300">
                             {formatINR(setPaid)}
                           </td>
-                          <td className="p-3 tabular-nums text-slate-300">
+                          <td className="p-3 align-middle tabular-nums text-slate-300">
                             {formatINR(setRecv)}
                           </td>
-                          <td className="p-3 tabular-nums font-bold">
+                          <td className="p-3 align-middle tabular-nums font-bold">
                             <span
                               className={
                                 isCreditor
@@ -703,7 +705,7 @@ export default function GroupDetailPage() {
                               {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
                             </span>
                           </td>
-                          <td className="p-3 pr-4 text-right">
+                          <td className="p-3 pr-4 align-middle text-right">
                             {isDebtor ? (
                               <button
                                 onClick={() => {
@@ -856,12 +858,12 @@ export default function GroupDetailPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 uppercase text-[10px] font-bold tracking-wider">
-                    <th className="p-3.5 pl-5">Traveler / Member</th>
-                    <th className="p-3.5">Total Paid (INR)</th>
-                    <th className="p-3.5">Fair Share (INR)</th>
-                    <th className="p-3.5">Net Balance (INR)</th>
-                    <th className="p-3.5">Status</th>
-                    <th className="p-3.5 pr-5 text-right">Settlement Action</th>
+                    <th className="p-3.5 pl-5 align-middle">Traveler / Member</th>
+                    <th className="p-3.5 align-middle">Total Paid (INR)</th>
+                    <th className="p-3.5 align-middle">Fair Share (INR)</th>
+                    <th className="p-3.5 align-middle">Net Balance (INR)</th>
+                    <th className="p-3.5 align-middle">Status</th>
+                    <th className="p-3.5 pr-5 align-middle text-right">Settlement Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-slate-300">
@@ -875,27 +877,29 @@ export default function GroupDetailPage() {
 
                     return (
                       <tr key={m.id} className="hover:bg-white/[0.02] transition">
-                        <td className="p-3.5 pl-5 font-semibold text-white flex items-center gap-2.5">
-                          <span
-                            className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
-                            style={{ background: m.avatarColor || "#10b981" }}
-                          >
-                            {m.name.charAt(0)}
-                          </span>
-                          <span className="truncate max-w-[140px]">{m.name}</span>
-                          {currentUser?.id === m.id && (
-                            <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.2 text-[9px] font-bold">
-                              You
+                        <td className="p-3.5 pl-5 align-middle font-semibold text-white whitespace-nowrap">
+                          <div className="flex items-center gap-2.5 min-w-max">
+                            <span
+                              className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
+                              style={{ background: m.avatarColor || "#10b981" }}
+                            >
+                              {m.name.charAt(0)}
                             </span>
-                          )}
+                            <span className="truncate max-w-[140px]">{m.name}</span>
+                            {currentUser?.id === m.id && (
+                              <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 text-[9px] font-bold">
+                                You
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="p-3.5 tabular-nums font-semibold text-white">
+                        <td className="p-3.5 align-middle tabular-nums font-semibold text-white">
                           {formatINR(paid)}
                         </td>
-                        <td className="p-3.5 tabular-nums text-slate-300">
+                        <td className="p-3.5 align-middle tabular-nums text-slate-300">
                           {formatINR(share)}
                         </td>
-                        <td className="p-3.5 tabular-nums font-bold">
+                        <td className="p-3.5 align-middle tabular-nums font-bold">
                           <span
                             className={
                               isCreditor
@@ -908,7 +912,7 @@ export default function GroupDetailPage() {
                             {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
                           </span>
                         </td>
-                        <td className="p-3.5">
+                        <td className="p-3.5 align-middle">
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
                               isCreditor
@@ -925,7 +929,7 @@ export default function GroupDetailPage() {
                               : "Settled / All Square"}
                           </span>
                         </td>
-                        <td className="p-3.5 pr-5 text-right">
+                        <td className="p-3.5 pr-5 align-middle text-right">
                           {isDebtor ? (
                             <button
                               onClick={() => {

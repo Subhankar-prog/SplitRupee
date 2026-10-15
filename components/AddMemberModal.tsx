@@ -24,6 +24,7 @@ export default function AddMemberModal({
   const [tab, setTab] = useState<"link" | "new">("link");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
@@ -52,17 +53,39 @@ export default function AddMemberModal({
 
   async function handleCreateAndAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      setError("Name and Email are required");
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+    const cleanPhone = phone.trim().replace(/\D/g, "").slice(-10);
+
+    if (!cleanName) {
+      setError("Member name is required");
       return;
     }
+    if (!cleanEmail && !cleanPhone) {
+      setError("Please provide at least an Email address or Mobile number");
+      return;
+    }
+    if (cleanEmail && (!cleanEmail.includes("@") || !cleanEmail.includes("."))) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    if (cleanPhone && cleanPhone.length !== 10) {
+      setError("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
     setError("");
     setLoading(true);
     try {
       const res = await fetch(`/api/groups/${groupId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), addedById: currentUser?.id }),
+        body: JSON.stringify({
+          name: cleanName,
+          email: cleanEmail || undefined,
+          phone: cleanPhone || undefined,
+          addedById: currentUser?.id,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "Failed to add member");
@@ -88,7 +111,7 @@ export default function AddMemberModal({
               Invite & Add Members
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Share an invite link, add contacts, or invite via email
+              Share an invite link, add contacts, or invite via email / mobile
             </p>
           </div>
           <button
@@ -121,7 +144,7 @@ export default function AddMemberModal({
               tab === "new" ? "bg-emerald-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
-            Add by Name / Email
+            Add by Email / Phone
           </button>
         </div>
 
@@ -156,15 +179,13 @@ export default function AddMemberModal({
           </div>
         )}
 
-
-
         {tab === "new" && (
           <form onSubmit={handleCreateAndAdd} className="mt-4 space-y-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300">Name</label>
+              <label className="text-xs font-semibold text-slate-300">Full Name *</label>
               <input
                 type="text"
-                placeholder="e.g. Sumanth Kumar"
+                placeholder="e.g. Rahul Sharma"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -172,16 +193,38 @@ export default function AddMemberModal({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-300">Email Address</label>
+              <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                <span>Mobile Number (Phone)</span>
+                <span className="text-[10px] text-slate-400">10-digit</span>
+              </label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-2 text-xs text-slate-400 font-mono">+91</span>
+                <input
+                  type="tel"
+                  maxLength={10}
+                  placeholder="9876543210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                <span>Email Address</span>
+                <span className="text-[10px] text-slate-400">Optional if phone provided</span>
+              </label>
               <input
                 type="email"
-                placeholder="e.g. sumanth@example.in"
+                placeholder="e.g. rahul@example.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500"
               />
             </div>
+            <p className="text-[10.5px] text-emerald-400/90 leading-relaxed bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5">
+              💡 When this friend signs up using this email or mobile number, this group and their balances will automatically appear on their screen.
+            </p>
             <div className="flex gap-2 pt-2">
               <button
                 type="button"

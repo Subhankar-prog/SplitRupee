@@ -61,7 +61,7 @@ export default function PwaRegister() {
     <div className="fixed top-14 sm:top-16 left-0 right-0 z-40 pointer-events-none transition-all duration-300">
       <div className="flex items-center justify-center gap-2 bg-rose-950/95 border-b border-rose-500/40 text-rose-200 py-1.5 px-4 shadow-lg backdrop-blur-md text-xs font-medium text-center">
         <WifiOff className="h-3.5 w-3.5 shrink-0 text-rose-400 animate-pulse" />
-        <span>You are offline. Offline cache mode is active.</span>
+        <span>You are offline. Offline mode is active.</span>
       </div>
     </div>
   );

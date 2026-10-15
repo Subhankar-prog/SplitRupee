@@ -55,6 +55,37 @@ export async function POST(req: Request) {
     });
 
     if (existing) {
+      // If the user was previously added to groups as an invited placeholder (passwordHash is null),
+      // allow them to claim and activate their account so all their groups automatically load!
+      if (!existing.passwordHash) {
+        const passwordHash = password ? hashPassword(password) : null;
+        const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#3b82f6"];
+        const chosenColor = avatarColor || existing.avatarColor || colors[Math.floor(Math.random() * colors.length)];
+
+        const user = await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            name: name.trim() || existing.name,
+            email: userEmail || existing.email,
+            phone: userPhone || existing.phone,
+            passwordHash,
+            avatarColor: chosenColor,
+            upiId: (upiId || "").trim() || existing.upiId,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatarColor: true,
+            upiId: true,
+            createdAt: true,
+          },
+        });
+
+        return NextResponse.json({ ok: true, user, claimed: true });
+      }
+
       return NextResponse.json(
         { ok: false, error: "An account with this email or phone number already exists. Please log in." },
         { status: 409 }
