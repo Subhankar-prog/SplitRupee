@@ -1,10 +1,13 @@
-// SplitRupee Production Service Worker (PWA Offline Engine v4)
-const CACHE_NAME = "splitrupee-pwa-v4";
+// SplitRupee Production Service Worker (PWA Offline Engine v5)
+const CACHE_NAME = "splitrupee-pwa-v5";
 
 const PRECACHE_URLS = [
   "/",
   "/offline",
   "/dashboard",
+  "/groups",
+  "/expenses",
+  "/activity",
   "/manifest.json",
   "/icon.svg"
 ];
@@ -24,7 +27,6 @@ function getCanonicalUrl(urlString) {
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // Fetch each resource with error isolation (so a single failed fetch doesn't abort install)
       await Promise.allSettled(
         PRECACHE_URLS.map(async (url) => {
           try {
@@ -76,7 +78,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Handle Chrome extension or non-http requests
+  // Handle non-http requests
   if (!url.protocol.startsWith("http")) {
     return;
   }
@@ -94,7 +96,6 @@ self.addEventListener("fetch", (event) => {
       caches.open(CACHE_NAME).then(async (cache) => {
         const cached = await cache.match(request);
         if (cached) {
-          // In background, revalidate if online
           fetch(request)
             .then((networkRes) => {
               if (networkRes && networkRes.status === 200) {
@@ -119,7 +120,39 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // B. API Requests (/api/): Network-First with Normalized Offline Fallback
+  // B. Next.js RSC Prefetch & Data Requests (?_rsc=... or /_next/data/...)
+  if (url.searchParams.has("_rsc") || url.pathname.startsWith("/_next/data/")) {
+    event.respondWith(
+      fetch(request)
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const clone = networkRes.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+              const norm = new URL(request.url);
+              norm.searchParams.delete("_rsc");
+              cache.put(norm.toString(), networkRes.clone());
+            });
+          }
+          return networkRes;
+        })
+        .catch(async () => {
+          const norm = new URL(request.url);
+          norm.searchParams.delete("_rsc");
+          const cached =
+            (await caches.match(request)) ||
+            (await caches.match(norm.toString()));
+          if (cached) return cached;
+          return new Response("", {
+            status: 200,
+            headers: { "Content-Type": "text/x-component" }
+          });
+        })
+    );
+    return;
+  }
+
+  // C. API Requests (/api/): Network-First with Normalized Offline Fallback
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request)
@@ -128,16 +161,18 @@ self.addEventListener("fetch", (event) => {
             const canonicalUrl = getCanonicalUrl(request.url);
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              // Store under both the requested URL and the canonical (sans _t) URL
               cache.put(canonicalUrl, responseClone);
+              cache.put(request.url, responseClone.clone());
             });
           }
           return networkResponse;
         })
         .catch(async () => {
-          // Network failed: Look up canonical URL or requested URL in cache
           const canonicalUrl = getCanonicalUrl(request.url);
-          const cachedResponse = (await caches.match(canonicalUrl)) || (await caches.match(request));
+          const cachedResponse =
+            (await caches.match(canonicalUrl)) ||
+            (await caches.match(request.url)) ||
+            (await caches.match(request));
           if (cachedResponse) {
             return cachedResponse;
           }
@@ -158,7 +193,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // C. HTML Page Navigation (request.mode === "navigate"): Network-First with Offline Fallback
+  // D. HTML Page Navigation (request.mode === "navigate"): Network-First with Clean Offline Fallback
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -167,23 +202,29 @@ self.addEventListener("fetch", (event) => {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseClone);
-              // Also cache under pathname
               cache.put(url.pathname, responseClone.clone());
             });
           }
           return networkResponse;
         })
         .catch(async () => {
-          // Offline navigation fallback:
-          // 1. Exact URL match
+          // 1. Exact match
           let cached = await caches.match(request);
           if (cached) return cached;
 
-          // 2. Pathname match (e.g. /dashboard or /groups)
+          // 2. Pathname match
           cached = await caches.match(url.pathname);
           if (cached) return cached;
 
-          // 3. Fallback to cached /dashboard, /offline, or root /
+          // 3. For any group detail route (/groups/*), use cached /groups or /dashboard
+          if (url.pathname.startsWith("/groups/")) {
+            const groupShell =
+              (await caches.match("/groups")) ||
+              (await caches.match("/dashboard"));
+            if (groupShell) return groupShell;
+          }
+
+          // 4. Fallback to cached dashboard, offline, or root
           const fallback =
             (await caches.match("/dashboard")) ||
             (await caches.match("/offline")) ||
@@ -200,7 +241,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // D. Default fallback for other GET requests
+  // E. Default fallback for other GET requests
   event.respondWith(
     fetch(request).catch(() => caches.match(request))
   );

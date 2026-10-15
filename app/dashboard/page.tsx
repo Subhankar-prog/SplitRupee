@@ -34,6 +34,14 @@ import CreateGroupModal from "@/components/CreateGroupModal";
 import SettleUpModal from "@/components/SettleUpModal";
 import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import {
+  getCachedGroupsList,
+  saveCachedGroupsList,
+  getCachedGroup,
+  saveCachedGroup,
+  getCachedAllExpenses,
+  saveCachedAllExpenses,
+} from "@/lib/offlineSync";
 
 const TYPE_ICONS = {
   TRIP: Plane,
@@ -44,11 +52,22 @@ const TYPE_ICONS = {
 
 export default function DashboardPage() {
   const { currentUser, users, isLoading: usersLoading } = useUser();
-  const [groups, setGroups] = useState<GroupDTO[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseDTO[]>([]);
+  const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
+  const [expenses, setExpenses] = useState<ExpenseDTO[]>(() => getCachedAllExpenses());
   const [activities, setActivities] = useState<ActivityLogDTO[]>([]);
-  const [groupDetails, setGroupDetails] = useState<Record<string, any>>({});
-  const [initialLoaded, setInitialLoaded] = useState(false);
+  const [groupDetails, setGroupDetails] = useState<Record<string, any>>(() => {
+    if (typeof window !== "undefined") {
+      const list = getCachedGroupsList();
+      const map: Record<string, any> = {};
+      list.forEach((g: any) => {
+        const detail = getCachedGroup(g.id);
+        if (detail) map[g.id] = detail;
+      });
+      return map;
+    }
+    return {};
+  });
+  const [initialLoaded, setInitialLoaded] = useState(() => getCachedGroupsList().length > 0);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -68,47 +87,58 @@ export default function DashboardPage() {
     if (!currentUser) return;
     try {
       // 1. Fetch groups
-      const gRes = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      const gRes = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
       const gData = await gRes.json();
       const userGroups: GroupDTO[] = gData.ok ? gData.groups : [];
-      setGroups(userGroups);
+      if (userGroups.length > 0) {
+        setGroups(userGroups);
+        saveCachedGroupsList(userGroups);
+      }
 
       // 2. Fetch full details for each group to compute overall balances
       const detailsMap: Record<string, any> = {};
       await Promise.all(
         userGroups.map(async (g) => {
-          const detailRes = await fetch(`/api/groups/${g.id}?_t=${Date.now()}`, {
-            cache: "no-store",
-            headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-          });
-          const detailData = await detailRes.json();
-          if (detailData.ok) {
-            detailsMap[g.id] = detailData.group;
-          }
+          try {
+            const detailRes = await fetch(`/api/groups/${g.id}?_t=${Date.now()}`);
+            const detailData = await detailRes.json();
+            if (detailData.ok && detailData.group) {
+              detailsMap[g.id] = detailData.group;
+              saveCachedGroup(g.id, detailData.group);
+            }
+          } catch {}
         })
       );
-      setGroupDetails(detailsMap);
+      if (Object.keys(detailsMap).length > 0) {
+        setGroupDetails(detailsMap);
+      }
 
       // 3. Fetch all expenses for user
-      const eRes = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      const eRes = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
       const eData = await eRes.json();
-      if (eData.ok) setExpenses(eData.expenses);
+      if (eData.ok && Array.isArray(eData.expenses)) {
+        setExpenses(eData.expenses);
+        saveCachedAllExpenses(eData.expenses);
+      }
 
       // 4. Fetch recent activities
-      const aRes = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=10&_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      const aRes = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=10&_t=${Date.now()}`);
       const aData = await aRes.json();
       if (aData.ok) setActivities(aData.activities);
     } catch (e) {
-      console.error("Failed to load dashboard data", e);
+      console.warn("Failed to load live dashboard data (offline fallback active):", e);
+      const cachedList = getCachedGroupsList();
+      if (cachedList.length > 0) {
+        setGroups(cachedList);
+        const map: Record<string, any> = {};
+        cachedList.forEach((g: any) => {
+          const detail = getCachedGroup(g.id);
+          if (detail) map[g.id] = detail;
+        });
+        setGroupDetails(map);
+      }
+      const cachedExp = getCachedAllExpenses();
+      if (cachedExp.length > 0) setExpenses(cachedExp);
     } finally {
       setInitialLoaded(true);
     }

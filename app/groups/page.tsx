@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import CreateGroupModal from "@/components/CreateGroupModal";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import { getCachedGroupsList, saveCachedGroupsList } from "@/lib/offlineSync";
 
 const TYPE_ICONS: Record<string, any> = {
   TRIP: Plane,
@@ -29,8 +30,8 @@ const TYPE_ICONS: Record<string, any> = {
 
 export default function GroupsPage() {
   const { currentUser, isLoading: usersLoading } = useUser();
-  const [groups, setGroups] = useState<GroupDTO[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
+  const [loading, setLoading] = useState(() => getCachedGroupsList().length === 0);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -38,25 +39,30 @@ export default function GroupsPage() {
 
   const fetchGroups = useCallback(async (isInitial = false) => {
     if (!currentUser?.id) {
+      const cached = getCachedGroupsList();
+      if (cached.length > 0) setGroups(cached);
       if (!usersLoading) setLoading(false);
       return;
     }
     try {
-      if (isInitial) setLoading(true);
-      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      if (isInitial && groups.length === 0) setLoading(true);
+      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
       const data = await res.json();
       if (data.ok && Array.isArray(data.groups)) {
         setGroups(data.groups);
+        saveCachedGroupsList(data.groups);
+      } else {
+        const cached = getCachedGroupsList();
+        if (cached.length > 0) setGroups(cached);
       }
     } catch (err) {
-      console.error("Failed to load groups:", err);
+      console.warn("Failed to load groups (offline mode active):", err);
+      const cached = getCachedGroupsList();
+      if (cached.length > 0) setGroups(cached);
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, usersLoading]);
+  }, [currentUser?.id, usersLoading, groups.length]);
 
   useEffect(() => {
     fetchGroups(true);

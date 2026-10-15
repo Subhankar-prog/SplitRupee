@@ -27,6 +27,8 @@ const TYPE_ICONS = {
   OTHER: Tag,
 };
 
+import { getCachedGroupsList, saveCachedGroupsList } from "@/lib/offlineSync";
+
 export default function Sidebar({
   isOpen,
   onClose,
@@ -36,29 +38,36 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { currentUser } = useUser();
-  const [groups, setGroups] = useState<GroupDTO[]>([]);
+  const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => getCachedGroupsList().length === 0);
 
   async function loadGroups() {
     if (!currentUser?.id) {
-      setGroups([]);
+      const cached = getCachedGroupsList();
+      if (cached.length > 0) {
+        setGroups(cached);
+      } else {
+        setGroups([]);
+      }
       setLoading(false);
       return;
     }
     try {
-      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
       const data = await res.json();
       if (data.ok && Array.isArray(data.groups)) {
         setGroups(data.groups);
-      } else if (!data.offline) {
-        setGroups([]);
+        saveCachedGroupsList(data.groups);
+      } else {
+        const cached = getCachedGroupsList();
+        if (cached.length > 0) setGroups(cached);
+        else if (!data.offline) setGroups([]);
       }
     } catch (e) {
       console.warn("Failed to load sidebar groups (offline mode active):", e);
+      const cached = getCachedGroupsList();
+      if (cached.length > 0) setGroups(cached);
     } finally {
       setLoading(false);
     }

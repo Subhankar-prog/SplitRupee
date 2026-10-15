@@ -50,6 +50,7 @@ import {
   Crown,
   Settings,
   LogOut,
+  WifiOff,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
@@ -59,6 +60,7 @@ import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 import ManageGroupModal from "@/components/ManageGroupModal";
 import ExitGroupModal from "@/components/ExitGroupModal";
+import { getCachedGroup, saveCachedGroup } from "@/lib/offlineSync";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
   Food: { icon: Utensils, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -96,11 +98,21 @@ export default function GroupDetailPage() {
   const groupId = params.id as string;
   const { currentUser } = useUser();
 
-  const [group, setGroup] = useState<any | null>(null);
+  const [group, setGroup] = useState<any | null>(() => {
+    if (typeof window !== "undefined" && groupId && groupId !== "undefined") {
+      return getCachedGroup(groupId);
+    }
+    return null;
+  });
   const [activeTab, setActiveTab] = useState<"passbook" | "matrix" | "balances" | "expenses" | "settlements" | "activity" | "members">("matrix");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined" && groupId && groupId !== "undefined") {
+      return !getCachedGroup(groupId);
+    }
+    return true;
+  });
   const [copied, setCopied] = useState(false);
 
   // Modals
@@ -132,23 +144,34 @@ export default function GroupDetailPage() {
       setLoading(false);
       return;
     }
+    const cached = getCachedGroup(groupId);
+    if (cached) {
+      setGroup(cached);
+      if (isInitial) setLoading(false);
+    } else if (isInitial) {
+      setLoading(true);
+    }
+
     try {
-      if (isInitial) setLoading(true);
-      const res = await fetch(`/api/groups/${groupId}?_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      const res = await fetch(`/api/groups/${groupId}?_t=${Date.now()}`);
       const data = await res.json();
       if (data.ok && data.group) {
         setGroup(data.group);
-      } else if (!data.offline) {
-        setGroup((cur: any) => {
-          if (!cur) router.push("/dashboard");
-          return cur;
-        });
+        saveCachedGroup(groupId, data.group);
+      } else {
+        const fallback = getCachedGroup(groupId);
+        if (fallback) {
+          setGroup(fallback);
+        } else if (!data.offline && typeof navigator !== "undefined" && navigator.onLine) {
+          router.push("/dashboard");
+        }
       }
     } catch (e) {
       console.warn("Failed to load group (offline mode active):", e);
+      const fallback = getCachedGroup(groupId);
+      if (fallback) {
+        setGroup(fallback);
+      }
     } finally {
       setLoading(false);
     }
@@ -296,8 +319,22 @@ export default function GroupDetailPage() {
 
   if (!group) {
     return (
-      <div className="grid min-h-[50vh] place-items-center text-center">
-        <p className="text-sm text-slate-400">Group not found.</p>
+      <div className="grid min-h-[50vh] place-items-center text-center p-4">
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-8 max-w-md backdrop-blur-xl space-y-4">
+          <div className="mx-auto h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 grid place-items-center">
+            <WifiOff className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-bold text-white">Group Data Unavailable Offline</h2>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            This group has not been opened on this device yet while online. Reconnect to the internet once to sync and view this group offline anytime.
+          </p>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -324,6 +361,12 @@ export default function GroupDetailPage() {
                 {isAdmin && (
                   <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 flex items-center gap-1">
                     <Crown className="h-3 w-3 text-amber-400" /> Admin
+                  </span>
+                )}
+                {typeof navigator !== "undefined" && !navigator.onLine && (
+                  <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300 shrink-0 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+                    Offline (Cached)
                   </span>
                 )}
               </div>

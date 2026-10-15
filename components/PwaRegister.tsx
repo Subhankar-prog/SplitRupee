@@ -16,7 +16,7 @@ export default function PwaRegister() {
           console.log("[PWA] Service Worker registered. Scope:", reg.scope);
 
           // Force check for updates
-          reg.update().catch(() => {});
+          reg.update().catch(() => { });
         } catch (err) {
           console.warn("[PWA] ServiceWorker registration failed:", err);
         }
@@ -55,21 +55,14 @@ export default function PwaRegister() {
     };
   }, []);
 
-  if (!isOffline && !showReconnected) return null;
+  if (!isOffline) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300">
-      {isOffline ? (
-        <div className="flex items-center gap-2.5 bg-rose-950/90 border border-rose-500/40 text-rose-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md text-xs font-medium">
-          <WifiOff className="h-4 w-4 text-rose-400 animate-pulse" />
-          <span>You are offline. Offline cache mode is active.</span>
-        </div>
-      ) : showReconnected ? (
-        <div className="flex items-center gap-2.5 bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md text-xs font-medium">
-          <Wifi className="h-4 w-4 text-emerald-400" />
-          <span>Internet restored. Back online!</span>
-        </div>
-      ) : null}
+    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 max-w-[90vw]">
+      <div className="flex items-center gap-2.5 bg-rose-950/90 border border-rose-500/40 text-rose-200 px-4 py-2 rounded-full shadow-2xl backdrop-blur-md text-xs font-medium">
+        <WifiOff className="h-4 w-4 text-rose-400 animate-pulse" />
+        <span>You are offline. Offline cache mode is active.</span>
+      </div>
     </div>
   );
 }

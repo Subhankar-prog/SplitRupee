@@ -30,6 +30,7 @@ import {
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import { getCachedAllExpenses, saveCachedAllExpenses } from "@/lib/offlineSync";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
   Food: { icon: Utensils, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -43,11 +44,11 @@ const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: strin
 
 export default function AllExpensesPage() {
   const { currentUser, isLoading: userLoading } = useUser();
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>(() => getCachedAllExpenses());
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => getCachedAllExpenses().length === 0);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -56,25 +57,30 @@ export default function AllExpensesPage() {
 
   const loadExpenses = useCallback(async (isInitial = false) => {
     if (!currentUser?.id) {
+      const cached = getCachedAllExpenses();
+      if (cached.length > 0) setExpenses(cached);
       if (!userLoading) setLoading(false);
       return;
     }
     try {
-      if (isInitial) setLoading(true);
-      const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
+      if (isInitial && expenses.length === 0) setLoading(true);
+      const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
       const data = await res.json();
       if (data.ok && Array.isArray(data.expenses)) {
         setExpenses(data.expenses);
+        saveCachedAllExpenses(data.expenses);
+      } else {
+        const cached = getCachedAllExpenses();
+        if (cached.length > 0) setExpenses(cached);
       }
     } catch (e) {
       console.warn("Failed to load all expenses (offline mode active):", e);
+      const cached = getCachedAllExpenses();
+      if (cached.length > 0) setExpenses(cached);
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, userLoading]);
+  }, [currentUser?.id, userLoading, expenses.length]);
 
   useEffect(() => {
     loadExpenses(true);
