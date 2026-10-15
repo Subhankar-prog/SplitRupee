@@ -16,6 +16,13 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen && currentUser) {
+      setUpiId(currentUser.upiId || "");
+      setError("");
+    }
+  }, [isOpen, currentUser]);
+
   if (!isOpen || !currentUser) return null;
 
   async function handleSave(e: React.FormEvent) {

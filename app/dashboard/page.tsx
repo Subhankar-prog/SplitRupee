@@ -28,6 +28,7 @@ import {
   Sparkles,
   Loader2,
   Wallet,
+  UserPlus,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
@@ -82,6 +83,40 @@ export default function DashboardPage() {
     receiverId?: string;
     amount?: number;
   } | null>(null);
+
+  // Join group with invite code
+  const [joinCodeInput, setJoinCodeInput] = useState("");
+  const [joinError, setJoinError] = useState("");
+  const [joining, setJoining] = useState(false);
+
+  const handleJoinGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinCodeInput.trim() || !currentUser) return;
+    try {
+      setJoining(true);
+      setJoinError("");
+      const res = await fetch("/api/groups/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inviteCode: joinCodeInput.trim(),
+          userId: currentUser.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setJoinCodeInput("");
+        loadDashboardData();
+        window.dispatchEvent(new Event("splitrupee_refresh"));
+      } else {
+        setJoinError(data.error || "Invalid invite code");
+      }
+    } catch {
+      setJoinError("Network error. Please try again.");
+    } finally {
+      setJoining(false);
+    }
+  };
 
   const loadDashboardData = useCallback(async () => {
     if (!currentUser) return;
@@ -363,6 +398,33 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Groups List (2 Cols) */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Join Group with Invite Code Bar */}
+          <div className="rounded-2xl bg-slate-900/40 p-3 sm:p-4 border border-white/5 backdrop-blur-md">
+            <form onSubmit={handleJoinGroup} className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex items-center gap-2 text-slate-300 text-xs sm:text-sm font-medium shrink-0">
+                <UserPlus className="h-4 w-4 text-emerald-400" />
+                <span>Have an Invite Code?</span>
+              </div>
+              <div className="flex-1 w-full flex items-center gap-2">
+                <input
+                  type="text"
+                  value={joinCodeInput}
+                  onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                  placeholder="Enter 8-digit invite code (e.g. TRIP2026)"
+                  className="w-full rounded-xl bg-slate-950 border border-white/10 px-3.5 py-2 text-xs sm:text-sm font-mono uppercase text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={joining || !joinCodeInput.trim()}
+                  className="rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-400 transition disabled:opacity-50 shrink-0"
+                >
+                  {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
+                </button>
+              </div>
+            </form>
+            {joinError && <p className="text-rose-400 text-xs mt-2 pl-1">{joinError}</p>}
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-emerald-400" />

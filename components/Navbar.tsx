@@ -28,16 +28,54 @@ import {
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
+import AddUpiModal from "./AddUpiModal";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const { currentUser, logout, refreshUsers } = useUser();
   const [showGlobalAddExpense, setShowGlobalAddExpense] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showAddUpiModal, setShowAddUpiModal] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Online / Offline & Sync Queue state for mobile status bar
+  const [isOnline, setIsOnline] = useState(true);
+  const [pendingQueueCount, setPendingQueueCount] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      const updateSyncStatus = () => {
+        try {
+          const raw = localStorage.getItem("splitrupee_offline_expenses_queue");
+          const q = raw ? JSON.parse(raw) : [];
+          setPendingQueueCount(Array.isArray(q) ? q.length : 0);
+        } catch {
+          setPendingQueueCount(0);
+        }
+      };
+      updateSyncStatus();
+      const onOnline = () => {
+        setIsOnline(true);
+        updateSyncStatus();
+      };
+      const onOffline = () => {
+        setIsOnline(false);
+        updateSyncStatus();
+      };
+      window.addEventListener("online", onOnline);
+      window.addEventListener("offline", onOffline);
+      window.addEventListener("splitrupee_offline_queue_changed", updateSyncStatus);
+      return () => {
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+        window.removeEventListener("splitrupee_offline_queue_changed", updateSyncStatus);
+      };
+    }
+  }, []);
 
   // Quick UPI Edit in Profile Dropdown
   const [isEditingUpi, setIsEditingUpi] = useState(false);
@@ -225,7 +263,230 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 sm:h-16 w-full items-center justify-between px-3 sm:px-4 md:px-6">
+        {/* =========================================================================
+            MOBILE APP HEADER (Only on mobile < md for logged-in app routes)
+            ========================================================================= */}
+        {isAppRoute && currentUser ? (
+          <div className="md:hidden px-3.5 py-3 space-y-2.5">
+            {/* 1st Logo / Tag line on Left, SplitRupee PRO Button on Right */}
+            <div className="flex items-center justify-between gap-2">
+              <Link href="/dashboard" className="flex items-center gap-2 group">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 shadow-md shadow-emerald-500/20">
+                  <span className="text-base font-black">₹</span>
+                </div>
+                <div className="leading-tight">
+                  <span className="font-extrabold tracking-tight text-white text-sm block">
+                    SplitRupee
+                  </span>
+                  <span className="text-[9px] text-slate-400 tracking-wider uppercase font-semibold block -mt-0.5">
+                    Expense Mgmt
+                  </span>
+                </div>
+              </Link>
+
+              {/* SplitRupee Pro Button */}
+              <Link
+                href="/pro"
+                className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 shadow-md shadow-amber-500/10 active:scale-95 transition"
+              >
+                <Crown className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                <span>SplitRupee Pro</span>
+              </Link>
+            </div>
+
+            {/* Profile Holder Card */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-xl shadow-lg">
+              <div className="flex items-center justify-between gap-2">
+                {/* Left: Avatar + Welcome back + Name + Phone/Email + UPI ID */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-slate-950 text-sm shadow-md"
+                    style={{ background: currentUser.avatarColor || "#10b981" }}
+                  >
+                    {currentUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                      Welcome back 👋
+                    </p>
+                    <p className="font-bold text-white text-xs sm:text-sm truncate">
+                      {currentUser.name}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {currentUser.phone || currentUser.email || "Registered Member"}
+                    </p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <QrCode className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
+                      <span className="text-[10px] font-mono text-emerald-400 truncate">
+                        {currentUser.upiId || "No UPI linked"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Small Circle Action Buttons (UPI, Notifications, Change Password, Logout) */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Add / Edit UPI Circle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAddUpiModal(true)}
+                    className="h-8 w-8 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 grid place-items-center hover:bg-emerald-500/20 active:scale-95 transition shadow-sm"
+                    title="Add or Edit UPI ID"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                  </button>
+
+                  {/* Notifications Circle Button & Mobile Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setNotificationsOpen(!notificationsOpen)}
+                      className="h-8 w-8 rounded-full border border-white/10 bg-white/5 text-slate-300 grid place-items-center relative hover:bg-white/10 active:scale-95 transition shadow-sm"
+                      title="Notifications"
+                    >
+                      <Bell className="h-3.5 w-3.5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-rose-500 font-bold text-[8px] text-white shadow">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Mobile Notifications Popup */}
+                    {notificationsOpen && (
+                      <div className="fixed inset-x-3 top-28 rounded-2xl border border-white/15 bg-slate-900/98 p-4 shadow-2xl space-y-3 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-[70vh] overflow-y-auto backdrop-blur-xl">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                          <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <Bell className="h-3.5 w-3.5 text-emerald-400" /> Notifications
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                setNotifications((prev) =>
+                                  prev.map((n) => ({ ...n, unread: false }))
+                                )
+                              }
+                              className="text-[10px] text-emerald-400 hover:underline"
+                            >
+                              Mark read
+                            </button>
+                            <button
+                              onClick={() => setNotificationsOpen(false)}
+                              className="text-slate-400 hover:text-white"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {notifications.length > 0 ? (
+                          <div className="space-y-2">
+                            {notifications.map((n) => (
+                              <div
+                                key={n.id}
+                                className={`rounded-xl p-2.5 text-xs transition ${
+                                  n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <p className="font-bold text-white text-[11px]">{n.title}</p>
+                                  <span className="text-[9px] text-slate-400">{n.time}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-300 mt-0.5">{n.desc}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="py-5 text-center space-y-1.5">
+                            <p className="text-xs font-semibold text-white">No notifications yet</p>
+                            <p className="text-[10px] text-slate-400">
+                              Activity from your groups will show up here.
+                            </p>
+                          </div>
+                        )}
+
+                        <Link
+                          href="/activity"
+                          onClick={() => setNotificationsOpen(false)}
+                          className="block text-center text-[11px] font-semibold text-emerald-400 hover:underline pt-1"
+                        >
+                          View Full Activity Feed →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Change Password Circle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePassword(true)}
+                    className="h-8 w-8 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 grid place-items-center hover:bg-amber-500/20 active:scale-95 transition shadow-sm"
+                    title="Change Password"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </button>
+
+                  {/* Logout Circle Button */}
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    className="h-8 w-8 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-400 grid place-items-center hover:bg-rose-500/20 active:scale-95 transition shadow-sm"
+                    title="Log Out"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Online / Offline Mode & Synced Status Strip */}
+              <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <span className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
+                  <span className={isOnline ? "text-emerald-300" : "text-rose-300"}>
+                    {isOnline
+                      ? pendingQueueCount > 0
+                        ? `Online • ${pendingQueueCount} pending sync`
+                        : "Online • Synced ✓"
+                      : "Offline Mode • Local Cache"}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowGlobalAddExpense(true)}
+                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold active:scale-95 transition"
+                >
+                  <Plus className="h-3 w-3 stroke-[2.5]" />
+                  <span>Add Expense</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Public pages / Logged out mobile navigation */
+          <div className="md:hidden flex h-14 w-full items-center justify-between px-3">
+            <Link href="/" className="flex items-center gap-2 group shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 shadow-lg shadow-emerald-500/20">
+                <span className="text-base font-black">₹</span>
+              </div>
+              <div className="leading-tight">
+                <span className="font-extrabold tracking-tight text-white text-sm">SplitRupee</span>
+                <span className="text-[9px] text-slate-400 block -mt-0.5 tracking-wider uppercase font-semibold">Expense Mgmt</span>
+              </div>
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300"
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+          </div>
+        )}
+
+        {/* =========================================================================
+            DESKTOP NAVBAR (Untouched on md+ screens)
+            ========================================================================= */}
+        <div className="hidden md:flex mx-auto h-14 sm:h-16 w-full items-center justify-between px-3 sm:px-4 md:px-6">
           {/* ================= LEFT SECTION ================= */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Sidebar / Menu toggle — ONLY show on mobile screens (< md) */}
@@ -791,6 +1052,14 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       {/* Change Password Modal */}
       {showChangePassword && (
         <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+
+      {/* Add / Edit UPI Modal */}
+      {showAddUpiModal && (
+        <AddUpiModal
+          isOpen={showAddUpiModal}
+          onClose={() => setShowAddUpiModal(false)}
+        />
       )}
     </>
   );

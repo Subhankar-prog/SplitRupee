@@ -17,6 +17,9 @@ import {
   Tag,
   ChevronRight,
   Sparkles,
+  UserPlus,
+  Loader2,
+  X,
 } from "lucide-react";
 import CreateGroupModal from "./CreateGroupModal";
 
@@ -41,6 +44,39 @@ export default function Sidebar({
   const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [loading, setLoading] = useState(() => getCachedGroupsList().length === 0);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [joinErr, setJoinErr] = useState("");
+
+  const handleJoinByCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinCode.trim() || !currentUser) return;
+    try {
+      setJoining(true);
+      setJoinErr("");
+      const res = await fetch("/api/groups/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inviteCode: joinCode.trim(),
+          userId: currentUser.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setJoinCode("");
+        setShowJoinModal(false);
+        window.dispatchEvent(new Event("splitrupee_refresh"));
+      } else {
+        setJoinErr(data.error || "Invalid invite code");
+      }
+    } catch {
+      setJoinErr("Failed to join group");
+    } finally {
+      setJoining(false);
+    }
+  };
 
   async function loadGroups() {
     if (!currentUser?.id) {
@@ -100,21 +136,8 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Backdrop — covers screen when sidebar open */}
-      {isOpen && (
-        <div
-          onClick={onClose}
-          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm md:hidden"
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar Panel */}
-      <aside
-        className={`fixed top-14 sm:top-16 bottom-0 left-0 z-40 w-[280px] sm:w-64 border-r border-white/10 bg-slate-950/95 backdrop-blur-xl transition-transform duration-300 ease-in-out md:translate-x-0 ${
-          isOpen ? "translate-x-0 shadow-2xl shadow-slate-950/50" : "-translate-x-full"
-        }`}
-      >
+      {/* Sidebar Panel — Desktop Only (hidden on mobile, pristine on md+) */}
+      <aside className="hidden md:block fixed top-14 sm:top-16 bottom-0 left-0 z-40 w-64 border-r border-white/10 bg-slate-950/95 backdrop-blur-xl">
         <div className="flex h-full flex-col justify-between overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {/* Main Navigation Links */}
@@ -147,14 +170,24 @@ export default function Sidebar({
                 <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
                   Groups
                 </span>
-                <button
-                  onClick={() => setShowCreateGroup(true)}
-                  className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
-                  title="Create new group"
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Add</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowJoinModal(true)}
+                    className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
+                    title="Join group with invite code"
+                  >
+                    <UserPlus className="h-3 w-3" />
+                    <span>Join</span>
+                  </button>
+                  <button
+                    onClick={() => setShowCreateGroup(true)}
+                    className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
+                    title="Create new group"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Add</span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -273,14 +306,16 @@ export default function Sidebar({
             <span className="text-[10px] font-medium">Activity</span>
           </Link>
 
-          {/* Sidebar/More toggle */}
-          <button
-            onClick={onClose ? onClose : undefined}
-            className="flex flex-col items-center gap-1 px-4 py-1.5 rounded-xl text-slate-500"
+          {/* AI Itinerary link */}
+          <Link
+            href="/itinerary"
+            className={`flex flex-col items-center gap-1 px-4 py-1.5 rounded-xl transition ${
+              pathname === "/itinerary" ? "text-emerald-400" : "text-slate-500"
+            }`}
           >
-            <Sparkles className="h-5 w-5" />
-            <span className="text-[10px] font-medium">More</span>
-          </button>
+            <Plane className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Itinerary</span>
+          </Link>
         </div>
       </nav>
 
@@ -294,6 +329,69 @@ export default function Sidebar({
             window.dispatchEvent(new Event("splitrupee_refresh"));
           }}
         />
+      )}
+
+      {/* Join Group by Code Modal */}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-emerald-400" />
+                Join Group with Code
+              </h3>
+              <button
+                onClick={() => {
+                  setShowJoinModal(false);
+                  setJoinErr("");
+                }}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleJoinByCode} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  Invite Code
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. SR-ABCD12"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-mono tracking-widest text-white uppercase placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none"
+                />
+                {joinErr && (
+                  <p className="mt-1.5 text-xs text-rose-400">{joinErr}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowJoinModal(false);
+                    setJoinErr("");
+                  }}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={joining || !joinCode.trim()}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 px-4 py-2 text-xs font-bold text-slate-950 hover:from-emerald-400 hover:to-teal-300 disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                >
+                  {joining && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Join Group
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </>
   );

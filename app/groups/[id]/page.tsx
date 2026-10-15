@@ -405,8 +405,15 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
-          {/* Quick Add Expense on larger screens */}
-          <div className="hidden sm:block shrink-0">
+          {/* Quick Add Expense & Add Member on larger screens */}
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowAddMember(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 active:scale-95 transition"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Add Member</span>
+            </button>
             <button
               onClick={() => setShowAddExpense(true)}
               className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
@@ -419,10 +426,17 @@ export default function GroupDetailPage() {
 
         {/* Action Buttons Toolbar: flex-wrap so buttons NEVER overflow the card or screen */}
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-3 mt-3 border-t border-white/5 w-full">
-          {/* Mobile Add Expense Button */}
+          {/* Mobile Add Member & Add Expense Buttons */}
+          <button
+            onClick={() => setShowAddMember(true)}
+            className="sm:hidden flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 active:scale-95 transition"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Add Member</span>
+          </button>
           <button
             onClick={() => setShowAddExpense(true)}
-            className="sm:hidden col-span-2 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
+            className="sm:hidden flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>Add Expense</span>
@@ -531,8 +545,8 @@ export default function GroupDetailPage() {
         )}
       </div>
 
-      {/* Tabs Navigation — horizontal scroll on mobile */}
-      <div className="flex rounded-2xl bg-white/5 p-1 border border-white/10 overflow-x-auto scrollbar-none gap-0.5">
+      {/* Responsive Segmented Tabs Navigation — Grid on mobile, wrap on desktop */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
         {[
           ...(isAdmin
             ? [{ key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" }]
@@ -547,15 +561,15 @@ export default function GroupDetailPage() {
           <button
             key={key}
             onClick={() => setActiveTab(key as typeof activeTab)}
-            className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap transition ${
+            className={`flex items-center justify-center gap-1.5 rounded-xl px-2 sm:px-4 py-2 text-xs font-semibold transition ${
               activeTab === key
-                ? "bg-emerald-500 text-slate-950 shadow-md"
-                : "text-slate-400 hover:text-white"
+                ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold"
+                : "bg-white/[0.02] text-slate-400 hover:bg-white/[0.06] hover:text-white"
             }`}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="sm:hidden">{label}</span>
-            <span className="hidden sm:inline">{fullLabel}</span>
+            <span className="sm:hidden truncate">{label}</span>
+            <span className="hidden sm:inline whitespace-nowrap">{fullLabel}</span>
           </button>
         ))}
       </div>
