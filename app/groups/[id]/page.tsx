@@ -132,23 +132,27 @@ export default function GroupDetailPage() {
       setLoading(true);
       const res = await fetch(`/api/groups/${groupId}`);
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && data.group) {
         setGroup(data.group);
-      } else {
+      } else if (!data.offline && !group) {
         router.push("/dashboard");
       }
     } catch (e) {
-      console.error("Failed to load group", e);
+      console.warn("Failed to load group (offline mode active):", e);
     } finally {
       setLoading(false);
     }
-  }, [groupId, router]);
+  }, [groupId, router, group]);
 
   useEffect(() => {
     loadGroup();
     const handleRefresh = () => loadGroup();
     window.addEventListener("splitrupee_refresh", handleRefresh);
-    return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
+    window.addEventListener("splitrupee_offline_queue_changed", handleRefresh);
+    return () => {
+      window.removeEventListener("splitrupee_refresh", handleRefresh);
+      window.removeEventListener("splitrupee_offline_queue_changed", handleRefresh);
+    };
   }, [loadGroup]);
 
   // If user is not admin and activeTab is passbook, automatically redirect to matrix
@@ -342,7 +346,7 @@ export default function GroupDetailPage() {
                 <span>Passbook</span>
               </button>
             )}
-            {isAdmin ? (
+            {isAdmin && (
               <button
                 onClick={() => setShowManageGroup(true)}
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition"
@@ -350,15 +354,14 @@ export default function GroupDetailPage() {
                 <Settings className="h-3.5 w-3.5 text-amber-400" />
                 <span>Manage</span>
               </button>
-            ) : (
-              <button
-                onClick={() => setShowExitGroup(true)}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
-              >
-                <LogOut className="h-3.5 w-3.5 text-rose-400" />
-                <span>Exit</span>
-              </button>
             )}
+            <button
+              onClick={() => setShowExitGroup(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
+            >
+              <LogOut className="h-3.5 w-3.5 text-rose-400" />
+              <span>Exit</span>
+            </button>
             <button
               onClick={() => setSettleUpData({})}
               className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 sm:py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"

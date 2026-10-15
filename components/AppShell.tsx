@@ -10,6 +10,7 @@ import { useRealtimeSync } from "@/lib/useRealtimeSync";
 import { AlertCircle } from "lucide-react";
 import SplitRupeeLoader from "./SplitRupeeLoader";
 import AddUpiModal from "./AddUpiModal";
+import OfflineSyncModal from "./OfflineSyncModal";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -133,6 +134,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <AddUpiModal isOpen={showAddUpiModal} onClose={() => setShowAddUpiModal(false)} />
+      <OfflineSyncModal />
     </div>
   );
 }

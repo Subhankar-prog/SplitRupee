@@ -18,6 +18,7 @@ import {
   type SplitInput,
 } from "@/lib/split";
 import { formatINR } from "@/lib/money";
+import { addOfflineExpense } from "@/lib/offlineSync";
 import {
   X,
   Plus,
@@ -35,6 +36,8 @@ import {
   Camera,
   Image as ImageIcon,
   Trash2,
+  Cloud,
+  WifiOff,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<CategoryName, typeof Utensils> = {
@@ -97,6 +100,7 @@ export default function AddExpenseModal({
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
 
   // Fetch groups if not provided
   useEffect(() => {
@@ -248,6 +252,27 @@ export default function AddExpenseModal({
       })),
     };
 
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+    if (isOffline) {
+      addOfflineExpense({
+        isEdit: Boolean(initialExpense),
+        expenseId: initialExpense?.id,
+        groupId: selectedGroupId,
+        groupName: activeGroup?.name || "Group",
+        title: title.trim(),
+        totalAmount: totalNum,
+        payload,
+      });
+
+      setOfflineNotice("Data saved locally (Offline mode). It will sync automatically when reconnected.");
+      setLoading(false);
+      setTimeout(() => {
+        onSaved();
+      }, 1400);
+      return;
+    }
+
     try {
       const url = initialExpense ? `/api/expenses/${initialExpense.id}` : "/api/expenses";
       const method = initialExpense ? "PUT" : "POST";
@@ -265,6 +290,24 @@ export default function AddExpenseModal({
 
       onSaved();
     } catch (err: any) {
+      // If network failed during online attempt, gracefully save locally as fallback!
+      if (!navigator.onLine || err.message?.includes("Failed to fetch") || err.message?.includes("network")) {
+        addOfflineExpense({
+          isEdit: Boolean(initialExpense),
+          expenseId: initialExpense?.id,
+          groupId: selectedGroupId,
+          groupName: activeGroup?.name || "Group",
+          title: title.trim(),
+          totalAmount: totalNum,
+          payload,
+        });
+
+        setOfflineNotice("Connection lost: Data saved locally. It will sync once internet is restored.");
+        setTimeout(() => {
+          onSaved();
+        }, 1400);
+        return;
+      }
       setSubmitError(err.message || "Failed to save expense");
     } finally {
       setLoading(false);
@@ -298,6 +341,13 @@ export default function AddExpenseModal({
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {offlineNotice && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/15 p-3 text-xs text-amber-200 flex items-center gap-2 animate-in fade-in">
+              <Cloud className="h-4 w-4 text-amber-400 shrink-0 animate-pulse" />
+              <span>{offlineNotice}</span>
+            </div>
+          )}
+
           {submitError && (
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
               {submitError}

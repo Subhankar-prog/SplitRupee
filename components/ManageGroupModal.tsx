@@ -68,6 +68,7 @@ export default function ManageGroupModal({
 
   // Danger actions state
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmExitAdmin, setConfirmExitAdmin] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<MemberDTO | null>(null);
@@ -593,17 +594,47 @@ export default function ManageGroupModal({
                     </span>
                   )}
                 </p>
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={handleExitGroup}
-                    disabled={exiting}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition disabled:opacity-50"
-                  >
-                    {exiting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    <span>Exit Group & Transfer Admin</span>
-                  </button>
-                </div>
+                {!confirmExitAdmin ? (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmExitAdmin(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 font-bold text-xs transition"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Exit Group & Transfer Admin</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-2 p-3.5 rounded-2xl bg-amber-950/80 border border-amber-500/40 space-y-2.5 animate-in fade-in">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-300 text-xs">
+                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>Confirm Admin Resignation & Exit</span>
+                    </div>
+                    <p className="text-xs text-amber-200/90 leading-relaxed">
+                      Are you sure you want to resign as Group Admin and exit <strong className="text-white">{group.name}</strong>? One of the remaining {members.length - 1} members will be randomly promoted to Admin.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmExitAdmin(false)}
+                        disabled={exiting}
+                        className="flex-1 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs text-slate-300 hover:bg-white/10 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExitGroup}
+                        disabled={exiting}
+                        className="flex-1 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition"
+                      >
+                        {exiting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        <span>Yes, Confirm Exit</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Delete Group Card */}
