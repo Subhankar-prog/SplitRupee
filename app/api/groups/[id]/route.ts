@@ -57,17 +57,27 @@ export async function GET(req: Request, { params }: Params) {
       group.members[0]?.userId ||
       null;
 
+    const hasAnyAdmin = group.members.some((m) => m.role === "ADMIN");
+
     return NextResponse.json({
       ok: true,
       group: {
         id: group.id,
         name: group.name,
+        description: group.description || null,
         type: group.type,
         currency: group.currency,
         creatorId,
         createdAt: group.createdAt.toISOString(),
         updatedAt: group.updatedAt.toISOString(),
-        members: group.members.map((m) => m.user),
+        members: group.members.map((m) => {
+          const isExplicitAdmin = m.role === "ADMIN";
+          const isFallbackAdmin = !hasAnyAdmin && m.userId === creatorId;
+          return {
+            ...m.user,
+            role: (isExplicitAdmin || isFallbackAdmin) ? ("ADMIN" as const) : ("MEMBER" as const),
+          };
+        }),
         expenses: group.expenses.map((e) => ({
           id: e.id,
           groupId: e.groupId,
@@ -118,17 +128,37 @@ export async function GET(req: Request, { params }: Params) {
   }
 }
 
-/** PUT /api/groups/[id]: update group name or type */
+/** PUT /api/groups/[id]: update group name, description, type, currency */
 export async function PUT(req: Request, { params }: Params) {
   try {
     const { id } = params;
     const body = await req.json();
-    const { name, type, currency, updatedById } = body;
+    const { name, description, type, currency, updatedById } = body;
+
+    // Verify caller is admin if updatedById is provided
+    if (updatedById) {
+      const caller = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: id, userId: updatedById } },
+      });
+      const groupCheck = await prisma.group.findUnique({
+        where: { id },
+        include: { activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 } },
+      });
+      const creatorId = groupCheck?.activityLogs[0]?.userId;
+      const isAdmin = caller?.role === "ADMIN" || caller?.userId === creatorId;
+      if (!isAdmin) {
+        return NextResponse.json(
+          { ok: false, error: "FORBIDDEN", message: "Only group admins can modify group settings." },
+          { status: 403 }
+        );
+      }
+    }
 
     const group = await prisma.group.update({
       where: { id },
       data: {
         ...(name ? { name: name.trim() } : {}),
+        ...(description !== undefined ? { description: description?.trim() || null } : {}),
         ...(type ? { type } : {}),
         ...(currency ? { currency } : {}),
       },
@@ -141,7 +171,7 @@ export async function PUT(req: Request, { params }: Params) {
           userId: updatedById,
           action: "GROUP_CREATED",
           entityTitle: group.name,
-          details: `Updated group settings`,
+          details: `Updated group settings (name, description, or category)`,
         },
       });
     }
@@ -157,6 +187,28 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(req: Request, { params }: Params) {
   try {
     const { id } = params;
+    const { searchParams } = new URL(req.url);
+    const deletedById = searchParams.get("deletedById");
+
+    // Verify caller is admin if deletedById is provided
+    if (deletedById) {
+      const caller = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: id, userId: deletedById } },
+      });
+      const groupCheck = await prisma.group.findUnique({
+        where: { id },
+        include: { activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 } },
+      });
+      const creatorId = groupCheck?.activityLogs[0]?.userId;
+      const isAdmin = caller?.role === "ADMIN" || caller?.userId === creatorId;
+      if (!isAdmin) {
+        return NextResponse.json(
+          { ok: false, error: "FORBIDDEN", message: "Only group admins can delete this group." },
+          { status: 403 }
+        );
+      }
+    }
+
     await prisma.group.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {

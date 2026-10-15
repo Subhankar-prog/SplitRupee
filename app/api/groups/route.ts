@@ -55,7 +55,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, type = "OTHER", currency = "INR", memberUserIds = [], createdById } = body;
+    const { name, description, type = "OTHER", currency = "INR", memberUserIds = [], createdById } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ ok: false, error: "Group name is required" }, { status: 400 });
@@ -70,10 +70,14 @@ export async function POST(req: Request) {
     const group = await prisma.group.create({
       data: {
         name: name.trim(),
+        description: description?.trim() || null,
         type: ["TRIP", "HOME", "COUPLE", "OTHER"].includes(type) ? type : "OTHER",
         currency,
         members: {
-          create: uniqueMemberIds.map((uid) => ({ userId: uid })),
+          create: uniqueMemberIds.map((uid) => ({
+            userId: uid,
+            role: uid === createdById ? "ADMIN" : "MEMBER",
+          })),
         },
       },
       include: {

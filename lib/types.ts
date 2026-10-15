@@ -34,11 +34,13 @@ export interface MemberDTO {
   phone?: string | null;
   upiId?: string | null;
   isPro?: boolean;
+  role?: "ADMIN" | "MEMBER";
 }
 
 export interface GroupDTO {
   id: string;
   name: string;
+  description?: string | null;
   type: GroupTypeName;
   currency: string;
   creatorId?: string | null;

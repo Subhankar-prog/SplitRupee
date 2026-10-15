@@ -47,6 +47,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BookOpen,
+  Crown,
+  Settings,
+  LogOut,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
@@ -54,6 +57,8 @@ import SettleUpModal from "@/components/SettleUpModal";
 import AddMemberModal from "@/components/AddMemberModal";
 import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import ManageGroupModal from "@/components/ManageGroupModal";
+import ExitGroupModal from "@/components/ExitGroupModal";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
   Food: { icon: Utensils, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -103,11 +108,24 @@ export default function GroupDetailPage() {
   const [editingExpense, setEditingExpense] = useState<ExpenseDTO | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<ExpenseDTO | null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [showManageGroup, setShowManageGroup] = useState(false);
+  const [showExitGroup, setShowExitGroup] = useState(false);
   const [settleUpData, setSettleUpData] = useState<{
     payerId?: string;
     receiverId?: string;
     amount?: number;
   } | null>(null);
+
+  // Group Admin Resolution
+  const isAdmin = useMemo(() => {
+    if (!currentUser || !group) return false;
+    const currentMember = group.members?.find((m: any) => m.id === currentUser.id);
+    return (
+      currentMember?.role === "ADMIN" ||
+      currentUser.id === group.creatorId ||
+      (group.members?.length > 0 && group.members[0].id === currentUser.id && !group.members.some((m: any) => m.role === "ADMIN"))
+    );
+  }, [currentUser, group]);
 
   const loadGroup = useCallback(async () => {
     try {
@@ -132,6 +150,13 @@ export default function GroupDetailPage() {
     window.addEventListener("splitrupee_refresh", handleRefresh);
     return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
   }, [loadGroup]);
+
+  // If user is not admin and activeTab is passbook, automatically redirect to matrix
+  useEffect(() => {
+    if (!loading && !isAdmin && activeTab === "passbook") {
+      setActiveTab("matrix");
+    }
+  }, [loading, isAdmin, activeTab]);
 
   // Debt & Ledger Calculation
   const members = group?.members ?? [];
@@ -282,7 +307,17 @@ export default function GroupDetailPage() {
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">
                   {group.type}
                 </span>
+                {isAdmin && (
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 flex items-center gap-1">
+                    <Crown className="h-3 w-3 text-amber-400" /> Admin
+                  </span>
+                )}
               </div>
+              {group.description && (
+                <p className="text-xs text-slate-300/80 mt-1 max-w-xl italic line-clamp-2 border-l-2 border-emerald-500/40 pl-2">
+                  "{group.description}"
+                </p>
+              )}
               <p className="text-xs text-slate-400 mt-0.5">
                 {members.length} members · {expenses.length} expenses · <span className="font-semibold text-slate-200">{formatINR(totalSpend)}</span>
               </p>
@@ -298,13 +333,32 @@ export default function GroupDetailPage() {
               <Plus className="h-4 w-4 stroke-[2.5]" />
               <span>Add Expense</span>
             </button>
-            <button
-              onClick={() => setActiveTab("passbook")}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Passbook</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab("passbook")}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
+              >
+                <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Passbook</span>
+              </button>
+            )}
+            {isAdmin ? (
+              <button
+                onClick={() => setShowManageGroup(true)}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition"
+              >
+                <Settings className="h-3.5 w-3.5 text-amber-400" />
+                <span>Manage</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowExitGroup(true)}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 sm:py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
+              >
+                <LogOut className="h-3.5 w-3.5 text-rose-400" />
+                <span>Exit</span>
+              </button>
+            )}
             <button
               onClick={() => setSettleUpData({})}
               className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 sm:py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
@@ -387,7 +441,9 @@ export default function GroupDetailPage() {
       {/* Tabs Navigation — horizontal scroll on mobile */}
       <div className="flex rounded-2xl bg-white/5 p-1 border border-white/10 overflow-x-auto scrollbar-none gap-0.5">
         {[
-          { key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" },
+          ...(isAdmin
+            ? [{ key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" }]
+            : []),
           { key: "matrix", icon: Scale, label: "Ledger", fullLabel: "Traveler Ledger" },
           { key: "balances", icon: CheckCircle2, label: `Transfers (${ledger.transfers.length})`, fullLabel: `Optimized Transfers (${ledger.transfers.length})` },
           { key: "expenses", icon: Receipt, label: `Expenses (${expenses.length})`, fullLabel: `Expenses (${expenses.length})` },
@@ -412,7 +468,7 @@ export default function GroupDetailPage() {
       </div>
 
       {/* TAB 0: ADMIN PASSBOOK & MASTER FINANCIAL RECONCILIATION */}
-      {activeTab === "passbook" && (
+      {isAdmin && activeTab === "passbook" && (
         <div className="space-y-6">
           <div className="rounded-3xl border border-white/10 bg-slate-900/90 overflow-hidden shadow-2xl p-4 sm:p-6 space-y-6">
             {/* Header */}
@@ -1114,15 +1170,26 @@ export default function GroupDetailPage() {
       {/* TAB 6: MEMBERS & INVITES */}
       {activeTab === "members" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-white">Group Members ({members.length})</h3>
-            <button
-              onClick={() => setShowAddMember(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              <span>Add / Invite Friends</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button
+                  onClick={() => setShowManageGroup(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Manage Roles</span>
+                </button>
+              )}
+              <button
+                onClick={() => setShowAddMember(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>Add / Invite Friends</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -1138,7 +1205,14 @@ export default function GroupDetailPage() {
                   {m.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate">{m.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-white truncate">{m.name}</p>
+                    {m.role === "ADMIN" && (
+                      <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-bold flex items-center gap-0.5 shrink-0">
+                        <Crown className="h-2.5 w-2.5 text-amber-400" /> Admin
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-slate-400 truncate">{m.email || m.phone || "Member"}</p>
                 </div>
               </div>
@@ -1210,6 +1284,42 @@ export default function GroupDetailPage() {
           onAdded={() => {
             setShowAddMember(false);
             loadGroup();
+          }}
+        />
+      )}
+
+      {showManageGroup && group && currentUser && (
+        <ManageGroupModal
+          isOpen={showManageGroup}
+          onClose={() => setShowManageGroup(false)}
+          group={group}
+          currentUser={currentUser}
+          members={members}
+          balances={ledger.balances}
+          onGroupUpdated={() => {
+            loadGroup();
+          }}
+          onGroupDeleted={() => {
+            router.push("/dashboard");
+          }}
+          onExitedGroup={() => {
+            router.push("/dashboard");
+          }}
+        />
+      )}
+
+      {showExitGroup && group && currentUser && (
+        <ExitGroupModal
+          isOpen={showExitGroup}
+          onClose={() => setShowExitGroup(false)}
+          groupId={group.id}
+          groupName={group.name}
+          currentUserId={currentUser.id}
+          isAdmin={isAdmin}
+          memberCount={members.length}
+          userBalance={myNet}
+          onExited={() => {
+            router.push("/dashboard");
           }}
         />
       )}
