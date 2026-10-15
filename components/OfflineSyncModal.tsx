@@ -28,32 +28,51 @@ export default function OfflineSyncModal() {
 
   // Load queue on mount & listen to changes
   useEffect(() => {
+    // 1. Initial check: If online and there are pending offline expenses, prompt directly!
+    const q = getOfflineQueue();
+    setQueue(q);
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+    if (isOnline && q.length > 0) {
+      setIsOpen(true);
+    }
+
     const updateQueue = () => {
-      const q = getOfflineQueue();
-      setQueue(q);
-    };
-
-    updateQueue();
-    window.addEventListener("splitrupee_offline_queue_changed", updateQueue);
-
-    // When connection is restored and queue is not empty, prompt user for confirmation
-    const handleOnline = () => {
-      const q = getOfflineQueue();
-      setQueue(q);
-      if (q.length > 0) {
+      const currentQ = getOfflineQueue();
+      setQueue(currentQ);
+      // If we are currently online and new offline items exist, show sync prompt
+      if (typeof navigator !== "undefined" && navigator.onLine && currentQ.length > 0) {
         setIsOpen(true);
       }
     };
 
+    window.addEventListener("splitrupee_offline_queue_changed", updateQueue);
+
+    // 2. When connection is restored and queue is not empty, prompt user directly for confirmation
+    const handleOnline = () => {
+      const onlineQ = getOfflineQueue();
+      setQueue(onlineQ);
+      if (onlineQ.length > 0) {
+        setIsOpen(true);
+      }
+    };
+
+    // 3. When offline, do not keep sync modal open
+    const handleOffline = () => {
+      setIsOpen(false);
+    };
+
     window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
       window.removeEventListener("splitrupee_offline_queue_changed", updateQueue);
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
   const handleSync = async () => {
+    if (syncing) return;
     try {
       setSyncing(true);
       setStatusMessage(null);
@@ -67,43 +86,29 @@ export default function OfflineSyncModal() {
         setTimeout(() => {
           setIsOpen(false);
           setStatusMessage(null);
-        }, 2500);
+          setSyncing(false);
+        }, 1200);
       } else {
         setStatusMessage({
           text: `Synced ${res.syncedCount} expense(s). Some items failed: ${res.errors.join(", ")}`,
           type: "error"
         });
+        setSyncing(false);
       }
     } catch (err: any) {
       setStatusMessage({
         text: err.message || "Failed to sync offline expenses",
         type: "error"
       });
-    } finally {
       setSyncing(false);
     }
   };
 
-  if (queue.length === 0 && !isOpen) return null;
+  if (!isOpen) return null;
 
   return (
     <>
-      {/* Floating Pending Sync Banner Trigger (when modal is closed but queue > 0) */}
-      {!isOpen && queue.length > 0 && (
-        <div className="fixed top-18 sm:top-20 right-4 z-40 animate-in slide-in-from-top-2 duration-300">
-          <button
-            onClick={() => setIsOpen(true)}
-            className="flex items-center gap-2.5 rounded-2xl bg-amber-500/90 hover:bg-amber-500 text-slate-950 px-3.5 py-2 text-xs font-bold shadow-xl shadow-amber-500/20 backdrop-blur-md transition active:scale-95 border border-amber-400"
-          >
-            <CloudUpload className="h-4 w-4 animate-bounce" />
-            <span>
-              {queue.length} offline expense{queue.length > 1 ? "s" : ""} pending sync
-            </span>
-          </button>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
+      {/* Confirmation Modal — Pops up directly when online */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-5">

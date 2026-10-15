@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useUser } from "@/lib/userContext";
 import {
@@ -54,6 +54,8 @@ export default function AllExpensesPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseDTO | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<ExpenseDTO | null>(null);
+  const expensesRef = useRef(expenses);
+  expensesRef.current = expenses;
 
   const loadExpenses = useCallback(async (isInitial = false) => {
     if (!currentUser?.id) {
@@ -63,8 +65,13 @@ export default function AllExpensesPage() {
       return;
     }
     try {
-      if (isInitial && expenses.length === 0) setLoading(true);
-      const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
+      if (isInitial && expensesRef.current.length === 0) setLoading(true);
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
+      const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        signal: controller?.signal,
+      });
+      if (timeoutId) clearTimeout(timeoutId);
       const data = await res.json();
       if (data.ok && Array.isArray(data.expenses)) {
         setExpenses(data.expenses);
@@ -80,7 +87,7 @@ export default function AllExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, userLoading, expenses.length]);
+  }, [currentUser?.id, userLoading]);
 
   useEffect(() => {
     loadExpenses(true);

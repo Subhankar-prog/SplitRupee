@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useUser } from "@/lib/userContext";
 import { type GroupDTO } from "@/lib/types";
@@ -37,6 +37,9 @@ export default function GroupsPage() {
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
 
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+
   const fetchGroups = useCallback(async (isInitial = false) => {
     if (!currentUser?.id) {
       const cached = getCachedGroupsList();
@@ -45,8 +48,13 @@ export default function GroupsPage() {
       return;
     }
     try {
-      if (isInitial && groups.length === 0) setLoading(true);
-      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
+      if (isInitial && groupsRef.current.length === 0) setLoading(true);
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
+      const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        signal: controller?.signal,
+      });
+      if (timeoutId) clearTimeout(timeoutId);
       const data = await res.json();
       if (data.ok && Array.isArray(data.groups)) {
         setGroups(data.groups);
@@ -62,7 +70,7 @@ export default function GroupsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, usersLoading, groups.length]);
+  }, [currentUser?.id, usersLoading]);
 
   useEffect(() => {
     fetchGroups(true);

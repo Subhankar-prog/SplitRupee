@@ -257,23 +257,39 @@ export async function syncOfflineQueue(): Promise<{
   const remainingItems: OfflineExpenseItem[] = [];
 
   for (const item of queue) {
+    let timeoutId: any = null;
     try {
       const url = item.isEdit && item.expenseId ? `/api/expenses/${item.expenseId}` : "/api/expenses";
       const method = item.isEdit ? "PUT" : "POST";
+
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      if (controller) {
+        timeoutId = setTimeout(() => controller.abort(), 8000);
+      }
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(item.payload),
+        signal: controller?.signal,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Server rejected offline expense");
+      if (timeoutId) clearTimeout(timeoutId);
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || `Server responded with status ${res.status}`);
       }
 
       syncedCount++;
     } catch (err: any) {
+      if (timeoutId) clearTimeout(timeoutId);
       console.error(`Failed to sync item ${item.title}:`, err);
       errors.push(`${item.title}: ${err.message || "Failed to sync"}`);
       remainingItems.push(item);
