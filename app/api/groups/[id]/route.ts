@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface Params {
   params: { id: string };
@@ -121,10 +122,19 @@ export async function GET(req: Request, { params }: Params) {
           user: l.user,
         })),
       },
+    }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
     });
   } catch (e) {
     console.error("[GET /api/groups/[id]]", e);
-    return NextResponse.json({ ok: false, error: "FETCH_FAILED" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "FETCH_FAILED" }, {
+      status: 500,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   }
 }
 

@@ -127,26 +127,32 @@ export default function GroupDetailPage() {
     );
   }, [currentUser, group]);
 
-  const loadGroup = useCallback(async () => {
+  const loadGroup = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
-      const res = await fetch(`/api/groups/${groupId}`);
+      if (isInitial) setLoading(true);
+      const res = await fetch(`/api/groups/${groupId}?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const data = await res.json();
       if (data.ok && data.group) {
         setGroup(data.group);
-      } else if (!data.offline && !group) {
-        router.push("/dashboard");
+      } else if (!data.offline) {
+        setGroup((cur: any) => {
+          if (!cur) router.push("/dashboard");
+          return cur;
+        });
       }
     } catch (e) {
       console.warn("Failed to load group (offline mode active):", e);
     } finally {
       setLoading(false);
     }
-  }, [groupId, router, group]);
+  }, [groupId, router]);
 
   useEffect(() => {
-    loadGroup();
-    const handleRefresh = () => loadGroup();
+    loadGroup(true);
+    const handleRefresh = () => loadGroup(false);
     window.addEventListener("splitrupee_refresh", handleRefresh);
     window.addEventListener("splitrupee_offline_queue_changed", handleRefresh);
     return () => {
@@ -274,7 +280,7 @@ export default function GroupDetailPage() {
     ? expenses
     : expenses.filter((e: any) => e.category === categoryFilter);
 
-  if (loading) {
+  if (loading && !group) {
     return (
       <SplitRupeeLoader
         fullScreen={false}
