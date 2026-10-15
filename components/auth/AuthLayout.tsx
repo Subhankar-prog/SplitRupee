@@ -10,8 +10,28 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
+  // Authentication forms strictly stay in dark mode only
+  React.useEffect(() => {
+    const wasLight = document.documentElement.classList.contains("light");
+    if (wasLight) {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+    return () => {
+      try {
+        const saved = localStorage.getItem("splitrupee_theme");
+        if (saved === "light") {
+          document.documentElement.classList.add("light");
+          document.documentElement.classList.remove("dark");
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch {}
+    };
+  }, []);
+
   return (
-    <div className="min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] md:overflow-hidden w-full text-white flex flex-col justify-between relative selection:bg-emerald-500 selection:text-slate-950">
+    <div className="auth-layout dark min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] md:overflow-hidden w-full text-white flex flex-col justify-between relative selection:bg-emerald-500 selection:text-slate-950 bg-[#090d16]">
       {/* Moving Travel-Themed Background */}
       <TravelAuthBackground />
 

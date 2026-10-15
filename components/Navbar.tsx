@@ -285,14 +285,16 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 </div>
               </Link>
 
-              {/* SplitRupee Pro Button */}
-              <Link
-                href="/pro"
-                className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 shadow-md shadow-amber-500/10 active:scale-95 transition"
-              >
-                <Crown className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                <span>SplitRupee Pro</span>
-              </Link>
+              {/* SplitRupee Pro Button (only for non-pro users) */}
+              {!currentUser.isPro && (
+                <Link
+                  href="/pro"
+                  className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 shadow-md shadow-amber-500/10 active:scale-95 transition"
+                >
+                  <Crown className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                  <span>SplitRupee Pro</span>
+                </Link>
+              )}
             </div>
 
             {/* Profile Holder Card */}
@@ -581,9 +583,11 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <Plane className="h-3 w-3 text-emerald-400" />
                   <span>Itinerary</span>
                 </Link>
-                <Link href="/pro" className="rounded-lg px-2.5 py-1.5 text-amber-400 hover:bg-white/5 transition">
-                  Pro
-                </Link>
+                {!currentUser?.isPro && (
+                  <Link href="/pro" className="rounded-lg px-2.5 py-1.5 text-amber-400 hover:bg-white/5 transition">
+                    Pro
+                  </Link>
+                )}
                 <Link href="/faq" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition">
                   FAQ
                 </Link>
@@ -918,17 +922,19 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         <span>Change Password</span>
                       </button>
 
-                      <Link
-                        href="/pro"
-                        onClick={() => setProfileDropdownOpen(false)}
-                        className="flex items-center justify-between rounded-xl px-3 py-2.5 text-amber-400 hover:bg-white/10 transition"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Crown className="h-4 w-4" />
-                          <span>SplitRupee Pro</span>
-                        </div>
-                        <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded font-bold">PRO</span>
-                      </Link>
+                      {!currentUser?.isPro && (
+                        <Link
+                          href="/pro"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="flex items-center justify-between rounded-xl px-3 py-2.5 text-amber-400 hover:bg-white/10 transition"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Crown className="h-4 w-4" />
+                            <span>SplitRupee Pro</span>
+                          </div>
+                          <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded font-bold">PRO</span>
+                        </Link>
+                      )}
 
                       <div className="border-t border-white/10 my-1" />
 
@@ -999,13 +1005,15 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <Plane className="h-4 w-4 text-emerald-400" />
               <span>AI Travel Itinerary</span>
             </Link>
-            <Link
-              href="/pro"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2.5 text-sm text-amber-400 hover:bg-white/5 transition"
-            >
-              SplitRupee Pro
-            </Link>
+            {!currentUser?.isPro && (
+              <Link
+                href="/pro"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block rounded-xl px-3 py-2.5 text-sm text-amber-400 hover:bg-white/5 transition"
+              >
+                SplitRupee Pro
+              </Link>
+            )}
             <Link
               href="/faq"
               onClick={() => setMobileMenuOpen(false)}

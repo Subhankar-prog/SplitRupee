@@ -97,8 +97,9 @@ select option:checked {
 }
 
 /* =========================================================================
-   LIGHT / CREAMY EYE-PROTECTION THEME (DEFAULT)
+   LIGHT / CREAMY EYE-PROTECTION THEME
    Warm parchment / creamy ivory tone (#f7f4ed) to protect eyes from glare
+   High contrast for all text, badges, buttons, dropdowns, cards, and modals
    ========================================================================= */
 
 html.light,
@@ -112,26 +113,38 @@ html[data-theme="light"] body {
   color: #1e293b !important;
 }
 
-/* Background mappings for cards and surfaces */
+/* Background mappings for main layout surfaces */
 html.light .bg-slate-950,
 html.light .bg-slate-950\/95,
 html.light .bg-slate-950\/90 {
   background-color: rgba(247, 244, 237, 0.95) !important;
 }
 
-html.light .bg-slate-900,
-html.light .bg-slate-900\/90,
-html.light .bg-slate-900\/98,
-html.light .bg-slate-900\/60,
-html.light .bg-slate-900\/40 {
-  background-color: #ffffff !important;
-}
-
-html.light .bg-slate-950\/50,
-html.light .bg-slate-900\/50 {
+html.light .bg-slate-950\/50 {
   background-color: #faf7f0 !important;
 }
 
+/* All modal cards and solid card containers (wildcard matching to catch /98, /95, /90, /80, /70, /60, etc.) */
+html.light [class*="bg-slate-900"]:not(.auth-wrapper):not(.auth-layout *) {
+  background-color: #ffffff !important;
+  border-color: #e3ded4 !important;
+}
+
+/* Translucent backdrop for modal overlays */
+html.light [class*="fixed"][class*="inset-0"][class*="bg-slate-950"] {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+html.light [class*="max-w-"][class*="rounded-"][class*="bg-slate-900"],
+html.light [class*="max-w-"][class*="rounded-t-"][class*="bg-slate-900"],
+html.light [class*="max-w-"][class*="border"][class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+  border-color: #e3ded4 !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Neutral subtle cards */
 html.light .bg-white\/5,
 html.light .bg-white\/\[0\.04\],
 html.light .bg-white\/\[0\.03\],
@@ -140,18 +153,19 @@ html.light .bg-white\/\[0\.02\] {
 }
 
 html.light .bg-white\/10 {
-  background-color: #ede8dc !important;
+  background-color: #ede7d8 !important;
 }
 
 html.light .bg-white\/\[0\.06\] {
   background-color: #f4efe4 !important;
 }
 
-html.light .bg-gradient-to-br.from-white\/\[0\.07\].to-white\/\[0\.02\] {
-  background: linear-gradient(to bottom right, #ffffff, #fcfaf5) !important;
+html.light .bg-gradient-to-br.from-white\/\[0\.07\].to-white\/\[0\.02\],
+html.light .bg-gradient-to-br.from-white\/\[0\.06\].to-white\/\[0\.02\] {
+  background: linear-gradient(to bottom right, #ffffff, #faf7f0) !important;
 }
 
-/* Borders */
+/* Borders & Dividers */
 html.light .border-white\/10,
 html.light .border-white\/5,
 html.light .border-white\/15,
@@ -165,7 +179,7 @@ html.light .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
   border-color: #e8e3d8 !important;
 }
 
-/* Text colors */
+/* Headings & Base Typography */
 html.light h1:not([class*="bg-clip-text"]),
 html.light h2:not([class*="bg-clip-text"]),
 html.light h3:not([class*="bg-clip-text"]),
@@ -173,10 +187,7 @@ html.light h4:not([class*="bg-clip-text"]) {
   color: #0f172a !important;
 }
 
-html.light .text-white:not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-indigo"]):not([class*="bg-teal"]):not([class*="bg-cyan"]):not([class*="from-"]) {
-  color: #0f172a !important;
-}
-
+/* Secondary & Neutral Text Hierarchy */
 html.light .text-slate-100,
 html.light .text-slate-200,
 html.light .text-slate-300 {
@@ -189,6 +200,173 @@ html.light .text-slate-400 {
 
 html.light .text-slate-500 {
   color: #64748b !important;
+}
+
+html.light .text-slate-600 {
+  color: #475569 !important;
+}
+
+/* General white text replacement (except inside buttons) */
+html.light .text-white:not(button):not(button *):not(a.bg-emerald-500):not(a.bg-emerald-600):not(a.bg-rose-500):not(a.bg-rose-600):not(.auth-wrapper *):not(.auth-layout *) {
+  color: #0f172a !important;
+}
+
+/* =========================================================================
+   CRITICAL CONTRAST FIXES: Financial Numbers, Badges & Colored Accents
+   In light mode, -400 / -300 shades are washed out. Replace with deep accessible shades.
+   ========================================================================= */
+
+/* Emerald / Green (Owed to you, Positive balance, Settled, Active) */
+html.light .text-emerald-400,
+html.light .text-emerald-300,
+html.light [class*="text-emerald-300"],
+html.light .text-teal-400,
+html.light .text-teal-300 {
+  color: #047857 !important; /* Accessible Emerald-700 */
+}
+
+html.light [class*="bg-emerald-500/"],
+html.light [class*="bg-emerald-500\\["] {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+/* Rose / Red (You owe, Negative balance, Overdue, Delete) */
+html.light .text-rose-400,
+html.light .text-rose-300,
+html.light [class*="text-rose-300"],
+html.light .text-red-400,
+html.light .text-red-300 {
+  color: #be123c !important; /* Accessible Rose-700 */
+}
+
+html.light [class*="bg-rose-500/"],
+html.light [class*="bg-rose-500\\["] {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+}
+
+/* Amber / Yellow / Orange (Alert banner, Pending, Settle reminder) */
+html.light .text-amber-200 {
+  color: #78350f !important; /* Accessible Amber-900 */
+}
+
+html.light .text-amber-300 {
+  color: #92400e !important; /* Accessible Amber-800 */
+}
+
+html.light .text-amber-400,
+html.light .text-yellow-400,
+html.light .text-yellow-300,
+html.light .text-orange-400 {
+  color: #b45309 !important; /* Accessible Amber-700 */
+}
+
+html.light [class*="bg-amber-500/"],
+html.light [class*="bg-amber-500\\["] {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+}
+
+/* Indigo / Blue (Info pills, Time, Links) */
+html.light .text-indigo-400,
+html.light .text-indigo-300,
+html.light .text-blue-400,
+html.light .text-blue-300 {
+  color: #4338ca !important; /* Accessible Indigo-700 */
+}
+
+html.light [class*="bg-indigo-500/"],
+html.light [class*="bg-blue-500/"] {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+/* Sky / Cyan */
+html.light .text-sky-400,
+html.light .text-sky-300,
+html.light .text-cyan-400,
+html.light .text-cyan-300 {
+  color: #0284c7 !important; /* Accessible Sky-700 */
+}
+
+html.light [class*="bg-sky-500/"],
+html.light [class*="bg-cyan-500/"] {
+  background-color: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+
+/* Purple / Violet */
+html.light .text-purple-400,
+html.light .text-purple-300,
+html.light .text-violet-400 {
+  color: #6d28d9 !important; /* Accessible Violet-700 */
+}
+
+html.light [class*="bg-purple-500/"] {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+}
+
+/* =========================================================================
+   BUTTON CONTRAST & ACCESSIBILITY IN LIGHT MODE
+   ========================================================================= */
+
+/* Primary CTA Buttons (Emerald gradient): Text must be deep dark slate #020617 */
+html.light button[class*="from-emerald"],
+html.light a[class*="from-emerald"],
+html.light [class*="from-emerald"] > span,
+html.light [class*="from-emerald"] > svg {
+  color: #020617 !important;
+}
+
+/* Solid Emerald Buttons (e.g. bg-emerald-600 or bg-emerald-500 text-white) */
+html.light button.bg-emerald-600,
+html.light button.bg-emerald-500,
+html.light a.bg-emerald-600,
+html.light a.bg-emerald-500,
+html.light .bg-emerald-600 .text-white,
+html.light .bg-emerald-500 .text-white {
+  color: #ffffff !important;
+}
+
+/* Solid Rose Buttons (e.g. bg-rose-600 or bg-rose-500 text-white) */
+html.light button.bg-rose-600,
+html.light button.bg-rose-500,
+html.light a.bg-rose-600,
+html.light a.bg-rose-500,
+html.light .bg-rose-600 .text-white,
+html.light .bg-rose-500 .text-white {
+  color: #ffffff !important;
+}
+
+/* Secondary & Ghost Buttons (e.g. bg-white/5 border border-white/10) */
+html.light button.bg-white\/5,
+html.light button.bg-white\/10,
+html.light a.bg-white\/5,
+html.light a.bg-white\/10,
+html.light button[class*="bg-white/5"],
+html.light a[class*="bg-white/5"] {
+  background-color: #f3eee3 !important;
+  border-color: #d8d1c2 !important;
+  color: #1e293b !important;
+}
+
+html.light button.bg-white\/5:hover,
+html.light button.bg-white\/10:hover,
+html.light a.bg-white\/5:hover,
+html.light a.bg-white\/10:hover,
+html.light button[class*="bg-white/5"]:hover,
+html.light a[class*="bg-white/5"]:hover {
+  background-color: #e8e1d2 !important;
+  color: #0f172a !important;
+}
+
+/* Segmented pill containers */
+html.light [class*="bg-white/5"][class*="rounded-2xl"],
+html.light [class*="bg-white/5"][class*="rounded-xl"] {
+  background-color: #ede7d8 !important;
+  border-color: #e0d9ca !important;
 }
 
 /* Navigation items, buttons and links hover */
@@ -212,70 +390,73 @@ html.light nav.fixed.bottom-0 {
   box-shadow: 0 -4px 20px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* Modals & Backdrop */
-html.light .bg-slate-950\/80 {
-  background-color: rgba(15, 23, 42, 0.5) !important;
-}
+/* =========================================================================
+   INPUTS, TEXTAREAS, PLACEHOLDERS & DROPDOWNS IN LIGHT MODE
+   ========================================================================= */
 
-html.light [class*="max-w-"].rounded-2xl.bg-slate-900,
-html.light [class*="max-w-"].rounded-3xl.bg-slate-900,
-html.light [class*="max-w-"].rounded-2xl.bg-slate-900\/98 {
+html.light input:not([type="checkbox"]):not([type="radio"]):not(.auth-layout *):not(.auth-wrapper *),
+html.light textarea:not(.auth-layout *):not(.auth-wrapper *),
+html.light [class*="bg-slate-950"] input,
+html.light [class*="bg-slate-900"] input {
   background-color: #ffffff !important;
-  border-color: #e3ded4 !important;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15) !important;
-}
-
-/* Inputs & Form Elements */
-html.light input:not([type="checkbox"]):not([type="radio"]),
-html.light textarea,
-html.light .bg-slate-950 input {
-  background-color: #ffffff !important;
-  border-color: #d8d2c4 !important;
+  border-color: #d1c9b8 !important;
   color: #0f172a !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
 }
 
 html.light input::placeholder,
 html.light textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #64748b !important; /* Readable slate-500 */
 }
 
 html.light input:focus,
 html.light textarea:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 1px #10b981 !important;
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 1.5px #059669 !important;
 }
 
-html.light input:-webkit-autofill,
-html.light input:-webkit-autofill:hover,
-html.light input:-webkit-autofill:focus,
-html.light input:-webkit-autofill:active {
+html.light input[type="date"] {
+  color-scheme: light !important;
+  color: #0f172a !important;
+}
+
+html.light input:-webkit-autofill:not(.auth-layout *):not(.auth-wrapper *),
+html.light input:-webkit-autofill:hover:not(.auth-layout *):not(.auth-wrapper *),
+html.light input:-webkit-autofill:focus:not(.auth-layout *):not(.auth-wrapper *),
+html.light input:-webkit-autofill:active:not(.auth-layout *):not(.auth-wrapper *) {
   -webkit-box-shadow: 0 0 0 40px #ffffff inset !important;
   -webkit-text-fill-color: #0f172a !important;
 }
 
-html.light select {
+/* Select & Dropdown Options */
+html.light select,
+html.light select[class*="bg-slate"] {
   background-color: #ffffff !important;
-  border-color: #d8d2c4 !important;
+  border-color: #d1c9b8 !important;
   color: #0f172a !important;
   color-scheme: light !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
 }
 
-html.light select option {
+html.light select option,
+html.light select option[class*="bg-slate"] {
   background-color: #ffffff !important;
   color: #0f172a !important;
+  padding: 8px 12px;
 }
 
 html.light select option:hover,
 html.light select option:focus,
 html.light select option:checked {
   background-color: #ecfdf5 !important;
-  color: #059669 !important;
+  color: #047857 !important;
 }
 
 /* Tables in light mode */
 html.light table th {
   background-color: #f2eee4 !important;
-  color: #475569 !important;
+  color: #334155 !important;
+  font-weight: 600 !important;
   border-color: #e3ded4 !important;
 }
 
@@ -299,4 +480,51 @@ html.light ::-webkit-scrollbar-thumb {
 html.light ::-webkit-scrollbar-thumb:hover {
   background: #b8b1a0 !important;
 }
+
+/* =========================================================================
+   STRICT AUTH ISOLATION (Login & Signup Stay Dark Only)
+   ========================================================================= */
+html.light .auth-layout,
+.auth-layout {
+  background-color: #090d16 !important;
+  color: #f8fafc !important;
+}
+
+html.light .auth-layout .text-white,
+.auth-layout .text-white {
+  color: #ffffff !important;
+}
+
+html.light .auth-layout .text-slate-400,
+.auth-layout .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html.light .auth-layout input,
+.auth-layout input {
+  background-color: rgba(11, 19, 41, 0.7) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html.light .auth-layout input::placeholder,
+.auth-layout input::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+html.light .auth-layout input:-webkit-autofill,
+.auth-layout input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 40px #090d16 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html.light .auth-wrapper,
+.auth-wrapper {
+  background: #0b1329 !important;
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.35), 0 20px 45px rgba(0, 0, 0, 0.8) !important;
+  color: #ffffff !important;
+}
+
+
 
