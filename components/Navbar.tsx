@@ -29,9 +29,11 @@ import {
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import AddUpiModal from "./AddUpiModal";
+import { useTheme } from "@/lib/themeContext";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const { currentUser, logout, refreshUsers } = useUser();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [showGlobalAddExpense, setShowGlobalAddExpense] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAddUpiModal, setShowAddUpiModal] = useState(false);
@@ -39,7 +41,6 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Online / Offline & Sync Queue state for mobile status bar
   const [isOnline, setIsOnline] = useState(true);
@@ -415,6 +416,17 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     )}
                   </div>
 
+                  {/* Theme Toggle Circle Button — Mobile */}
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className="h-8 w-8 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 grid place-items-center hover:bg-indigo-500/20 active:scale-95 transition shadow-sm"
+                    title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
+                    aria-label="Toggle theme"
+                  >
+                    {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-400" />}
+                  </button>
+
                   {/* Change Password Circle Button */}
                   <button
                     type="button"
@@ -473,12 +485,24 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 <span className="text-[9px] text-slate-400 block -mt-0.5 tracking-wider uppercase font-semibold">Expense Mgmt</span>
               </div>
             </Link>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300"
-            >
-              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-amber-400 active:scale-95 transition"
+                title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
+                aria-label="Toggle theme"
+              >
+                {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         )}
 
@@ -595,13 +619,15 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
 
-            {/* Theme Toggle — hidden on mobile */}
+            {/* Theme Toggle — desktop */}
             <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              type="button"
+              onClick={toggleTheme}
               className="hidden md:grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-amber-400 transition"
-              title="Toggle Theme"
+              title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
+              aria-label="Toggle theme"
             >
-              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
             </button>
 
             {/* Notification Bell */}
@@ -987,6 +1013,21 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             >
               FAQ
             </Link>
+
+            {/* Quick theme toggle in mobile menu */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 transition text-left"
+            >
+              <span className="flex items-center gap-2">
+                {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+                <span>{isDarkMode ? "Eye-Comfort Light Mode" : "Dark Mode"}</span>
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-lg border border-white/10 bg-white/5">
+                {isDarkMode ? "Dark" : "Light"}
+              </span>
+            </button>
 
             <div className="pt-3 border-t border-white/10 flex gap-2">
               {currentUser ? (
