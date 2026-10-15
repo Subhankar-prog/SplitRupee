@@ -9,18 +9,24 @@ import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 
 export default function ActivityPage() {
-  const { currentUser } = useUser();
+  const { currentUser, isLoading: usersLoading } = useUser();
   const [activities, setActivities] = useState<ActivityLogDTO[]>([]);
   const [actionFilter, setActionFilter] = useState<ActionTypeName | "ALL">("ALL");
   const [loading, setLoading] = useState(true);
 
-  const loadActivities = useCallback(async () => {
-    if (!currentUser) return;
+  const loadActivities = useCallback(async (isInitial = false) => {
+    if (!currentUser?.id) {
+      if (!usersLoading) setLoading(false);
+      return;
+    }
     try {
-      setLoading(true);
-      const res = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=100`);
+      if (isInitial) setLoading(true);
+      const res = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=100&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && Array.isArray(data.activities)) {
         setActivities(data.activities);
       }
     } catch (e) {
@@ -28,17 +34,20 @@ export default function ActivityPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id, usersLoading]);
 
   useEffect(() => {
-    loadActivities();
+    loadActivities(true);
+    const handleRefresh = () => loadActivities(false);
+    window.addEventListener("splitrupee_refresh", handleRefresh);
+    return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
   }, [loadActivities]);
 
   const filtered = actionFilter === "ALL"
     ? activities
     : activities.filter((a) => a.action === actionFilter);
 
-  if (loading) {
+  if (loading && activities.length === 0 && currentUser) {
     return (
       <SplitRupeeLoader
         fullScreen={false}

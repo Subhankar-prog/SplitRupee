@@ -50,9 +50,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
-      // If already logged in, keep active user
-      if (parsedUser && !currentUser) {
-        setCurrentUser(parsedUser);
+      // If already logged in, initialize active user immediately
+      if (parsedUser) {
+        setCurrentUser((prev) => prev || parsedUser);
       }
 
       const queryUrl = parsedUser?.id
@@ -66,7 +66,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (parsedUser?.id) {
           const freshUser = json.users.find((u: MemberDTO) => u.id === parsedUser.id);
           const activeUser = freshUser || parsedUser;
-          setCurrentUser(activeUser);
+          setCurrentUser((prev) => {
+            if (
+              prev &&
+              prev.id === activeUser.id &&
+              prev.name === activeUser.name &&
+              prev.email === activeUser.email &&
+              prev.phone === activeUser.phone &&
+              prev.upiId === activeUser.upiId &&
+              prev.isPro === activeUser.isPro &&
+              prev.avatarColor === activeUser.avatarColor
+            ) {
+              return prev;
+            }
+            return activeUser;
+          });
           if (typeof window !== "undefined") {
             localStorage.setItem("splitrupee_session_user", JSON.stringify(activeUser));
             document.cookie = `splitrupee_session=${encodeURIComponent(JSON.stringify(activeUser))}; max-age=315360000; path=/; SameSite=Lax`;
@@ -78,30 +92,30 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]);
+  }, []);
 
   useEffect(() => {
     refreshUsers();
   }, [refreshUsers]);
 
-  const login = (user: MemberDTO) => {
+  const login = useCallback((user: MemberDTO) => {
     setCurrentUser(user);
     if (typeof window !== "undefined") {
       localStorage.setItem("splitrupee_session_user", JSON.stringify(user));
       document.cookie = `splitrupee_session=${encodeURIComponent(JSON.stringify(user))}; max-age=315360000; path=/; SameSite=Lax`;
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setCurrentUser(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("splitrupee_session_user");
       document.cookie = "splitrupee_session=; max-age=0; path=/; SameSite=Lax";
       window.location.replace("/login");
     }
-  };
+  }, []);
 
-  const handleSetCurrentUser = (user: MemberDTO | null) => {
+  const handleSetCurrentUser = useCallback((user: MemberDTO | null) => {
     setCurrentUser(user);
     if (typeof window !== "undefined") {
       if (user) {
@@ -112,7 +126,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         document.cookie = "splitrupee_session=; max-age=0; path=/; SameSite=Lax";
       }
     }
-  };
+  }, []);
 
   return (
     <UserContext.Provider

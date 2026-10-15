@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import AppShell from "@/components/AppShell";
 import { useUser } from "@/lib/userContext";
 import { type GroupDTO } from "@/lib/types";
 import { formatINR } from "@/lib/money";
@@ -37,16 +36,19 @@ export default function GroupsPage() {
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
 
-  const fetchGroups = async () => {
-    if (!currentUser) return;
+  const fetchGroups = useCallback(async (isInitial = false) => {
+    if (!currentUser?.id) {
+      if (!usersLoading) setLoading(false);
+      return;
+    }
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
         cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && Array.isArray(data.groups)) {
         setGroups(data.groups);
       }
     } catch (err) {
@@ -54,25 +56,21 @@ export default function GroupsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser?.id, usersLoading]);
 
   useEffect(() => {
-    if (currentUser) {
-      fetchGroups();
-    } else if (!usersLoading) {
-      setLoading(false);
-    }
+    fetchGroups(true);
 
     const handleRefresh = (e?: any) => {
       const exitedId = e?.detail?.groupId;
       if (exitedId) {
         setGroups((prev) => prev.filter((g) => g.id !== exitedId));
       }
-      fetchGroups();
+      fetchGroups(false);
     };
     window.addEventListener("splitrupee_refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("splitrupee_refresh", handleRefresh as EventListener);
-  }, [currentUser, usersLoading]);
+  }, [fetchGroups]);
 
   const handleJoinGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +89,7 @@ export default function GroupsPage() {
       const data = await res.json();
       if (data.ok) {
         setJoinCodeInput("");
-        fetchGroups();
+        fetchGroups(false);
       } else {
         setJoinError(data.error || "Invalid invite code");
       }
@@ -103,7 +101,7 @@ export default function GroupsPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-6xl space-y-8 pb-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl bg-slate-900/60 p-6 md:p-8 border border-white/10 backdrop-blur-xl">
@@ -155,7 +153,7 @@ export default function GroupsPage() {
         </div>
 
         {/* Loading State */}
-        {loading ? (
+        {loading && groups.length === 0 ? (
           <SplitRupeeLoader
             fullScreen={false}
             text="Your Groups"
@@ -254,10 +252,10 @@ export default function GroupsPage() {
           onClose={() => setShowCreateGroup(false)}
           onCreated={() => {
             setShowCreateGroup(false);
-            fetchGroups();
+            fetchGroups(false);
           }}
         />
       )}
-    </AppShell>
+    </>
   );
 }

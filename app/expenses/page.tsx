@@ -42,7 +42,7 @@ const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: strin
 };
 
 export default function AllExpensesPage() {
-  const { currentUser } = useUser();
+  const { currentUser, isLoading: userLoading } = useUser();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
@@ -54,24 +54,37 @@ export default function AllExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<ExpenseDTO | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<ExpenseDTO | null>(null);
 
-  const loadExpenses = useCallback(async () => {
-    if (!currentUser) return;
+  const loadExpenses = useCallback(async (isInitial = false) => {
+    if (!currentUser?.id) {
+      if (!userLoading) setLoading(false);
+      return;
+    }
     try {
-      setLoading(true);
-      const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}`);
+      if (isInitial) setLoading(true);
+      const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && Array.isArray(data.expenses)) {
         setExpenses(data.expenses);
       }
     } catch (e) {
-      console.error("Failed to load all expenses", e);
+      console.warn("Failed to load all expenses (offline mode active):", e);
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id, userLoading]);
 
   useEffect(() => {
-    loadExpenses();
+    loadExpenses(true);
+    const handleRefresh = () => loadExpenses(false);
+    window.addEventListener("splitrupee_refresh", handleRefresh);
+    window.addEventListener("splitrupee_offline_queue_changed", handleRefresh);
+    return () => {
+      window.removeEventListener("splitrupee_refresh", handleRefresh);
+      window.removeEventListener("splitrupee_offline_queue_changed", handleRefresh);
+    };
   }, [loadExpenses]);
 
   const filtered = expenses.filter((e) => {
@@ -79,14 +92,14 @@ export default function AllExpensesPage() {
     const matchesSearch =
       !search.trim() ||
       e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.paidBy.name.toLowerCase().includes(search.toLowerCase()) ||
+      e.paidBy?.name?.toLowerCase()?.includes(search.toLowerCase()) ||
       (e.groupName && e.groupName.toLowerCase().includes(search.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
   const totalSum = filtered.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-  if (loading) {
+  if (loading && expenses.length === 0 && currentUser) {
     return (
       <SplitRupeeLoader
         fullScreen={false}

@@ -128,6 +128,10 @@ export default function GroupDetailPage() {
   }, [currentUser, group]);
 
   const loadGroup = useCallback(async (isInitial = false) => {
+    if (!groupId || groupId === "undefined") {
+      setLoading(false);
+      return;
+    }
     try {
       if (isInitial) setLoading(true);
       const res = await fetch(`/api/groups/${groupId}?_t=${Date.now()}`, {
