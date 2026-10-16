@@ -303,10 +303,22 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 {/* Left: Avatar + Welcome back + Name + Phone/Email + UPI ID */}
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-slate-950 text-sm shadow-md"
-                    style={{ background: currentUser.avatarColor || "#10b981" }}
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm shadow-md ${
+                      currentUser.isPro
+                        ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-slate-950 ring-2 ring-amber-400/90 shadow-amber-500/20"
+                        : "text-slate-950"
+                    }`}
+                    style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
                   >
                     {currentUser.name.charAt(0).toUpperCase()}
+                    {currentUser.isPro && (
+                      <span
+                        className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 border border-amber-400 text-[10px] shadow-md ring-1 ring-slate-950/80 select-none"
+                        title="SplitRupee Pro Member"
+                      >
+                        👑
+                      </span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
@@ -744,7 +756,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     </div>
                     {currentUser.isPro ? (
                       <span
-                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-slate-950 shadow-md ring-1 ring-slate-950"
+                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 border border-amber-400 text-[10px] shadow-md ring-1 ring-slate-950/80 select-none"
                         title="SplitRupee Pro Member"
                       >
                         👑
