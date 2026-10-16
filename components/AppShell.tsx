@@ -82,8 +82,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If loading session on protected routes: render theme-standard loader
-  if (isLoading) {
+  // If loading session on protected routes: only show loader if we have NO cached user yet
+  if (isLoading && !currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
         <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Checking session..." />

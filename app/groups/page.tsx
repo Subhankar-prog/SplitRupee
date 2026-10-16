@@ -218,6 +218,7 @@ export default function GroupsPage() {
                 <Link
                   key={g.id}
                   href={`/groups/${g.id}`}
+                  prefetch={false}
                   className="group relative flex flex-col justify-between rounded-3xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-xl transition hover:border-emerald-500/40 hover:bg-slate-900/80 shadow-lg hover:shadow-emerald-500/5"
                 >
                   <div>

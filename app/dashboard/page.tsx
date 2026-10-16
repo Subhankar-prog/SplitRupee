@@ -449,6 +449,7 @@ export default function DashboardPage() {
                 <Link
                   key={g.id}
                   href={`/groups/${g.id}`}
+                  prefetch={false}
                   className="group rounded-3xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl hover:border-emerald-500/40 hover:bg-white/[0.06] transition flex flex-col justify-between"
                 >
                   <div>

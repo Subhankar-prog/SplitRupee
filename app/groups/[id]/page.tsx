@@ -100,7 +100,8 @@ async function copyText(text: string) {
 export default function GroupDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const groupId = params.id as string;
+  const rawId = params?.id;
+  const groupId = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
   const { currentUser } = useUser();
 
   const [group, setGroup] = useState<any | null>(() => {
@@ -184,8 +185,6 @@ export default function GroupDetailPage() {
         const fallback = getCachedGroup(groupId);
         if (fallback) {
           setGroup(fallback);
-        } else if (!data.offline && typeof navigator !== "undefined" && navigator.onLine) {
-          router.push("/dashboard");
         }
       }
     } catch (e) {
@@ -350,16 +349,24 @@ export default function GroupDetailPage() {
           <div className="mx-auto h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 grid place-items-center">
             <WifiOff className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-bold text-white">Group Data Unavailable Offline</h2>
+          <h2 className="text-lg font-bold text-white">Group Data Unavailable</h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            This group has not been opened on this device yet while online. Reconnect to the internet once to sync and view this group offline anytime.
+            Could not load group details right now. Please retry or return to your dashboard.
           </p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
-          >
-            Back to Dashboard
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => loadGroup(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition"
+            >
+              Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
