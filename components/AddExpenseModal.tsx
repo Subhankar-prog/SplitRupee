@@ -270,7 +270,7 @@ export default function AddExpenseModal({
   const [showScannedItems, setShowScannedItems] = useState(false);
 
   async function triggerOcrScan(imagePayload: string) {
-    if (!imagePayload) return;
+    if (!imagePayload || !currentUser?.isPro) return;
     setIsScanningReceipt(true);
     setOcrSuccessMsg(null);
     setSubmitError(null);
@@ -282,6 +282,7 @@ export default function AddExpenseModal({
         body: JSON.stringify({
           image: imagePayload,
           currencyHint: currency,
+          userId: currentUser?.id,
         }),
       });
 
@@ -345,7 +346,9 @@ export default function AddExpenseModal({
     reader.onload = () => {
       const resultStr = reader.result as string;
       setReceiptUrl(resultStr);
-      triggerOcrScan(resultStr);
+      if (currentUser?.isPro) {
+        triggerOcrScan(resultStr);
+      }
     };
     reader.readAsDataURL(file);
   }
@@ -499,8 +502,8 @@ export default function AddExpenseModal({
               </div>
             )}
 
-            {/* AI Receipt Scanning Status Banner */}
-            {isScanningReceipt && (
+            {/* AI Receipt Scanning Status Banner (PRO only) */}
+            {currentUser?.isPro && isScanningReceipt && (
               <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3 text-xs text-amber-200 flex items-center justify-between gap-3 animate-pulse">
                 <div className="flex items-center gap-2.5">
                   <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
@@ -517,7 +520,7 @@ export default function AddExpenseModal({
               </div>
             )}
 
-            {ocrSuccessMsg && (
+            {currentUser?.isPro && ocrSuccessMsg && (
               <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center justify-between gap-2 animate-in fade-in">
                 <div className="flex items-center gap-2 min-w-0">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -536,7 +539,7 @@ export default function AddExpenseModal({
               </div>
             )}
 
-            {showScannedItems && scannedItems.length > 0 && (
+            {currentUser?.isPro && showScannedItems && scannedItems.length > 0 && (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-2 animate-in fade-in">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-300 border-b border-white/5 pb-2">
                   <span className="flex items-center gap-1.5 text-amber-400">
@@ -893,12 +896,14 @@ export default function AddExpenseModal({
                     <Camera className="h-4 w-4 text-emerald-400" />
                     <span>Bill Receipt Photo</span>
                   </label>
-                  <span className="rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-extrabold flex items-center gap-1">
-                    <Sparkles className="h-2.5 w-2.5 text-amber-400" /> AI OCR
-                  </span>
+                  {currentUser?.isPro && (
+                    <span className="rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-extrabold flex items-center gap-1">
+                      <Sparkles className="h-2.5 w-2.5 text-amber-400" /> AI OCR
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {receiptUrl && (
+                  {currentUser?.isPro && receiptUrl && (
                     <button
                       type="button"
                       onClick={() => triggerOcrScan(receiptUrl)}
@@ -936,9 +941,15 @@ export default function AddExpenseModal({
                   <span className="text-xs font-medium text-slate-300">
                     Upload image or snap a photo of receipt
                   </span>
-                  <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium flex items-center gap-1">
-                    <Sparkles className="h-2.5 w-2.5" /> Auto-extracts total amount, merchant, and dishes with AI
-                  </span>
+                  {currentUser?.isPro ? (
+                    <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium flex items-center gap-1">
+                      <Sparkles className="h-2.5 w-2.5" /> Auto-extracts total amount, merchant, and dishes with AI
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                      Store bill photo with expense details
+                    </span>
+                  )}
                   <input
                     type="file"
                     accept="image/*"

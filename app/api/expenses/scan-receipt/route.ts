@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,20 @@ const VALID_CATEGORIES = [
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { image, currencyHint } = body;
+    const { image, currencyHint, userId } = body;
+
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { isPro: true },
+      });
+      if (user && !user.isPro) {
+        return NextResponse.json(
+          { ok: false, error: "PRO_REQUIRED", message: "AI Receipt OCR is exclusively available to SplitRupee Pro members." },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!image || typeof image !== "string") {
       return NextResponse.json(

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useUser } from "@/lib/userContext";
 import {
   X,
   Repeat,
@@ -158,7 +160,39 @@ export default function RecurringExpensesModal({
     }
   }
 
+  const { currentUser } = useUser();
+
   if (!isOpen) return null;
+
+  if (!currentUser?.isPro) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="relative w-full max-w-md rounded-3xl border border-purple-500/30 bg-slate-900/98 p-6 text-center space-y-4 shadow-2xl">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 rounded-xl p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div className="mx-auto h-12 w-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 grid place-items-center">
+            <Repeat className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-bold text-white">SplitRupee Pro Feature</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Automated recurring expenses (Flat Rent, Cook Salary, Maid, Wi-Fi) are exclusively available for Pro members.
+          </p>
+          <Link
+            href="/pro"
+            onClick={onClose}
+            className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-400 hover:to-indigo-500 transition"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Upgrade to Pro</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 p-0 sm:p-4 backdrop-blur-md animate-in fade-in duration-200">

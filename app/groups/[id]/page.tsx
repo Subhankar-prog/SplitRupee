@@ -498,15 +498,17 @@ export default function GroupDetailPage() {
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
             <span>Settle Up</span>
           </button>
-          <button
-            onClick={() => setShowRecurringModal(true)}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
-            title="Automated Recurring Expenses (Rent, Maid, Cook, Wi-Fi)"
-          >
-            <Repeat className="h-3.5 w-3.5 text-purple-400" />
-            <span>Recurring</span>
-            <span className="rounded bg-purple-500/30 px-1 py-0.2 text-[9px] font-extrabold text-purple-200 uppercase tracking-wider">PRO</span>
-          </button>
+          {currentUser?.isPro && (
+            <button
+              onClick={() => setShowRecurringModal(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
+              title="Automated Recurring Expenses (Rent, Maid, Cook, Wi-Fi)"
+            >
+              <Repeat className="h-3.5 w-3.5 text-purple-400" />
+              <span>Recurring</span>
+              <span className="rounded bg-purple-500/30 px-1 py-0.2 text-[9px] font-extrabold text-purple-200 uppercase tracking-wider">PRO</span>
+            </button>
+          )}
           <button
             onClick={handleShareWhatsApp}
             className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
@@ -965,28 +967,30 @@ export default function GroupDetailPage() {
                         <td className="p-3.5 pr-5 align-middle text-right">
                           {isDebtor ? (
                             <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const transfer = ledger.transfers.find((t) => t.from === m.id);
-                                  const targetReceiverId = transfer
-                                    ? transfer.to
-                                    : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
-                                  const targetReceiver = members.find((other: any) => other.id === targetReceiverId);
-                                  setWhatsAppReminderData({
-                                    debtorName: m.name,
-                                    debtorPhone: m.phone,
-                                    creditorName: targetReceiver?.name || "Creditor",
-                                    creditorUpiId: targetReceiver?.upiId,
-                                    amount: transfer ? transfer.amountPaise / 100 : Math.abs(netINR),
-                                  });
-                                }}
-                                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
-                                title="Send WhatsApp payment reminder"
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                                <span className="hidden sm:inline">Remind</span>
-                              </button>
+                              {currentUser?.isPro && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const transfer = ledger.transfers.find((t) => t.from === m.id);
+                                    const targetReceiverId = transfer
+                                      ? transfer.to
+                                      : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
+                                    const targetReceiver = members.find((other: any) => other.id === targetReceiverId);
+                                    setWhatsAppReminderData({
+                                      debtorName: m.name,
+                                      debtorPhone: m.phone,
+                                      creditorName: targetReceiver?.name || "Creditor",
+                                      creditorUpiId: targetReceiver?.upiId,
+                                      amount: transfer ? transfer.amountPaise / 100 : Math.abs(netINR),
+                                    });
+                                  }}
+                                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
+                                  title="Send WhatsApp payment reminder"
+                                >
+                                  <MessageCircle className="h-3 w-3" />
+                                  <span className="hidden sm:inline">Remind</span>
+                                </button>
+                              )}
                               <button
                                 onClick={() => {
                                   const transfer = ledger.transfers.find((t) => t.from === m.id);
@@ -1086,23 +1090,25 @@ export default function GroupDetailPage() {
                     <span className="text-sm font-extrabold text-emerald-400 tabular-nums">
                       {formatPaise(t.amountPaise)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setWhatsAppReminderData({
-                          debtorName: names[t.from] || "Friend",
-                          debtorPhone: members.find((m: any) => m.id === t.from)?.phone,
-                          creditorName: names[t.to] || "Creditor",
-                          creditorUpiId: members.find((m: any) => m.id === t.to)?.upiId,
-                          amount: t.amountPaise / 100,
-                        })
-                      }
-                      className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
-                      title="Send WhatsApp payment reminder"
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">WhatsApp</span>
-                    </button>
+                    {currentUser?.isPro && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setWhatsAppReminderData({
+                            debtorName: names[t.from] || "Friend",
+                            debtorPhone: members.find((m: any) => m.id === t.from)?.phone,
+                            creditorName: names[t.to] || "Creditor",
+                            creditorUpiId: members.find((m: any) => m.id === t.to)?.upiId,
+                            amount: t.amountPaise / 100,
+                          })
+                        }
+                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
+                        title="Send WhatsApp payment reminder"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">WhatsApp</span>
+                      </button>
+                    )}
                     <button
                       onClick={() =>
                         setSettleUpData({
@@ -1144,15 +1150,17 @@ export default function GroupDetailPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowRecurringModal(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
-                title="Automated Recurring Expenses"
-              >
-                <Repeat className="h-3.5 w-3.5 text-purple-400" />
-                <span className="hidden sm:inline">Recurring Rules</span>
-                <span className="sm:hidden">Recurring</span>
-              </button>
+              {currentUser?.isPro && (
+                <button
+                  onClick={() => setShowRecurringModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
+                  title="Automated Recurring Expenses"
+                >
+                  <Repeat className="h-3.5 w-3.5 text-purple-400" />
+                  <span className="hidden sm:inline">Recurring Rules</span>
+                  <span className="sm:hidden">Recurring</span>
+                </button>
+              )}
               <button
                 onClick={() => setShowAddExpense(true)}
                 className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
@@ -1554,7 +1562,7 @@ export default function GroupDetailPage() {
         />
       )}
 
-      {whatsAppReminderData && (
+      {whatsAppReminderData && currentUser?.isPro && (
         <WhatsAppReminderModal
           isOpen={!!whatsAppReminderData}
           onClose={() => setWhatsAppReminderData(null)}
@@ -1567,7 +1575,7 @@ export default function GroupDetailPage() {
         />
       )}
 
-      {showRecurringModal && group && (
+      {showRecurringModal && group && currentUser?.isPro && (
         <RecurringExpensesModal
           isOpen={showRecurringModal}
           onClose={() => setShowRecurringModal(false)}

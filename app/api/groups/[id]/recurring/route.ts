@@ -181,6 +181,17 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Payer is required" }, { status: 400 });
     }
 
+    const payer = await prisma.user.findUnique({
+      where: { id: paidById },
+      select: { isPro: true },
+    });
+    if (!payer?.isPro) {
+      return NextResponse.json(
+        { ok: false, error: "PRO_REQUIRED", message: "Automated Recurring Expenses is exclusively available to SplitRupee Pro members." },
+        { status: 403 }
+      );
+    }
+
     const day = Math.min(31, Math.max(1, parseInt(dayOfMonth, 10) || 1));
     const nextRun = calculateNextRunDate(day, frequency || "MONTHLY");
 
