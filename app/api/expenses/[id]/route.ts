@@ -116,6 +116,9 @@ export async function PUT(req: Request, { params }: Params) {
             title: p.title,
             paidById: p.paidById,
             totalAmount: totalPaise / 100,
+            originalAmount: p.originalAmount !== undefined && p.originalAmount !== null ? Number(p.originalAmount) : null,
+            currency: p.currency || "INR",
+            exchangeRate: p.exchangeRate !== undefined && p.exchangeRate !== null ? Number(p.exchangeRate) : 1.0,
             splitType: p.splitType,
             category: p.category,
             notes: p.notes,
@@ -140,6 +143,9 @@ export async function PUT(req: Request, { params }: Params) {
         if (oldExpense.title !== p.title) diffs.push(`title: "${oldExpense.title}" → "${p.title}"`);
         if (oldExpense.totalAmount !== totalPaise / 100) {
           diffs.push(`amount: ₹${oldExpense.totalAmount} → ₹${totalPaise / 100}`);
+        }
+        if (oldExpense.currency !== (p.currency || "INR")) {
+          diffs.push(`currency: ${oldExpense.currency} → ${p.currency || "INR"}`);
         }
         if (oldExpense.category !== p.category) diffs.push(`category: ${oldExpense.category} → ${p.category}`);
 

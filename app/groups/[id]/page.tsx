@@ -15,6 +15,7 @@ import { buildLedger, type Transfer } from "@/lib/debt";
 import { buildWhatsAppSummary, buildGroupLedgerCSV } from "@/lib/export";
 import { exportGroupLedgerPDF } from "@/lib/pdfExport";
 import { formatINR, formatPaise } from "@/lib/money";
+import { getCurrency, formatCurrencyAmount } from "@/lib/currencies";
 import {
   Users,
   Plus,
@@ -1123,13 +1124,26 @@ export default function GroupDetailPage() {
                           <h4 className="text-sm font-bold text-white truncate">
                             {exp.title}
                           </h4>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-1">
                             <span className="font-semibold text-slate-300">{exp.paidBy.name}</span> paid{" "}
-                            <span className="font-semibold text-white">{formatINR(exp.totalAmount)}</span> ·{" "}
-                            {new Date(exp.date || exp.createdAt).toLocaleDateString("en-IN", {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            <span className="font-semibold text-white">{formatINR(exp.totalAmount)}</span>
+                            {exp.currency && exp.currency !== "INR" && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[10px] font-bold text-amber-300">
+                                <span>{getCurrency(exp.currency).flag}</span>
+                                <span>
+                                  {exp.originalAmount
+                                    ? formatCurrencyAmount(exp.originalAmount, exp.currency)
+                                    : exp.currency}
+                                </span>
+                              </span>
+                            )}
+                            <span className="text-slate-500">·</span>
+                            <span>
+                              {new Date(exp.date || exp.createdAt).toLocaleDateString("en-IN", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -1159,6 +1173,18 @@ export default function GroupDetailPage() {
 
                     {isExpanded && (
                       <div className="border-t border-white/5 bg-white/[0.02] p-4 space-y-3 text-xs animate-in fade-in duration-150">
+                        {exp.currency && exp.currency !== "INR" && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-300 font-medium">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">{getCurrency(exp.currency).flag}</span>
+                              <span>Foreign Expense: <strong>{exp.originalAmount ? formatCurrencyAmount(exp.originalAmount, exp.currency) : exp.currency}</strong></span>
+                            </div>
+                            <span className="text-[11px] text-slate-400 font-mono">
+                              1 {exp.currency} = ₹{exp.exchangeRate?.toFixed(4) || "—"} INR · Group balance: {formatINR(exp.totalAmount)}
+                            </span>
+                          </div>
+                        )}
+
                         {exp.notes && (
                           <p className="text-slate-300 bg-white/5 p-2.5 rounded-xl text-xs italic">
                             "{exp.notes}"

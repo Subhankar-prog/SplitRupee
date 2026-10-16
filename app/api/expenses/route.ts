@@ -63,6 +63,9 @@ export async function POST(req: Request) {
             paidById: p.paidById,
             title: p.title,
             totalAmount: totalPaise / 100,
+            originalAmount: p.originalAmount !== undefined && p.originalAmount !== null ? Number(p.originalAmount) : null,
+            currency: p.currency || "INR",
+            exchangeRate: p.exchangeRate !== undefined && p.exchangeRate !== null ? Number(p.exchangeRate) : 1.0,
             splitType: p.splitType,
             category: p.category,
             notes: p.notes,
@@ -94,13 +97,16 @@ export async function POST(req: Request) {
         }
 
         // Log to Activity Log
+        const foreignNote = p.currency && p.currency !== "INR" && p.originalAmount
+          ? ` (${p.currency} ${Number(p.originalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})`
+          : "";
         await tx.activityLog.create({
           data: {
             groupId: p.groupId,
             userId: p.paidById,
             action: "EXPENSE_CREATED",
             entityTitle: p.title,
-            details: `Added expense "${p.title}" of ₹${(totalPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })} (${p.splitType === "EQUAL" ? "Equal split" : p.splitType === "PERCENTAGE" ? "Percentage split" : "Exact split"} among ${splits.length} members)${p.receiptUrl ? " with receipt attached" : ""}`,
+            details: `Added expense "${p.title}" of ₹${(totalPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}${foreignNote} (${p.splitType === "EQUAL" ? "Equal split" : p.splitType === "PERCENTAGE" ? "Percentage split" : "Exact split"} among ${splits.length} members)${p.receiptUrl ? " with receipt attached" : ""}`,
           },
         });
 
@@ -180,6 +186,9 @@ export async function GET(req: Request) {
         paidById: e.paidById,
         title: e.title,
         totalAmount: e.totalAmount,
+        originalAmount: e.originalAmount,
+        currency: e.currency,
+        exchangeRate: e.exchangeRate,
         splitType: e.splitType,
         category: e.category,
         notes: e.notes,

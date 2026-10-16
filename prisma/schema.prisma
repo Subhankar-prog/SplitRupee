@@ -93,20 +93,23 @@ model GroupMember {
 }
 
 model Expense {
-  id          String         @id @default(uuid())
-  groupId     String
-  paidById    String
-  title       String
-  totalAmount Float
-  splitType   SplitType      @default(EQUAL)
-  category    Category       @default(Miscellaneous)
-  notes       String?
-  receiptUrl  String?
-  isDeleted   Boolean        @default(false)
-  deletedAt   DateTime?
-  date        DateTime       @default(now())
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id             String         @id @default(uuid())
+  groupId        String
+  paidById       String
+  title          String
+  totalAmount    Float
+  originalAmount Float?
+  currency       String         @default("INR")
+  exchangeRate   Float?         @default(1.0)
+  splitType      SplitType      @default(EQUAL)
+  category       Category       @default(Miscellaneous)
+  notes          String?
+  receiptUrl     String?
+  isDeleted      Boolean        @default(false)
+  deletedAt      DateTime?
+  date           DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   group       Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
   paidBy      User           @relation("ExpensePayer", fields: [paidById], references: [id])
   splits      ExpenseSplit[]

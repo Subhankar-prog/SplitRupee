@@ -67,6 +67,9 @@ export interface ExpenseDTO {
   paidById: string;
   title: string;
   totalAmount: number;
+  originalAmount?: number | null;
+  currency?: string;
+  exchangeRate?: number | null;
   splitType: SplitTypeName;
   category: CategoryName;
   notes?: string | null;
