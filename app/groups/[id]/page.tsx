@@ -52,6 +52,8 @@ import {
   Settings,
   LogOut,
   WifiOff,
+  MessageCircle,
+  Repeat,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
@@ -61,6 +63,8 @@ import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 import ManageGroupModal from "@/components/ManageGroupModal";
 import ExitGroupModal from "@/components/ExitGroupModal";
+import WhatsAppReminderModal from "@/components/WhatsAppReminderModal";
+import RecurringExpensesModal from "@/components/RecurringExpensesModal";
 import { getCachedGroup, saveCachedGroup } from "@/lib/offlineSync";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
@@ -129,6 +133,14 @@ export default function GroupDetailPage() {
     receiverId?: string;
     amount?: number;
   } | null>(null);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [whatsAppReminderData, setWhatsAppReminderData] = useState<{
+    debtorName: string;
+    debtorPhone?: string | null;
+    creditorName: string;
+    creditorUpiId?: string | null;
+    amount: number;
+  } | null>(null);
 
   const groupRef = useRef(group);
   groupRef.current = group;
@@ -189,6 +201,10 @@ export default function GroupDetailPage() {
 
   useEffect(() => {
     loadGroup(true);
+    // Background check for any overdue recurring rules
+    if (groupId && groupId !== "undefined") {
+      fetch(`/api/groups/${groupId}/recurring`).catch(() => {});
+    }
     const handleRefresh = () => loadGroup(false);
     window.addEventListener("splitrupee_refresh", handleRefresh);
     window.addEventListener("splitrupee_offline_queue_changed", handleRefresh);
@@ -474,6 +490,15 @@ export default function GroupDetailPage() {
           >
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
             <span>Settle Up</span>
+          </button>
+          <button
+            onClick={() => setShowRecurringModal(true)}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
+            title="Automated Recurring Expenses (Rent, Maid, Cook, Wi-Fi)"
+          >
+            <Repeat className="h-3.5 w-3.5 text-purple-400" />
+            <span>Recurring</span>
+            <span className="rounded bg-purple-500/30 px-1 py-0.2 text-[9px] font-extrabold text-purple-200 uppercase tracking-wider">PRO</span>
           </button>
           <button
             onClick={handleShareWhatsApp}
@@ -932,23 +957,47 @@ export default function GroupDetailPage() {
                         </td>
                         <td className="p-3.5 pr-5 align-middle text-right">
                           {isDebtor ? (
-                            <button
-                              onClick={() => {
-                                const transfer = ledger.transfers.find((t) => t.from === m.id);
-                                const targetReceiver = transfer
-                                  ? transfer.to
-                                  : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
-                                const transferAmount = transfer ? transfer.amountPaise / 100 : Math.abs(netINR);
-                                setSettleUpData({
-                                  payerId: m.id,
-                                  receiverId: targetReceiver,
-                                  amount: transferAmount,
-                                });
-                              }}
-                              className="rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-slate-950 hover:bg-emerald-400 transition"
-                            >
-                              Settle Up
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const transfer = ledger.transfers.find((t) => t.from === m.id);
+                                  const targetReceiverId = transfer
+                                    ? transfer.to
+                                    : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
+                                  const targetReceiver = members.find((other: any) => other.id === targetReceiverId);
+                                  setWhatsAppReminderData({
+                                    debtorName: m.name,
+                                    debtorPhone: m.phone,
+                                    creditorName: targetReceiver?.name || "Creditor",
+                                    creditorUpiId: targetReceiver?.upiId,
+                                    amount: transfer ? transfer.amountPaise / 100 : Math.abs(netINR),
+                                  });
+                                }}
+                                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
+                                title="Send WhatsApp payment reminder"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                <span className="hidden sm:inline">Remind</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const transfer = ledger.transfers.find((t) => t.from === m.id);
+                                  const targetReceiver = transfer
+                                    ? transfer.to
+                                    : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
+                                  const transferAmount = transfer ? transfer.amountPaise / 100 : Math.abs(netINR);
+                                  setSettleUpData({
+                                    payerId: m.id,
+                                    receiverId: targetReceiver,
+                                    amount: transferAmount,
+                                  });
+                                }}
+                                className="rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-slate-950 hover:bg-emerald-400 transition"
+                              >
+                                Settle Up
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-[11px] text-slate-500 font-medium">All Square</span>
                           )}
@@ -1026,10 +1075,27 @@ export default function GroupDetailPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-extrabold text-emerald-400 tabular-nums">
                       {formatPaise(t.amountPaise)}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWhatsAppReminderData({
+                          debtorName: names[t.from] || "Friend",
+                          debtorPhone: members.find((m: any) => m.id === t.from)?.phone,
+                          creditorName: names[t.to] || "Creditor",
+                          creditorUpiId: members.find((m: any) => m.id === t.to)?.upiId,
+                          amount: t.amountPaise / 100,
+                        })
+                      }
+                      className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
+                      title="Send WhatsApp payment reminder"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </button>
                     <button
                       onClick={() =>
                         setSettleUpData({
@@ -1070,13 +1136,24 @@ export default function GroupDetailPage() {
               ))}
             </div>
 
-            <button
-              onClick={() => setShowAddExpense(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
-            >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-              <span>Add Expense</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowRecurringModal(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
+                title="Automated Recurring Expenses"
+              >
+                <Repeat className="h-3.5 w-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Recurring Rules</span>
+                <span className="sm:hidden">Recurring</span>
+              </button>
+              <button
+                onClick={() => setShowAddExpense(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Add Expense</span>
+              </button>
+            </div>
           </div>
 
           {filteredExpenses.length === 0 ? (
@@ -1467,6 +1544,30 @@ export default function GroupDetailPage() {
             }
             router.push("/dashboard");
           }}
+        />
+      )}
+
+      {whatsAppReminderData && (
+        <WhatsAppReminderModal
+          isOpen={!!whatsAppReminderData}
+          onClose={() => setWhatsAppReminderData(null)}
+          debtorName={whatsAppReminderData.debtorName}
+          debtorPhone={whatsAppReminderData.debtorPhone}
+          creditorName={whatsAppReminderData.creditorName}
+          creditorUpiId={whatsAppReminderData.creditorUpiId}
+          amount={whatsAppReminderData.amount}
+          groupName={group?.name || "Group"}
+        />
+      )}
+
+      {showRecurringModal && group && (
+        <RecurringExpensesModal
+          isOpen={showRecurringModal}
+          onClose={() => setShowRecurringModal(false)}
+          groupId={group.id}
+          groupName={group.name}
+          members={members}
+          onExpenseCreated={() => loadGroup(false)}
         />
       )}
     </div>

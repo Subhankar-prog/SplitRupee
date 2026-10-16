@@ -55,28 +55,30 @@ model User {
   lastResetRequested DateTime?
   createdAt        DateTime       @default(now())
   memberships      GroupMember[]
-  paidExpenses     Expense[]      @relation("ExpensePayer")
+  paidExpenses     Expense[]          @relation("ExpensePayer")
+  recurringExpenses RecurringExpense[]
   splits           ExpenseSplit[]
-  sentPayments     Payment[]      @relation("PaymentPayer")
-  receivedPayments Payment[]      @relation("PaymentReceiver")
+  sentPayments     Payment[]          @relation("PaymentPayer")
+  receivedPayments Payment[]          @relation("PaymentReceiver")
   activityLogs     ActivityLog[]
   itineraries      Itinerary[]
 }
 
 model Group {
-  id           String        @id @default(uuid())
-  name         String
-  description  String?
-  type         GroupType     @default(OTHER)
-  currency     String        @default("INR")
-  inviteCode   String?       @unique
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  members      GroupMember[]
-  expenses     Expense[]
-  payments     Payment[]
-  activityLogs ActivityLog[]
-  itineraries  Itinerary[]
+  id                String             @id @default(uuid())
+  name              String
+  description       String?
+  type              GroupType          @default(OTHER)
+  currency          String             @default("INR")
+  inviteCode        String?            @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  members           GroupMember[]
+  expenses          Expense[]
+  recurringExpenses RecurringExpense[]
+  payments          Payment[]
+  activityLogs      ActivityLog[]
+  itineraries       Itinerary[]
 }
 
 model GroupMember {
@@ -183,4 +185,30 @@ model Itinerary {
   @@index([userId])
   @@index([groupId])
 }
+
+model RecurringExpense {
+  id          String       @id @default(uuid())
+  groupId     String
+  paidById    String
+  title       String
+  totalAmount Float
+  currency    String       @default("INR")
+  category    Category     @default(Food)
+  frequency   String       @default("MONTHLY")
+  dayOfMonth  Int          @default(1)
+  splitType   SplitType    @default(EQUAL)
+  notes       String?
+  isActive    Boolean      @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidBy      User         @relation(fields: [paidById], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([nextRunAt])
+}
+
 

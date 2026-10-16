@@ -50,6 +50,10 @@ import {
   ChevronDown,
   Edit3,
   RefreshCw,
+  Scan,
+  Loader2,
+  CheckCircle2,
+  ListOrdered,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<CategoryName, typeof Utensils> = {
@@ -259,6 +263,75 @@ export default function AddExpenseModal({
     }
   };
 
+  // AI OCR state
+  const [isScanningReceipt, setIsScanningReceipt] = useState(false);
+  const [ocrSuccessMsg, setOcrSuccessMsg] = useState<string | null>(null);
+  const [scannedItems, setScannedItems] = useState<Array<{ name: string; price: number; qty?: number }>>([]);
+  const [showScannedItems, setShowScannedItems] = useState(false);
+
+  async function triggerOcrScan(imagePayload: string) {
+    if (!imagePayload) return;
+    setIsScanningReceipt(true);
+    setOcrSuccessMsg(null);
+    setSubmitError(null);
+
+    try {
+      const res = await fetch("/api/expenses/scan-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: imagePayload,
+          currencyHint: currency,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || json.error || "Failed to scan receipt");
+      }
+
+      const d = json.data;
+      if (d.merchant) {
+        setTitle(d.merchant);
+      }
+
+      if (d.totalAmount && d.totalAmount > 0) {
+        setAmount(d.totalAmount.toString());
+      }
+
+      if (d.category) {
+        setCategory(d.category);
+      }
+
+      if (d.currency) {
+        setCurrency(d.currency);
+        setCustomRate(null);
+      }
+
+      if (d.date) {
+        setDate(d.date);
+      }
+
+      if (d.notes) {
+        setNotes(d.notes);
+      }
+
+      if (d.items && Array.isArray(d.items) && d.items.length > 0) {
+        setScannedItems(d.items);
+        setShowScannedItems(true);
+      }
+
+      setOcrSuccessMsg(
+        `AI successfully scanned: ${d.merchant} (${d.currency} ${d.totalAmount})`
+      );
+    } catch (err: any) {
+      console.warn("[OCR Scan] Failed:", err);
+      setSubmitError(err.message || "Could not read receipt with AI. Please enter amount manually.");
+    } finally {
+      setIsScanningReceipt(false);
+    }
+  }
+
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -270,7 +343,9 @@ export default function AddExpenseModal({
 
     const reader = new FileReader();
     reader.onload = () => {
-      setReceiptUrl(reader.result as string);
+      const resultStr = reader.result as string;
+      setReceiptUrl(resultStr);
+      triggerOcrScan(resultStr);
     };
     reader.readAsDataURL(file);
   }
@@ -421,6 +496,67 @@ export default function AddExpenseModal({
             {submitError && (
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
                 {submitError}
+              </div>
+            )}
+
+            {/* AI Receipt Scanning Status Banner */}
+            {isScanningReceipt && (
+              <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3 text-xs text-amber-200 flex items-center justify-between gap-3 animate-pulse">
+                <div className="flex items-center gap-2.5">
+                  <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
+                  <div>
+                    <span className="font-bold text-white flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      Gemini Vision OCR Scanning Receipt...
+                    </span>
+                    <p className="text-[11px] text-amber-300/80 mt-0.5">
+                      Auto-detecting merchant, amount, category, and items
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {ocrSuccessMsg && (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span className="font-medium truncate">{ocrSuccessMsg}</span>
+                </div>
+                {scannedItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowScannedItems(!showScannedItems)}
+                    className="shrink-0 text-[11px] font-bold text-emerald-400 hover:underline flex items-center gap-1"
+                  >
+                    <ListOrdered className="h-3.5 w-3.5" />
+                    <span>{showScannedItems ? "Hide Items" : `${scannedItems.length} Items`}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {showScannedItems && scannedItems.length > 0 && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-2 animate-in fade-in">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-300 border-b border-white/5 pb-2">
+                  <span className="flex items-center gap-1.5 text-amber-400">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Itemized Bill Items:
+                  </span>
+                  <span className="text-[11px] text-slate-400">{scannedItems.length} items detected</span>
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 divide-y divide-white/5">
+                  {scannedItems.map((item, idx) => (
+                    <div key={idx} className="pt-1.5 flex items-center justify-between text-xs text-slate-300">
+                      <span className="truncate max-w-[220px]">
+                        {item.qty && item.qty > 1 ? `${item.qty}x ` : ""}{item.name}
+                      </span>
+                      <span className="font-mono font-bold text-white">
+                        {currencyInfo.symbol}{Number(item.price).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -752,19 +888,42 @@ export default function AddExpenseModal({
             {/* Bill Receipt Photo Upload */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Camera className="h-4 w-4 text-emerald-400" />
-                  <span>Attach Bill Receipt Photo</span>
-                </label>
-                {receiptUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setReceiptUrl(null)}
-                    className="text-[11px] text-rose-400 hover:underline flex items-center gap-1"
-                  >
-                    <Trash2 className="h-3 w-3" /> Remove
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-emerald-400" />
+                    <span>Bill Receipt Photo</span>
+                  </label>
+                  <span className="rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-extrabold flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5 text-amber-400" /> AI OCR
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {receiptUrl && (
+                    <button
+                      type="button"
+                      onClick={() => triggerOcrScan(receiptUrl)}
+                      disabled={isScanningReceipt}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <Scan className="h-3 w-3" />
+                      <span>{isScanningReceipt ? "Scanning..." : "Re-Scan with AI"}</span>
+                    </button>
+                  )}
+                  {receiptUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReceiptUrl(null);
+                        setOcrSuccessMsg(null);
+                        setScannedItems([]);
+                        setShowScannedItems(false);
+                      }}
+                      className="text-[11px] text-rose-400 hover:underline flex items-center gap-1"
+                    >
+                      <Trash2 className="h-3 w-3" /> Remove
+                    </button>
+                  )}
+                </div>
               </div>
 
               {receiptUrl ? (
@@ -777,7 +936,9 @@ export default function AddExpenseModal({
                   <span className="text-xs font-medium text-slate-300">
                     Upload image or snap a photo of receipt
                   </span>
-                  <span className="text-[10px] text-slate-500 mt-0.5">PNG, JPG, WEBP up to 5MB</span>
+                  <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" /> Auto-extracts total amount, merchant, and dishes with AI
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
