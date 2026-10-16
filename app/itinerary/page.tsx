@@ -542,8 +542,8 @@ export default function ItineraryPage() {
 
                 <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-20">
                   {/* Train */}
-                  <div className="transit-train-card train-preference-card p-3 bg-slate-950/60 rounded-xl border border-white/10 space-y-2">
-                    <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-200 cursor-pointer">
+                  <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
+                    <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input 
                         type="checkbox" 
                         name="transportTrain" 
@@ -551,11 +551,11 @@ export default function ItineraryPage() {
                         onChange={handleChange} 
                         className="transit-train-checkbox accent-emerald-500" 
                       />
-                      <Train className="h-4 w-4 text-cyan-400" /> Train
+                      <Train className="h-4 w-4 text-cyan-500 dark:text-cyan-400" /> Train
                     </label>
                     {form.transportTrain && (
                       <div className="train-coach-field train-coach-container">
-                        <label className="train-coach-label block text-[10px] text-slate-400 mb-1">Train Coach / Class:</label>
+                        <label className="train-coach-label block text-[10px] text-slate-600 dark:text-slate-400 mb-1">Train Coach / Class:</label>
                         <ThemeSelect
                           semanticName="train-coach-class"
                           id="train-coach-select"
@@ -572,15 +572,15 @@ export default function ItineraryPage() {
                             { value: "EC", label: "EC — Executive Chair Car" },
                             { value: "Vistadome", label: "Vistadome — Panoramic Glass Coach" },
                           ]}
-                          buttonClassName="py-2 px-2.5 text-xs font-mono text-cyan-300 bg-slate-900 border-white/10"
+                          buttonClassName="py-2 px-2.5 text-xs font-mono text-cyan-700 dark:text-cyan-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10"
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Bus / Coach */}
-                  <div className="transit-bus-card bus-preference-card p-3 bg-slate-950/60 rounded-xl border border-white/10 space-y-2">
-                    <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-200 cursor-pointer">
+                  <div className="transit-bus-card bus-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
+                    <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input 
                         type="checkbox" 
                         name="transportBus" 
@@ -588,11 +588,11 @@ export default function ItineraryPage() {
                         onChange={handleChange} 
                         className="transit-bus-checkbox accent-emerald-500" 
                       />
-                      <Bus className="h-4 w-4 text-amber-400" /> Bus / Coach
+                      <Bus className="h-4 w-4 text-amber-500 dark:text-amber-400" /> Bus / Coach
                     </label>
                     {form.transportBus && (
                       <div className="bus-coach-field bus-coach-container">
-                        <label className="bus-coach-label block text-[10px] text-slate-400 mb-1">Bus Coach Type:</label>
+                        <label className="bus-coach-label block text-[10px] text-slate-600 dark:text-slate-400 mb-1">Bus Coach Type:</label>
                         <ThemeSelect
                           semanticName="bus-coach-type"
                           id="bus-coach-select"
@@ -606,15 +606,15 @@ export default function ItineraryPage() {
                             { value: "State RTC Superfast Express", label: "State RTC Superfast Express (KSRTC / HRTC / MSRTC)" },
                             { value: "Luxury Mercedes / Scania Semi-Sleeper", label: "Luxury Mercedes / Scania Semi-Sleeper" },
                           ]}
-                          buttonClassName="py-2 px-2.5 text-xs font-mono text-amber-300 bg-slate-900 border-white/10"
+                          buttonClassName="py-2 px-2.5 text-xs font-mono text-amber-700 dark:text-amber-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10"
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Flight */}
-                  <div className="transit-flight-card flight-preference-card p-3 bg-slate-950/60 rounded-xl border border-white/10 space-y-2">
-                    <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-200 cursor-pointer">
+                  <div className="transit-flight-card flight-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
+                    <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input 
                         type="checkbox" 
                         name="transportFlight" 
@@ -622,11 +622,11 @@ export default function ItineraryPage() {
                         onChange={handleChange} 
                         className="transit-flight-checkbox accent-emerald-500" 
                       />
-                      <Plane className="h-4 w-4 text-sky-400" /> Flight
+                      <Plane className="h-4 w-4 text-sky-500 dark:text-sky-400" /> Flight
                     </label>
                     {form.transportFlight && (
                       <div className="flight-cabin-field flight-cabin-container">
-                        <label className="flight-cabin-label block text-[10px] text-slate-400 mb-1">Flight Cabin:</label>
+                        <label className="flight-cabin-label block text-[10px] text-slate-600 dark:text-slate-400 mb-1">Flight Cabin:</label>
                         <ThemeSelect
                           semanticName="flight-cabin-class"
                           id="flight-cabin-select"
@@ -637,15 +637,15 @@ export default function ItineraryPage() {
                             { value: "Premium Economy", label: "Premium Economy" },
                             { value: "Business", label: "Business Class" },
                           ]}
-                          buttonClassName="py-2 px-2.5 text-xs font-mono text-sky-300 bg-slate-900 border-white/10"
+                          buttonClassName="py-2 px-2.5 text-xs font-mono text-sky-700 dark:text-sky-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10"
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Cab / Road */}
-                  <div className="transit-cab-rental-card cab-rental-card p-3 bg-slate-950/60 rounded-xl border border-white/10 flex flex-col justify-between">
-                    <label className="transit-cab-rental-label flex items-center gap-2 text-xs font-semibold text-slate-200 cursor-pointer">
+                  <div className="transit-cab-rental-card cab-rental-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between shadow-sm">
+                    <label className="transit-cab-rental-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input 
                         type="checkbox" 
                         name="transportRoad" 
@@ -653,9 +653,9 @@ export default function ItineraryPage() {
                         onChange={handleChange} 
                         className="transit-cab-rental-checkbox accent-emerald-500" 
                       />
-                      <Car className="h-4 w-4 text-emerald-400" /> Cab / Rental / Shared Jeep
+                      <Car className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /> Cab / Rental / Shared Jeep
                     </label>
-                    <p className="transit-cab-rental-description text-[10px] text-slate-400 mt-2">
+                    <p className="transit-cab-rental-description text-[10px] text-slate-600 dark:text-slate-400 mt-2">
                       Local syndicate taxis, shared mountain jeeps & prepaid regional booths.
                     </p>
                   </div>
@@ -744,42 +744,42 @@ export default function ItineraryPage() {
                 </div>
 
                 <div className="text-center max-w-xl space-y-2.5">
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                     Smart Travel Blueprint Studio
                   </h3>
-                  <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-                    Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-400 font-semibold">Generate Elite Itinerary</strong> to create a verified day-by-day travel plan.
+                  <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
+                    Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Elite Itinerary</strong> to create a verified day-by-day travel plan.
                   </p>
                 </div>
 
                 {/* Feature highlight cards */}
                 <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-4xl w-full text-left">
-                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-cyan-500/30 transition">
-                    <Train className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5" />
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-cyan-500/30 transition shadow-sm">
+                    <Train className="h-5 w-5 text-cyan-500 dark:text-cyan-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-semibold text-slate-200">Verified Rail & Transit</div>
-                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches & cab rates.</div>
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Verified Rail & Transit</div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches & cab rates.</div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-emerald-500/30 transition">
-                    <Wallet className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-emerald-500/30 transition shadow-sm">
+                    <Wallet className="h-5 w-5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-semibold text-slate-200">Real Budget Allocation</div>
-                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Stay limits, daily food allowances & per-person splits.</div>
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Real Budget Allocation</div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Stay limits, daily food allowances & per-person splits.</div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-teal-500/30 transition">
-                    <MapPin className="h-5 w-5 text-teal-400 shrink-0 mt-0.5" />
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-teal-500/30 transition shadow-sm">
+                    <MapPin className="h-5 w-5 text-teal-500 dark:text-teal-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-semibold text-slate-200">Hour-by-Hour Schedules</div>
-                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Scenic viewpoints, monuments & local cuisine spots.</div>
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Hour-by-Hour Schedules</div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Scenic viewpoints, monuments & local cuisine spots.</div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 flex items-start gap-3 hover:border-amber-500/30 transition">
-                    <Users className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-amber-500/30 transition shadow-sm">
+                    <Users className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <div className="text-xs font-semibold text-slate-200">Group Customization</div>
-                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Group Customization</div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
                     </div>
                   </div>
                 </div>

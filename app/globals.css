@@ -124,6 +124,35 @@ html.light .bg-slate-950\/50 {
   background-color: #faf7f0 !important;
 }
 
+/* All slate-950 container surfaces in light mode (cards, transit options, feature cards, inner boxes) */
+html.light [class*="bg-slate-950/"]:not([class*="fixed"]):not([class*="absolute -inset"]):not(header):not(aside):not(nav):not(footer):not(.auth-wrapper):not(.auth-layout *),
+html.light [class*="bg-slate-950\\["]:not([class*="fixed"]):not(.auth-wrapper):not(.auth-layout *) {
+  background-color: #ffffff !important;
+  border-color: #e3ded4 !important;
+}
+
+/* Pro Amber Gradient Cards in Light Mode -> Warm Luxury Ivory card with golden amber border */
+html.light [class*="from-amber-500/10"][class*="via-slate-900"],
+html.light [class*="from-amber-500/10"][class*="to-slate-950"],
+html.light [class*="from-amber-500/20"][class*="via-slate-900"] {
+  background: linear-gradient(135deg, #fffcf5 0%, #fef3c7 40%, #fffbf0 100%) !important;
+  border-color: #f59e0b !important;
+  box-shadow: 0 20px 40px -15px rgba(217, 119, 6, 0.15) !important;
+}
+
+/* Top Orange UPI reminder banner in light mode */
+html.light [class*="from-amber-500/20"][class*="via-orange-500/25"] {
+  background: #fef3c7 !important;
+  border-color: #fde68a !important;
+  color: #78350f !important;
+}
+html.light [class*="from-amber-500/20"][class*="via-orange-500/25"] * {
+  color: #78350f !important;
+}
+html.light [class*="from-amber-500/20"][class*="via-orange-500/25"] button {
+  color: #b45309 !important;
+}
+
 /* All modal cards and solid card containers (wildcard matching to catch /98, /95, /90, /80, /70, /60, etc.) */
 html.light [class*="bg-slate-900"]:not(.auth-wrapper):not(.auth-layout *) {
   background-color: #ffffff !important;
@@ -206,9 +235,64 @@ html.light .text-slate-600 {
   color: #475569 !important;
 }
 
-/* General white text replacement (except inside buttons) */
-html.light .text-white:not(button):not(button *):not(a.bg-emerald-500):not(a.bg-emerald-600):not(a.bg-rose-500):not(a.bg-rose-600):not(.auth-wrapper *):not(.auth-layout *) {
+/* Timeline vertical guide lines in light mode */
+html.light [class*="before:bg-white/10"]::before {
+  background-color: #d1c9b8 !important;
+}
+
+/* General white text replacement */
+html.light .text-white:not(.auth-wrapper *):not(.auth-layout *):not(.keep-white) {
   color: #0f172a !important;
+}
+
+/* Saturated button elements and dark badges that MUST keep white text */
+html.light button.bg-emerald-600,
+html.light button.bg-emerald-600 *,
+html.light a.bg-emerald-600,
+html.light a.bg-emerald-600 *,
+html.light button.bg-emerald-500,
+html.light button.bg-emerald-500 *,
+html.light a.bg-emerald-500,
+html.light a.bg-emerald-500 *,
+html.light button.bg-rose-600,
+html.light button.bg-rose-600 *,
+html.light a.bg-rose-600,
+html.light a.bg-rose-600 *,
+html.light button.bg-rose-500,
+html.light button.bg-rose-500 *,
+html.light a.bg-rose-500,
+html.light a.bg-rose-500 *,
+html.light button.bg-indigo-600,
+html.light button.bg-indigo-600 *,
+html.light a.bg-indigo-600,
+html.light a.bg-indigo-600 *,
+html.light .bg-rose-500.text-white,
+html.light [class*="bg-rose-500"] .text-white,
+html.light [class*="bg-emerald-600"] .text-white,
+html.light .badge-count,
+html.light .keep-white,
+html.light .keep-white * {
+  color: #ffffff !important;
+}
+
+/* Light-tinted active buttons (like category pills or filter chips) */
+html.light button[class*="bg-emerald-500/"],
+html.light button[class*="bg-emerald-500/"] *,
+html.light [class*="bg-emerald-500/"] > span.text-white,
+html.light [class*="bg-emerald-500/15"] .text-white {
+  color: #047857 !important;
+}
+
+html.light button[class*="bg-amber-500/"],
+html.light button[class*="bg-amber-500/"] *,
+html.light [class*="bg-amber-500/"] > span.text-white {
+  color: #b45309 !important;
+}
+
+html.light button[class*="bg-rose-500/"],
+html.light button[class*="bg-rose-500/"] *,
+html.light [class*="bg-rose-500/"] > span.text-white {
+  color: #be123c !important;
 }
 
 /* =========================================================================
@@ -376,9 +460,10 @@ html.light .hover\:bg-white\/\[0\.06\]:hover {
   background-color: #eee8dc !important;
 }
 
-/* Header & Aside Glassmorphism */
+/* Header, Aside, and Footer in light mode */
 html.light header,
-html.light aside {
+html.light aside,
+html.light footer {
   background-color: rgba(247, 244, 237, 0.95) !important;
   border-color: #e3ded4 !important;
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04) !important;
@@ -450,6 +535,41 @@ html.light select option:focus,
 html.light select option:checked {
   background-color: #ecfdf5 !important;
   color: #047857 !important;
+}
+
+/* Custom ThemeSelect dropdown styles in light mode */
+html.light .dropdown-trigger {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #d1c9b8 !important;
+}
+
+html.light .dropdown-trigger:hover {
+  background-color: #f7f4ed !important;
+  border-color: #10b981 !important;
+}
+
+html.light .dropdown-value-text {
+  color: #0f172a !important;
+}
+
+html.light .dropdown-menu {
+  background-color: #ffffff !important;
+  border-color: #d1c9b8 !important;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.12) !important;
+}
+
+html.light .dropdown-option {
+  color: #1e293b !important;
+}
+
+html.light .dropdown-option:hover {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+}
+
+html.light .dropdown-option-label {
+  color: inherit !important;
 }
 
 /* Tables in light mode */

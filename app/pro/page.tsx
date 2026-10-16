@@ -98,12 +98,12 @@ export default function ProPage() {
           </button>
           <span
             className={`text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${
-              billingCycle === "yearly" ? "text-white" : "text-slate-400"
+              billingCycle === "yearly" ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"
             }`}
             onClick={() => setBillingCycle("yearly")}
           >
             Yearly Billing
-            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
               Save 15%
             </span>
           </span>
@@ -117,18 +117,18 @@ export default function ProPage() {
         </div>
 
         <div className="space-y-1">
-          <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+          <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
             All-Inclusive Pro Plan
           </span>
           <div className="flex items-baseline justify-center gap-1">
-            <span className="text-4xl sm:text-5xl font-extrabold text-white">
+            <span className="text-4xl sm:text-5xl font-extrabold text-slate-950 dark:text-white">
               {billingCycle === "yearly" ? formatINR(yearlyPrice) : formatINR(monthlyPrice)}
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-600 dark:text-slate-400">
               {billingCycle === "yearly" ? "/ year" : "/ month"}
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">
             {billingCycle === "yearly"
               ? "Equivalent to just ₹41/month · Cancel anytime"
               : "Billed monthly · Cancel anytime"}
@@ -143,7 +143,7 @@ export default function ProPage() {
           <ArrowRight className="h-4 w-4" />
         </Link>
 
-        <div className="space-y-2.5 pt-4 text-left border-t border-white/10 text-xs text-slate-300">
+        <div className="space-y-2.5 pt-4 text-left border-t border-amber-500/20 dark:border-white/10 text-xs text-slate-800 dark:text-slate-300 font-medium">
           {[
             "AI Camera Receipt & Invoice OCR",
             "Category Spending Charts & Graphs",
@@ -154,7 +154,7 @@ export default function ProPage() {
             "Priority WhatsApp Support",
           ].map((item) => (
             <div key={item} className="flex items-center gap-2.5">
-              <Check className="h-4 w-4 text-amber-400 shrink-0 stroke-[3]" />
+              <Check className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 stroke-[3]" />
               <span>{item}</span>
             </div>
           ))}
@@ -164,10 +164,10 @@ export default function ProPage() {
       {/* Feature Deep Dive Grid */}
       <div className="space-y-8">
         <div className="text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
             Why upgrade to SplitRupee Pro?
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
             Built for power users, travelers, and roommates who want zero budgeting friction.
           </p>
         </div>
@@ -178,13 +178,13 @@ export default function ProPage() {
             return (
               <div
                 key={feat.title}
-                className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl hover:border-amber-500/30 transition space-y-3"
+                className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] p-6 backdrop-blur-xl hover:border-amber-500/30 transition space-y-3 shadow-sm"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-base font-bold text-white">{feat.title}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">{feat.desc}</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">{feat.title}</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{feat.desc}</p>
               </div>
             );
           })}

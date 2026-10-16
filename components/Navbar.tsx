@@ -276,7 +276,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <span className="text-base font-black">₹</span>
                 </div>
                 <div className="leading-tight">
-                  <span className="font-extrabold tracking-tight text-white text-sm block">
+                  <span className="font-extrabold tracking-tight text-slate-900 dark:text-white text-sm block">
                     SplitRupee
                   </span>
                   <span className="text-[9px] text-slate-400 tracking-wider uppercase font-semibold block -mt-0.5">
@@ -312,7 +312,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                       Welcome back 👋
                     </p>
-                    <p className="font-bold text-white text-xs sm:text-sm truncate">
+                    <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
                       {currentUser.name}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate">
@@ -542,7 +542,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               </div>
               <div className="leading-tight hidden xs:block">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold tracking-tight text-white text-sm sm:text-base">
+                  <span className="font-extrabold tracking-tight text-slate-900 dark:text-white text-sm sm:text-base">
                     SplitRupee
                   </span>
                   {currentUser?.isPro && (
@@ -557,7 +557,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 </span>
               </div>
               {/* Show just "SR" brand mark on very small screens */}
-              <span className="xs:hidden font-extrabold tracking-tight text-white text-base">SR</span>
+              <span className="xs:hidden font-extrabold tracking-tight text-slate-900 dark:text-white text-base">SR</span>
             </Link>
 
             {/* Dynamic Greeting: Good Evening, Name (desktop only) */}
@@ -565,7 +565,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               <div className="hidden md:flex items-center gap-2 ml-2 pl-3 border-l border-white/10 text-xs text-slate-300">
                 <span>
                   {getGreeting()},{" "}
-                  <span className="font-bold text-white">{currentUser.name.split(" ")[0]}</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{currentUser.name.split(" ")[0]}</span>
                 </span>
               </div>
             )}
@@ -604,7 +604,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <Clock className="h-3.5 w-3.5 stroke-[2.5]" />
                 </div>
                 <div className="leading-tight text-left">
-                  <p className="font-bold font-mono text-white text-[11px] tracking-wider">
+                  <p className="font-bold font-mono text-slate-900 dark:text-white text-[11px] tracking-wider">
                     {currentTime}
                   </p>
                   <p className="text-[9px] text-indigo-300/80 font-medium">
@@ -757,7 +757,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   {/* Name — hidden on small mobile */}
                   <div className="hidden sm:block leading-tight text-left min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="font-bold text-white text-xs truncate max-w-[100px] sm:max-w-[120px]">
+                      <p className="font-bold text-slate-900 dark:text-white text-xs truncate max-w-[100px] sm:max-w-[120px]">
                         {currentUser.name.split(" ")[0]}
                       </p>
                       {currentUser.isPro && (
@@ -791,7 +791,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-white text-xs truncate">
+                            <p className="font-bold text-slate-900 dark:text-white text-xs truncate">
                               {currentUser.name}
                             </p>
                             {currentUser.isPro && (

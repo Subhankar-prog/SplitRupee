@@ -87,8 +87,8 @@ export default function LandingPage() {
                   key={cat.id}
                   onClick={() => setActiveCategoryTab(cat.id as any)}
                   className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-xs font-semibold border transition-all ${isActive
-                      ? "border-emerald-500 bg-emerald-500/15 text-white shadow-lg shadow-emerald-500/10"
-                      : "border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-white shadow-lg shadow-emerald-500/10 font-bold"
+                      : "border-slate-300 dark:border-white/10 bg-white/60 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/10"
                     }`}
                 >
                   <Icon className={`h-4 w-4 ${cat.color}`} />
@@ -342,14 +342,14 @@ export default function LandingPage() {
         <div className="relative rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-slate-900 to-slate-950 p-8 sm:p-12 overflow-hidden shadow-2xl">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-12 items-center">
             <div className="md:col-span-7 space-y-5">
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-400">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
                 <Crown className="h-3.5 w-3.5" />
                 <span>SplitRupee Pro Upgrade</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 Get even more with PRO
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                 Unlock instant AI receipt scanning, category spending graphs, 100+ live forex currency conversions, Excel ledgers, and priority support for just ₹49/month.
               </p>
 
@@ -364,7 +364,7 @@ export default function LandingPage() {
 
                 <Link
                   href="/signup"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-xs font-bold text-white hover:bg-white/10 transition"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 px-6 py-3 text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition"
                 >
                   <span>Start 14-Day Free Trial</span>
                 </Link>
@@ -372,30 +372,30 @@ export default function LandingPage() {
             </div>
 
             {/* Pro Mockup Card */}
-            <div className="md:col-span-5 rounded-2xl border border-white/15 bg-slate-900/90 p-5 space-y-3 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="md:col-span-5 rounded-2xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900/90 p-5 space-y-3 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
                 <div className="flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-amber-400" />
-                  <span className="text-xs font-bold text-white">AI Receipt OCR Scan</span>
+                  <Camera className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">AI Receipt OCR Scan</span>
                 </div>
-                <span className="text-[10px] font-bold bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
                   Instant
                 </span>
               </div>
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>3x Grilled Fish Tikka</span>
-                  <span className="font-semibold">₹1,350</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">₹1,350</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>4x Kingfisher Premium</span>
-                  <span className="font-semibold">₹960</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">₹960</span>
                 </div>
-                <div className="flex justify-between text-slate-400 text-[11px]">
+                <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[11px]">
                   <span>GST & Service Charge (10%)</span>
                   <span>₹231</span>
                 </div>
-                <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-amber-400">
+                <div className="pt-2 border-t border-slate-200 dark:border-white/10 flex justify-between font-bold text-amber-600 dark:text-amber-400">
                   <span>Auto-Detected Total</span>
                   <span>₹2,541.00</span>
                 </div>
@@ -408,18 +408,18 @@ export default function LandingPage() {
       {/* 4. THE WHOLE NINE YARDS (20+ FEATURE CHECKLIST) */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 space-y-8">
         <div className="text-center space-y-2">
-          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">
+          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
             Complete Feature Matrix
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
             The whole nine yards
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
             Compare core free features vs pro capabilities.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 text-xs font-semibold text-slate-300">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 text-xs font-semibold text-slate-800 dark:text-slate-300">
           {[
             { name: "Add groups & friends", pro: false },
             { name: "1-Click UPI deep linking", pro: false },

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "@/lib/themeContext";
 
 function toKebabCase(str: string): string {
   return str
@@ -44,6 +45,8 @@ export default function ThemeSelect({
   menuClassName = "",
   disabled = false
 }: ThemeSelectProps) {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -101,18 +104,22 @@ export default function ThemeSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`dropdown-trigger ${baseSlug}-dropdown ${baseSlug}-trigger w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition text-left select-none outline-none ${
           isOpen
-            ? "bg-slate-950 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.25)]"
-            : "bg-slate-950/70 border-white/10 hover:border-emerald-500/50 hover:bg-slate-900/80"
+            ? isLight
+              ? "bg-white border-emerald-500 ring-1 ring-emerald-500/50 shadow-md"
+              : "bg-slate-950 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+            : isLight
+              ? "bg-white border-slate-300 hover:border-emerald-500 hover:bg-slate-50 text-slate-800"
+              : "bg-slate-950/70 border-white/10 hover:border-emerald-500/50 hover:bg-slate-900/80 text-slate-200"
         } border ${
-          buttonClassName.includes("text-") ? "" : "text-slate-200"
+          buttonClassName.includes("text-") ? "" : isLight ? "text-slate-800" : "text-slate-200"
         } ${buttonClassName} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
       >
-        <span className={`dropdown-value-text ${baseSlug}-value truncate`}>
+        <span className={`dropdown-value-text ${baseSlug}-value truncate ${isLight ? "text-slate-900 font-semibold" : ""}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
-          className={`dropdown-chevron ${baseSlug}-chevron h-3.5 w-3.5 text-emerald-400 shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-emerald-300" : ""
+          className={`dropdown-chevron ${baseSlug}-chevron h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400 shrink-0 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
@@ -125,8 +132,12 @@ export default function ThemeSelect({
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
             data-menu={baseSlug}
-            style={{ backgroundColor: "#08101b" }}
-            className={`dropdown-menu ${baseSlug}-menu absolute top-full left-0 w-full min-w-full sm:min-w-[240px] mt-1.5 z-[100] bg-[#08101b] border border-emerald-500/40 rounded-xl p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.98)] max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-emerald-500/30 ${menuClassName}`}
+            style={{ backgroundColor: isLight ? "#ffffff" : "#08101b" }}
+            className={`dropdown-menu ${baseSlug}-menu absolute top-full left-0 w-full min-w-full sm:min-w-[240px] mt-1.5 z-[100] ${
+              isLight
+                ? "bg-white border border-slate-300 shadow-xl shadow-slate-900/10 text-slate-900"
+                : "bg-[#08101b] border border-emerald-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.98)] text-slate-200"
+            } rounded-xl p-1.5 max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-emerald-500/30 ${menuClassName}`}
           >
             {normalizedOptions.map((opt) => {
               const isSelected = opt.value === value;
@@ -143,15 +154,19 @@ export default function ThemeSelect({
                   }}
                   className={`dropdown-option ${baseSlug}-option ${baseSlug}-option-${optionSlug} w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm transition flex items-center justify-between cursor-pointer ${
                     isSelected
-                      ? "bg-emerald-500/25 text-emerald-300 font-semibold border border-emerald-500/40 shadow-sm"
-                      : "text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-200"
+                      ? isLight
+                        ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-300 shadow-sm"
+                        : "bg-emerald-500/25 text-emerald-300 font-semibold border border-emerald-500/40 shadow-sm"
+                      : isLight
+                        ? "text-slate-800 hover:bg-emerald-50 hover:text-emerald-900"
+                        : "text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-200"
                   }`}
                 >
                   <span className={`dropdown-option-label ${baseSlug}-option-label truncate pr-2`}>
                     {opt.label}
                   </span>
                   {isSelected && (
-                    <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[2.5]" />
                   )}
                 </button>
               );
