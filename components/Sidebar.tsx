@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import type { GroupDTO } from "@/lib/types";
 import {
@@ -42,6 +42,7 @@ export default function Sidebar({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { currentUser } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -71,6 +72,9 @@ export default function Sidebar({
         setJoinCode("");
         setShowJoinModal(false);
         window.dispatchEvent(new Event("splitrupee_refresh"));
+        if (data.group?.id) {
+          router.push(`/groups/${data.group.id}`);
+        }
       } else {
         setJoinErr(data.error || "Invalid invite code");
       }

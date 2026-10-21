@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import {
   type GroupDTO,
@@ -52,6 +53,7 @@ const TYPE_ICONS = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { currentUser, users, isLoading: usersLoading } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
   const [expenses, setExpenses] = useState<ExpenseDTO[]>(() => getCachedAllExpenses());
@@ -108,6 +110,9 @@ export default function DashboardPage() {
         setJoinCodeInput("");
         loadDashboardData();
         window.dispatchEvent(new Event("splitrupee_refresh"));
+        if (data.group?.id) {
+          router.push(`/groups/${data.group.id}`);
+        }
       } else {
         setJoinError(data.error || "Invalid invite code");
       }

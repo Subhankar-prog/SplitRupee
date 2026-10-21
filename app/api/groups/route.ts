@@ -42,6 +42,7 @@ export async function GET(req: Request) {
           description: g.description || null,
           type: g.type,
           currency: g.currency,
+          inviteCode: g.inviteCode || g.id.slice(0, 8),
           createdAt: g.createdAt.toISOString(),
           updatedAt: g.updatedAt.toISOString(),
           members: g.members.map((m) => m.user),
@@ -84,12 +85,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "At least one member is required" }, { status: 400 });
     }
 
+    const cleanName = name.trim();
+    let generatedInviteCode = cleanName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6);
+    if (!generatedInviteCode || generatedInviteCode.length < 3) {
+      generatedInviteCode = "group";
+    }
+    generatedInviteCode += Math.floor(1000 + Math.random() * 9000);
+
     const group = await prisma.group.create({
       data: {
-        name: name.trim(),
+        name: cleanName,
         description: description?.trim() || null,
         type: ["TRIP", "HOME", "COUPLE", "OTHER"].includes(type) ? type : "OTHER",
         currency,
+        inviteCode: generatedInviteCode,
         members: {
           create: uniqueMemberIds.map((uid) => ({
             userId: uid,
@@ -126,6 +135,7 @@ export async function POST(req: Request) {
         name: group.name,
         type: group.type,
         currency: group.currency,
+        inviteCode: group.inviteCode,
         createdAt: group.createdAt.toISOString(),
         updatedAt: group.updatedAt.toISOString(),
         members: group.members.map((m) => m.user),

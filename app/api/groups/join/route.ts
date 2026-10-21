@@ -9,13 +9,26 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { inviteCode, userId } = body;
 
-    if (!inviteCode || !userId) {
+    let cleanCode = typeof inviteCode === "string" ? decodeURIComponent(inviteCode).trim() : "";
+    if (cleanCode.includes("/join/")) {
+      cleanCode = cleanCode.split("/join/")[1]?.split("/")[0]?.split("?")[0] || cleanCode;
+    } else if (cleanCode.includes("/groups/")) {
+      cleanCode = cleanCode.split("/groups/")[1]?.split("/")[0]?.split("?")[0] || cleanCode;
+    }
+    cleanCode = cleanCode.trim();
+
+    if (!cleanCode || !userId) {
       return NextResponse.json({ ok: false, error: "inviteCode and userId are required" }, { status: 400 });
     }
 
     const group = await prisma.group.findFirst({
       where: {
-        OR: [{ inviteCode }, { id: inviteCode }],
+        OR: [
+          { inviteCode: { equals: cleanCode, mode: "insensitive" } },
+          { id: { equals: cleanCode, mode: "insensitive" } },
+          { id: { startsWith: cleanCode, mode: "insensitive" } },
+          { inviteCode: { startsWith: cleanCode, mode: "insensitive" } },
+        ],
       },
       include: {
         members: { include: { user: true } },

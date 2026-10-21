@@ -5,15 +5,21 @@ import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import { Users, CheckCircle2, ArrowRight, Loader2, Sparkles, Plane, Home, Heart, Tag } from "lucide-react";
 
-export default function JoinGroupPage() {
-  const params = useParams();
+import Link from "next/link";
+
+export default function JoinGroupPage({ params: routeParams }: { params?: { code?: string } }) {
+  const hookParams = useParams();
   const router = useRouter();
-  const code = params.code as string;
+  const rawCode = routeParams?.code || hookParams?.code;
+  const pathCode = typeof window !== "undefined" ? window.location.pathname.split("/join/")[1]?.split("/")[0]?.split("?")[0] : "";
+  const unresolvedCode = (Array.isArray(rawCode) ? rawCode[0] : rawCode) || pathCode || "";
+  const code = unresolvedCode ? decodeURIComponent(unresolvedCode).trim() : "";
   const { currentUser, users, setCurrentUser } = useUser();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("Joined Group Successfully!");
 
   async function handleJoin(targetUserId?: string) {
     const uid = targetUserId || currentUser?.id;
@@ -36,10 +42,16 @@ export default function JoinGroupPage() {
         throw new Error(data.error || "Failed to join group");
       }
 
+      if (data.alreadyMember) {
+        setSuccessMessage("You are already a member of this group!");
+      } else {
+        setSuccessMessage("Joined Group Successfully!");
+      }
+
       setSuccess(true);
       setTimeout(() => {
         router.push(`/groups/${data.group.id}`);
-      }, 1000);
+      }, 800);
     } catch (e: any) {
       setError(e.message || "Failed to join group");
     } finally {
@@ -64,15 +76,32 @@ export default function JoinGroupPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
-            {error}
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-400 space-y-2.5">
+            <p className="font-medium">{error}</p>
+            <p className="text-[11px] text-slate-400">
+              Please check the code or ask the group admin to copy their Invite Code from the group header.
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <Link
+                href="/dashboard"
+                className="rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs text-white font-medium transition"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/groups"
+                className="rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-300 font-medium transition"
+              >
+                Your Groups
+              </Link>
+            </div>
           </div>
         )}
 
         {success ? (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-300 space-y-1">
             <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-400" />
-            <p className="text-sm font-semibold">Joined Group Successfully!</p>
+            <p className="text-sm font-semibold">{successMessage}</p>
             <p className="text-xs text-slate-400">Redirecting to group dashboard...</p>
           </div>
         ) : (

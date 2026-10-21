@@ -20,7 +20,12 @@ export async function GET(req: Request, { params }: Params) {
 
     const group = await prisma.group.findFirst({
       where: {
-        OR: [{ id }, { inviteCode: id }],
+        OR: [
+          { id: { equals: id, mode: "insensitive" } },
+          { inviteCode: { equals: id, mode: "insensitive" } },
+          { id: { startsWith: id, mode: "insensitive" } },
+          { inviteCode: { startsWith: id, mode: "insensitive" } },
+        ],
       },
       include: {
         members: {
@@ -162,7 +167,12 @@ export async function PUT(req: Request, { params }: Params) {
 
     const groupCheck = await prisma.group.findFirst({
       where: {
-        OR: [{ id }, { inviteCode: id }],
+        OR: [
+          { id: { equals: id, mode: "insensitive" } },
+          { inviteCode: { equals: id, mode: "insensitive" } },
+          { id: { startsWith: id, mode: "insensitive" } },
+          { inviteCode: { startsWith: id, mode: "insensitive" } },
+        ],
       },
       include: {
         members: { orderBy: { joinedAt: "asc" } },
@@ -230,7 +240,12 @@ export async function DELETE(req: Request, { params }: Params) {
 
     const groupCheck = await prisma.group.findFirst({
       where: {
-        OR: [{ id }, { inviteCode: id }],
+        OR: [
+          { id: { equals: id, mode: "insensitive" } },
+          { inviteCode: { equals: id, mode: "insensitive" } },
+          { id: { startsWith: id, mode: "insensitive" } },
+          { inviteCode: { startsWith: id, mode: "insensitive" } },
+        ],
       },
       include: { activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 } },
     });

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import { type GroupDTO } from "@/lib/types";
 import { formatINR } from "@/lib/money";
@@ -29,6 +30,7 @@ const TYPE_ICONS: Record<string, any> = {
 };
 
 export default function GroupsPage() {
+  const router = useRouter();
   const { currentUser, isLoading: usersLoading } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
   const [loading, setLoading] = useState(() => getCachedGroupsList().length === 0);
@@ -104,6 +106,9 @@ export default function GroupsPage() {
       if (data.ok) {
         setJoinCodeInput("");
         fetchGroups(false);
+        if (data.group?.id) {
+          router.push(`/groups/${data.group.id}`);
+        }
       } else {
         setJoinError(data.error || "Invalid invite code");
       }
