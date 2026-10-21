@@ -29,6 +29,7 @@ import {
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import AddUpiModal from "./AddUpiModal";
+import LogoutConfirmModal from "./LogoutConfirmModal";
 import { useTheme } from "@/lib/themeContext";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
@@ -37,6 +38,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const [showGlobalAddExpense, setShowGlobalAddExpense] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAddUpiModal, setShowAddUpiModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -458,7 +460,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   {/* Logout Circle Button */}
                   <button
                     type="button"
-                    onClick={() => logout()}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-400 flex items-center justify-center p-0 hover:bg-rose-500/20 active:scale-95 transition shadow-sm"
                     title="Log Out"
                     aria-label="Log Out"
@@ -949,7 +951,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
-                          logout();
+                          setShowLogoutConfirm(true);
                         }}
                         className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-rose-400 hover:bg-rose-500/10 transition text-left font-semibold"
                       >
@@ -1060,7 +1062,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      logout();
+                      setShowLogoutConfirm(true);
                     }}
                     className="flex-1 rounded-xl bg-rose-500/20 border border-rose-500/30 py-2.5 text-center text-xs font-bold text-rose-400"
                   >
@@ -1111,6 +1113,19 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         <AddUpiModal
           isOpen={showAddUpiModal}
           onClose={() => setShowAddUpiModal(false)}
+        />
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <LogoutConfirmModal
+          isOpen={showLogoutConfirm}
+          onClose={() => setShowLogoutConfirm(false)}
+          onConfirm={() => {
+            setShowLogoutConfirm(false);
+            logout();
+          }}
+          userName={currentUser?.name?.split(" ")[0]}
         />
       )}
     </>
