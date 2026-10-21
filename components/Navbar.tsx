@@ -259,6 +259,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     pathname.startsWith("/groups") ||
     pathname.startsWith("/expenses") ||
     pathname.startsWith("/activity") ||
+    pathname.startsWith("/itinerary") ||
     pathname.startsWith("/join");
 
   return (

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import AppShell from "@/components/AppShell";
 import TravelCopilotChat from "@/components/TravelCopilotChat";
 import MovieTrailerItineraryLoader from "@/components/MovieTrailerItineraryLoader";
 import ThemeSelect from "@/components/ThemeSelect";
@@ -294,23 +293,24 @@ export default function ItineraryPage() {
         }}
       />
 
-      <div className="mx-auto max-w-7xl py-12 px-4 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div>
-            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-              AI Travel Itinerary Studio
+            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+              <Plane className="h-6 w-6 text-emerald-400" />
+              <span>AI Travel Itinerary Studio</span>
             </h1>
-            <p className="text-slate-400 mt-2 text-lg">
-              Precision travel planning grounded with verified transit, real budgets, and local guidance.
+            <p className="text-xs text-slate-400 mt-1">
+              Precision travel planning grounded with verified transit, real budgets, and local guidance
             </p>
           </div>
 
           {result && (
             <button
               onClick={() => setIsCopilotOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white px-5 py-2.5 rounded-2xl font-semibold transition backdrop-blur-md shadow-lg shadow-emerald-500/10 w-fit"
+              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold transition backdrop-blur-md shadow-lg shadow-emerald-500/10 w-fit"
             >
-              <MessageSquare className="h-5 w-5 text-emerald-400" />
+              <MessageSquare className="h-4 w-4 text-emerald-400" />
               <span>Ask AI Copilot</span>
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

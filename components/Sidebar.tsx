@@ -310,7 +310,7 @@ export default function Sidebar({
           <Link
             href="/itinerary"
             className={`flex flex-col items-center gap-1 px-4 py-1.5 rounded-xl transition ${
-              pathname === "/itinerary" ? "text-emerald-400" : "text-slate-500"
+              pathname === "/itinerary" || pathname.startsWith("/itinerary") ? "text-emerald-400" : "text-slate-500"
             }`}
           >
             <Plane className="h-5 w-5" />
