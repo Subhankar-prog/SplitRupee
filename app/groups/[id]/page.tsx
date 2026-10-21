@@ -25,6 +25,7 @@ import {
   Edit3,
   Share2,
   Check,
+  Copy,
   Plane,
   Home,
   Heart,
@@ -123,6 +124,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
     return true;
   });
   const [copied, setCopied] = useState(false);
+  const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
 
   // Modals
@@ -397,6 +399,28 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">
                   {group.type}
                 </span>
+
+                {/* 1-Click Copy Group Invite Code Pill */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const code = group.inviteCode || group.id.slice(0, 8);
+                    await copyText(code);
+                    setCopiedInviteCode(true);
+                    setTimeout(() => setCopiedInviteCode(false), 2000);
+                  }}
+                  className="rounded-full border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-mono text-emerald-300 flex items-center gap-1.5 transition active:scale-95 shadow-sm shrink-0 cursor-pointer"
+                  title={`Group Invite Code: ${group.inviteCode || group.id.slice(0, 8)} (Click to copy)`}
+                >
+                  <span className="text-slate-400 font-sans font-medium text-[9px] uppercase tracking-wider">Code:</span>
+                  <span className="font-bold text-emerald-400">{group.inviteCode || group.id.slice(0, 8)}</span>
+                  {copiedInviteCode ? (
+                    <Check className="h-3 w-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3 w-3 text-emerald-400/70" />
+                  )}
+                </button>
+
                 {isAdmin && (
                   <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 flex items-center gap-1">
                     <Crown className="h-3 w-3 text-amber-400" /> Admin

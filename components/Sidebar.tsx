@@ -20,6 +20,8 @@ import {
   UserPlus,
   Loader2,
   X,
+  Copy,
+  Check,
 } from "lucide-react";
 import CreateGroupModal from "./CreateGroupModal";
 
@@ -48,6 +50,7 @@ export default function Sidebar({
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinErr, setJoinErr] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,8 +132,9 @@ export default function Sidebar({
 
   const navLinks = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Recent Activity", href: "/activity", icon: Activity },
+    { label: "Your Groups", href: "/groups", icon: Users, badge: groups.length > 0 ? groups.length : undefined },
     { label: "All Expenses", href: "/expenses", icon: Receipt },
+    { label: "Recent Activity", href: "/activity", icon: Activity },
     { label: "AI Itinerary", href: "/itinerary", icon: Plane },
   ];
 
@@ -144,7 +148,7 @@ export default function Sidebar({
             <nav className="space-y-1" aria-label="Main navigation">
               {navLinks.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.href === "/groups" && pathname.startsWith("/groups"));
                 return (
                   <Link
                     key={item.href}
@@ -158,7 +162,12 @@ export default function Sidebar({
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span>{item.label}</span>
-                    {isActive && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-50" />}
+                    {item.badge !== undefined && (
+                      <span className="ml-auto rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                        {item.badge}
+                      </span>
+                    )}
+                    {isActive && !item.badge && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-50" />}
                   </Link>
                 );
               })}
@@ -167,13 +176,19 @@ export default function Sidebar({
             {/* Groups Section */}
             <div className="space-y-2">
               <div className="flex items-center justify-between px-3">
-                <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                  Groups
-                </span>
+                <Link
+                  href="/groups"
+                  className="group/title flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase hover:text-emerald-400 transition"
+                  title="View all groups and invite codes"
+                >
+                  <Users className="h-3 w-3 text-emerald-400" />
+                  <span>Groups</span>
+                  <ChevronRight className="h-3 w-3 text-slate-500 group-hover/title:text-emerald-400 group-hover/title:translate-x-0.5 transition" />
+                </Link>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setShowJoinModal(true)}
-                    className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
                     title="Join group with invite code"
                   >
                     <UserPlus className="h-3 w-3" />
@@ -181,7 +196,7 @@ export default function Sidebar({
                   </button>
                   <button
                     onClick={() => setShowCreateGroup(true)}
-                    className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/10 transition"
                     title="Create new group"
                   >
                     <Plus className="h-3 w-3" />
@@ -193,28 +208,58 @@ export default function Sidebar({
               <div className="space-y-1">
                 {groups.map((group) => {
                   const Icon = TYPE_ICONS[group.type] || Tag;
-                  const isCurrent = pathname === `/groups/${group.id}`;
+                  const isCurrent = pathname === `/groups/${group.id}` || pathname === `/groups/${(group as any).inviteCode}`;
+                  const effectiveCode = (group as any).inviteCode || group.id.slice(0, 8);
+                  const isCopied = copiedId === group.id;
+
                   return (
-                    <Link
+                    <div
                       key={group.id}
-                      href={`/groups/${group.id}`}
-                      onClick={onClose}
-                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                      className={`group/item flex items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition ${
                         isCurrent
                           ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                           : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <Link
+                        href={`/groups/${group.id}`}
+                        onClick={onClose}
+                        className="flex items-center gap-2 min-w-0 flex-1"
+                        title={group.name}
+                      >
                         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-white/5 text-slate-300">
                           <Icon className="h-3.5 w-3.5" />
                         </span>
                         <span className="truncate">{group.name}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 shrink-0 ml-2">
-                        {group.members.length}
-                      </span>
-                    </Link>
+                      </Link>
+
+                      {/* Invite Code Quick Copy Button */}
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(effectiveCode);
+                            setCopiedId(group.id);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          } catch {}
+                        }}
+                        className={`ml-1.5 shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-mono transition flex items-center gap-1 border ${
+                          isCopied
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                            : "bg-white/5 text-slate-400 border-white/5 hover:bg-emerald-500/10 hover:text-emerald-300 hover:border-emerald-500/30"
+                        }`}
+                        title={`Group Invite Code: ${effectiveCode} (Click to copy)`}
+                      >
+                        {isCopied ? (
+                          <Check className="h-2.5 w-2.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="h-2.5 w-2.5 opacity-60" />
+                        )}
+                        <span>{effectiveCode}</span>
+                      </button>
+                    </div>
                   );
                 })}
 

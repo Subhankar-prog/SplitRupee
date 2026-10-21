@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useUser } from "@/lib/userContext";
-import { X, UserPlus, Check, Mail, Link as LinkIcon, Share2, QrCode } from "lucide-react";
+import { X, UserPlus, Check, Mail, Link as LinkIcon, Share2, QrCode, Copy } from "lucide-react";
 import type { MemberDTO } from "@/lib/types";
 
 export default function AddMemberModal({
@@ -28,6 +28,7 @@ export default function AddMemberModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const effectiveCode = inviteCode || groupId;
   const joinUrl = typeof window !== "undefined"
@@ -172,6 +173,32 @@ export default function AddMemberModal({
                   >
                     <Share2 className="h-3.5 w-3.5" />
                     <span>WhatsApp</span>
+                  </button>
+                </div>
+
+                {/* Group Invite Code Box */}
+                <div className="mt-3 rounded-2xl bg-white/5 border border-white/10 p-3 flex items-center justify-between text-left">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                      Group Invite Code
+                    </span>
+                    <span className="font-mono font-bold text-sm sm:text-base text-emerald-400 tracking-wider">
+                      {effectiveCode}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(effectiveCode);
+                        setCopiedCode(true);
+                        setTimeout(() => setCopiedCode(false), 2000);
+                      } catch {}
+                    }}
+                    className="rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                  >
+                    {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedCode ? "Copied Code!" : "Copy Code"}</span>
                   </button>
                 </div>
               </div>

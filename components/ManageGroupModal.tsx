@@ -18,7 +18,8 @@ import {
   Home,
   Heart,
   Tag,
-  DollarSign
+  DollarSign,
+  Copy,
 } from "lucide-react";
 import type { MemberDTO, GroupTypeName } from "@/lib/types";
 
@@ -72,6 +73,7 @@ export default function ManageGroupModal({
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Danger actions state
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -246,6 +248,13 @@ export default function ManageGroupModal({
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
+  const copyInviteCode = () => {
+    const code = group.inviteCode || group.id.slice(0, 8);
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
+
   const myBalance = balances[currentUser.id] ?? 0;
 
   return (
@@ -416,22 +425,40 @@ export default function ManageGroupModal({
                 </div>
               </div>
 
-              {/* Invite Link Card */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-white">Private Group Invite Link</div>
-                  <div className="text-[11px] text-slate-400 truncate">
-                    Share with friends so they can join this group directly
+              {/* Invite Code & Link Card */}
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-white">Group Invite Code</div>
+                    <div className="text-sm font-mono font-bold text-emerald-400 mt-0.5 tracking-wider">
+                      {group.inviteCode || group.id.slice(0, 8)}
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={copyInviteCode}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-semibold text-emerald-300 shrink-0 transition"
+                  >
+                    {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedCode ? "Copied Code" : "Copy Code"}</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={copyInviteLink}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 shrink-0 transition"
-                >
-                  {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
-                  <span>{copiedLink ? "Copied" : "Copy Link"}</span>
-                </button>
+
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-slate-400 truncate">
+                      Full invite link for direct web or WhatsApp sharing
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyInviteLink}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 shrink-0 transition"
+                  >
+                    {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
+                    <span>{copiedLink ? "Copied Link" : "Copy Link"}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2 flex justify-end">
