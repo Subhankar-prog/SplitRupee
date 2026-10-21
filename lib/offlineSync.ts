@@ -19,9 +19,17 @@ const ALL_EXPENSES_CACHE_KEY = "splitrupee_cached_all_expenses";
 export function saveCachedGroup(groupId: string, groupData: any): void {
   if (typeof window === "undefined" || !groupId || !groupData) return;
   try {
-    localStorage.setItem(`${GROUP_CACHE_PREFIX}${groupId}`, JSON.stringify(groupData));
+    const serialized = JSON.stringify(groupData);
+    localStorage.setItem(`${GROUP_CACHE_PREFIX}${groupId}`, serialized);
+    if (groupData.id && groupData.id !== groupId) {
+      localStorage.setItem(`${GROUP_CACHE_PREFIX}${groupData.id}`, serialized);
+    }
+    if (groupData.inviteCode && groupData.inviteCode !== groupId) {
+      localStorage.setItem(`${GROUP_CACHE_PREFIX}${groupData.inviteCode}`, serialized);
+    }
+
     const groupsList = getCachedGroupsList();
-    const idx = groupsList.findIndex((g: any) => g.id === groupId);
+    const idx = groupsList.findIndex((g: any) => g.id === groupId || g.id === groupData.id);
     const summaryItem = {
       id: groupData.id,
       name: groupData.name,
@@ -48,12 +56,41 @@ export function saveCachedGroup(groupId: string, groupData: any): void {
 export function getCachedGroup(groupId: string): any | null {
   if (typeof window === "undefined" || !groupId) return null;
   try {
+    let group: any = null;
     const raw = localStorage.getItem(`${GROUP_CACHE_PREFIX}${groupId}`);
-    if (!raw) return null;
-    const group = JSON.parse(raw);
+    if (raw) {
+      try {
+        group = JSON.parse(raw);
+      } catch {
+        group = null;
+      }
+    }
+
+    // Fallback: If not found individually, retrieve from cached groups list
+    if (!group || !group.id) {
+      const list = getCachedGroupsList();
+      const fromList = list.find((g: any) => g.id === groupId || g.inviteCode === groupId);
+      if (fromList) {
+        group = {
+          id: fromList.id,
+          name: fromList.name,
+          description: fromList.description || null,
+          type: fromList.type || "OTHER",
+          currency: fromList.currency || "INR",
+          inviteCode: fromList.inviteCode || fromList.id?.slice(0, 8),
+          members: fromList.members || [],
+          expenses: fromList.expenses || [],
+          payments: fromList.payments || [],
+          activityLogs: fromList.activityLogs || [],
+          createdAt: fromList.createdAt || new Date().toISOString(),
+          updatedAt: fromList.updatedAt || new Date().toISOString(),
+        };
+      }
+    }
+
     if (!group || !group.id) return null;
 
-    const queue = getOfflineQueue().filter((item) => item.groupId === groupId);
+    const queue = getOfflineQueue().filter((item) => item.groupId === groupId || item.groupId === group.id);
     if (queue.length > 0) {
       const expenses = Array.isArray(group.expenses) ? [...group.expenses] : [];
       queue.forEach((item) => {

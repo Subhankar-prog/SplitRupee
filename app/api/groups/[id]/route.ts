@@ -11,9 +11,17 @@ interface Params {
 /** GET /api/groups/[id]: get full group data (members, expenses, payments, activityLogs) */
 export async function GET(req: Request, { params }: Params) {
   try {
-    const { id } = params;
-    const group = await prisma.group.findUnique({
-      where: { id },
+    const rawId = params?.id;
+    const id = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+
+    if (!id) {
+      return NextResponse.json({ ok: false, error: "INVALID_GROUP_ID" }, { status: 400 });
+    }
+
+    const group = await prisma.group.findFirst({
+      where: {
+        OR: [{ id }, { inviteCode: id }],
+      },
       include: {
         members: {
           include: {
@@ -68,9 +76,10 @@ export async function GET(req: Request, { params }: Params) {
         description: group.description || null,
         type: group.type,
         currency: group.currency,
+        inviteCode: group.inviteCode || group.id.slice(0, 8),
         creatorId,
-        createdAt: group.createdAt.toISOString(),
-        updatedAt: group.updatedAt.toISOString(),
+        createdAt: group.createdAt ? new Date(group.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: group.updatedAt ? new Date(group.updatedAt).toISOString() : new Date().toISOString(),
         members: group.members.map((m) => {
           const isExplicitAdmin = m.role === "ADMIN";
           const isFallbackAdmin = !hasAnyAdmin && m.userId === creatorId;
@@ -93,9 +102,9 @@ export async function GET(req: Request, { params }: Params) {
           splitType: e.splitType,
           category: e.category,
           notes: e.notes,
-          date: e.date.toISOString(),
-          createdAt: e.createdAt.toISOString(),
-          updatedAt: e.updatedAt.toISOString(),
+          date: e.date ? new Date(e.date).toISOString() : new Date().toISOString(),
+          createdAt: e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: e.updatedAt ? new Date(e.updatedAt).toISOString() : new Date().toISOString(),
           paidBy: e.paidBy,
           splits: e.splits.map((s) => ({
             id: s.id,
@@ -112,7 +121,7 @@ export async function GET(req: Request, { params }: Params) {
           receiverId: p.receiverId,
           amount: p.amount,
           notes: p.notes,
-          createdAt: p.createdAt.toISOString(),
+          createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
           payer: p.payer,
           receiver: p.receiver,
         })),
@@ -123,7 +132,7 @@ export async function GET(req: Request, { params }: Params) {
           action: l.action,
           entityTitle: l.entityTitle,
           details: l.details,
-          createdAt: l.createdAt.toISOString(),
+          createdAt: l.createdAt ? new Date(l.createdAt).toISOString() : new Date().toISOString(),
           user: l.user,
         })),
       },
@@ -146,21 +155,29 @@ export async function GET(req: Request, { params }: Params) {
 /** PUT /api/groups/[id]: update group name, description, type, currency */
 export async function PUT(req: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const rawId = params?.id;
+    const id = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
     const body = await req.json();
     const { name, description, type, currency, updatedById } = body;
+
+    const groupCheck = await prisma.group.findFirst({
+      where: {
+        OR: [{ id }, { inviteCode: id }],
+      },
+      include: {
+        members: { orderBy: { joinedAt: "asc" } },
+        activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 },
+      },
+    });
+
+    if (!groupCheck) {
+      return NextResponse.json({ ok: false, error: "GROUP_NOT_FOUND" }, { status: 404 });
+    }
 
     // Verify caller is admin if updatedById is provided
     if (updatedById) {
       const caller = await prisma.groupMember.findUnique({
-        where: { groupId_userId: { groupId: id, userId: updatedById } },
-      });
-      const groupCheck = await prisma.group.findUnique({
-        where: { id },
-        include: {
-          members: { orderBy: { joinedAt: "asc" } },
-          activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 },
-        },
+        where: { groupId_userId: { groupId: groupCheck.id, userId: updatedById } },
       });
       const creatorId = groupCheck?.activityLogs[0]?.userId || groupCheck?.members[0]?.userId;
       const hasAnyAdmin = groupCheck?.members.some((m) => m.role === "ADMIN");
@@ -175,7 +192,7 @@ export async function PUT(req: Request, { params }: Params) {
     }
 
     const group = await prisma.group.update({
-      where: { id },
+      where: { id: groupCheck.id },
       data: {
         ...(name ? { name: name.trim() } : {}),
         ...(description !== undefined ? { description: description ? description.trim() : null } : {}),
@@ -187,7 +204,7 @@ export async function PUT(req: Request, { params }: Params) {
     if (updatedById) {
       await prisma.activityLog.create({
         data: {
-          groupId: id,
+          groupId: groupCheck.id,
           userId: updatedById,
           action: "GROUP_CREATED",
           entityTitle: group.name,
@@ -206,18 +223,26 @@ export async function PUT(req: Request, { params }: Params) {
 /** DELETE /api/groups/[id]: delete group */
 export async function DELETE(req: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const rawId = params?.id;
+    const id = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
     const { searchParams } = new URL(req.url);
     const deletedById = searchParams.get("deletedById");
+
+    const groupCheck = await prisma.group.findFirst({
+      where: {
+        OR: [{ id }, { inviteCode: id }],
+      },
+      include: { activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 } },
+    });
+
+    if (!groupCheck) {
+      return NextResponse.json({ ok: false, error: "GROUP_NOT_FOUND" }, { status: 404 });
+    }
 
     // Verify caller is admin if deletedById is provided
     if (deletedById) {
       const caller = await prisma.groupMember.findUnique({
-        where: { groupId_userId: { groupId: id, userId: deletedById } },
-      });
-      const groupCheck = await prisma.group.findUnique({
-        where: { id },
-        include: { activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 } },
+        where: { groupId_userId: { groupId: groupCheck.id, userId: deletedById } },
       });
       const creatorId = groupCheck?.activityLogs[0]?.userId;
       const isAdmin = caller?.role === "ADMIN" || caller?.userId === creatorId;
@@ -229,7 +254,7 @@ export async function DELETE(req: Request, { params }: Params) {
       }
     }
 
-    await prisma.group.delete({ where: { id } });
+    await prisma.group.delete({ where: { id: groupCheck.id } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[DELETE /api/groups/[id]]", e);

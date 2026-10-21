@@ -97,11 +97,13 @@ async function copyText(text: string) {
   }
 }
 
-export default function GroupDetailPage() {
-  const params = useParams();
+export default function GroupDetailPage({ params: routeParams }: { params?: { id?: string } }) {
+  const hookParams = useParams();
   const router = useRouter();
-  const rawId = params?.id;
-  const groupId = (Array.isArray(rawId) ? rawId[0] : rawId) || "";
+  const rawId = routeParams?.id || hookParams?.id;
+  const pathId = typeof window !== "undefined" ? window.location.pathname.split("/groups/")[1]?.split("/")[0]?.split("?")[0] : "";
+  const unresolvedId = (Array.isArray(rawId) ? rawId[0] : rawId) || pathId || "";
+  const groupId = unresolvedId ? decodeURIComponent(unresolvedId).trim() : "";
   const { currentUser } = useUser();
 
   const [group, setGroup] = useState<any | null>(() => {
@@ -115,7 +117,8 @@ export default function GroupDetailPage() {
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(() => {
     if (typeof window !== "undefined" && groupId && groupId !== "undefined") {
-      return !getCachedGroup(groupId);
+      const cached = getCachedGroup(groupId);
+      return !cached || !cached.expenses || cached.expenses.length === 0;
     }
     return true;
   });
@@ -159,21 +162,22 @@ export default function GroupDetailPage() {
 
   const loadGroup = useCallback(async (isInitial = false) => {
     if (!groupId || groupId === "undefined") {
-      setLoading(false);
       return;
     }
     const cached = getCachedGroup(groupId);
     if (cached) {
       setGroup(cached);
-      if (isInitial) setLoading(false);
+      if (isInitial && cached.expenses && cached.expenses.length > 0) {
+        setLoading(false);
+      }
     } else if (isInitial && !groupRef.current) {
       setLoading(true);
     }
 
     try {
       const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-      const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
-      const res = await fetch(`/api/groups/${groupId}?_t=${Date.now()}`, {
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 20000) : null;
+      const res = await fetch(`/api/groups/${encodeURIComponent(groupId)}?_t=${Date.now()}`, {
         signal: controller?.signal,
       });
       if (timeoutId) clearTimeout(timeoutId);
@@ -199,10 +203,9 @@ export default function GroupDetailPage() {
   }, [groupId, router]);
 
   useEffect(() => {
-    loadGroup(true);
-    // Background check for any overdue recurring rules
     if (groupId && groupId !== "undefined") {
-      fetch(`/api/groups/${groupId}/recurring`).catch(() => {});
+      loadGroup(true);
+      fetch(`/api/groups/${encodeURIComponent(groupId)}/recurring`).catch(() => {});
     }
     const handleRefresh = () => loadGroup(false);
     window.addEventListener("splitrupee_refresh", handleRefresh);
@@ -211,7 +214,7 @@ export default function GroupDetailPage() {
       window.removeEventListener("splitrupee_refresh", handleRefresh);
       window.removeEventListener("splitrupee_offline_queue_changed", handleRefresh);
     };
-  }, [loadGroup]);
+  }, [groupId, loadGroup]);
 
   // If user is not admin and activeTab is passbook, automatically redirect to matrix
   useEffect(() => {
@@ -355,7 +358,10 @@ export default function GroupDetailPage() {
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
-              onClick={() => loadGroup(true)}
+              onClick={() => {
+                setLoading(true);
+                loadGroup(true);
+              }}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
             >
               Retry

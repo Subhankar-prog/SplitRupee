@@ -138,13 +138,20 @@ async function processDueRecurringExpenses(groupId: string) {
  */
 export async function GET(req: Request, { params }: Params) {
   try {
-    const { id } = params;
+    const rawId = params?.id;
+    const id = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+
+    const group = await prisma.group.findFirst({
+      where: { OR: [{ id }, { inviteCode: id }] },
+      select: { id: true },
+    });
+    const canonicalGroupId = group?.id || id;
 
     // Process overdue runs first
-    await processDueRecurringExpenses(id);
+    await processDueRecurringExpenses(canonicalGroupId);
 
     const recurring = await prisma.recurringExpense.findMany({
-      where: { groupId: id },
+      where: { groupId: canonicalGroupId },
       orderBy: { createdAt: "desc" },
       include: {
         paidBy: { select: { id: true, name: true, avatarColor: true } },
@@ -164,7 +171,13 @@ export async function GET(req: Request, { params }: Params) {
  */
 export async function POST(req: Request, { params }: Params) {
   try {
-    const { id: groupId } = params;
+    const rawId = params?.id;
+    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+    const groupRecord = await prisma.group.findFirst({
+      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
+      select: { id: true },
+    });
+    const groupId = groupRecord?.id || cleanId;
     const body = await req.json();
     const { title, totalAmount, paidById, dayOfMonth, frequency, category, notes } = body;
 

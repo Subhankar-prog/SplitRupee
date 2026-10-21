@@ -10,7 +10,13 @@ interface Params {
 /** POST /api/groups/[id]/members: add member to group by userId, email, or phone number */
 export async function POST(req: Request, { params }: Params) {
   try {
-    const { id: groupId } = params;
+    const rawId = params?.id;
+    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+    const groupRecord = await prisma.group.findFirst({
+      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
+      select: { id: true },
+    });
+    const groupId = groupRecord?.id || cleanId;
     const body = await req.json();
     const { userId, email, phone, name, addedById } = body;
 
@@ -104,7 +110,13 @@ export async function POST(req: Request, { params }: Params) {
 /** PATCH /api/groups/[id]/members: promote or demote a member (make admin / remove admin) */
 export async function PATCH(req: Request, { params }: Params) {
   try {
-    const { id: groupId } = params;
+    const rawId = params?.id;
+    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+    const groupRecord = await prisma.group.findFirst({
+      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
+      select: { id: true },
+    });
+    const groupId = groupRecord?.id || cleanId;
     const body = await req.json();
     const { targetUserId, role, performedById } = body;
 
@@ -159,7 +171,13 @@ export async function PATCH(req: Request, { params }: Params) {
 /** DELETE /api/groups/[id]/members: remove member from group or handle exit with random admin promotion */
 export async function DELETE(req: Request, { params }: Params) {
   try {
-    const { id: groupId } = params;
+    const rawId = params?.id;
+    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+    const groupRecord = await prisma.group.findFirst({
+      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
+      select: { id: true },
+    });
+    const groupId = groupRecord?.id || cleanId;
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
     const removedById = searchParams.get("removedById");
