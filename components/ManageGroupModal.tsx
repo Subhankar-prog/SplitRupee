@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings,
   Users,
@@ -37,7 +37,7 @@ interface Props {
   currentUser: { id: string; name: string };
   members: MemberDTO[];
   balances: Record<string, number>;
-  onGroupUpdated: () => void;
+  onGroupUpdated: (updatedGroup?: any) => void;
   onGroupDeleted: () => void;
   onExitedGroup: () => void;
 }
@@ -60,6 +60,13 @@ export default function ManageGroupModal({
   const [description, setDescription] = useState(group.description || "");
   const [type, setType] = useState<GroupTypeName>(group.type || "OTHER");
   const [currency, setCurrency] = useState(group.currency || "INR");
+
+  useEffect(() => {
+    setName(group.name || "");
+    setDescription(group.description || "");
+    setType(group.type || "OTHER");
+    setCurrency(group.currency || "INR");
+  }, [group.id, group.name, group.description, group.type, group.currency]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -110,8 +117,11 @@ export default function ManageGroupModal({
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("splitrupee_refresh"));
       }
-      onGroupUpdated();
-      setTimeout(() => setSuccessMsg(""), 3000);
+      onGroupUpdated(data.group);
+      setTimeout(() => {
+        setSuccessMsg("");
+        onClose();
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Failed to update group settings");
     } finally {

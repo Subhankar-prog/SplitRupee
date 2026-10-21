@@ -404,7 +404,7 @@ export default function GroupDetailPage() {
                 )}
               </div>
 
-              {group.description && (
+              {group.description ? (
                 <div className="mt-1.5 max-w-full">
                   <p className="text-xs text-slate-300/90 italic border-l-2 border-emerald-500/40 pl-2.5 break-words break-all whitespace-pre-wrap leading-relaxed">
                     "{group.description.length > 90 && !descExpanded
@@ -419,9 +419,29 @@ export default function GroupDetailPage() {
                         {descExpanded ? "Show less" : "View more"}
                       </button>
                     )}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setShowManageGroup(true)}
+                        className="ml-2 font-normal text-slate-400 hover:text-emerald-300 not-italic inline-flex items-center gap-1 cursor-pointer"
+                        title="Edit description"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </button>
+                    )}
                   </p>
                 </div>
-              )}
+              ) : isAdmin ? (
+                <div className="mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowManageGroup(true)}
+                    className="text-[11px] text-emerald-400/90 hover:text-emerald-300 flex items-center gap-1 hover:underline cursor-pointer font-medium"
+                  >
+                    <span>+ Add group description</span>
+                  </button>
+                </div>
+              ) : null}
 
               <p className="text-xs text-slate-400 mt-1">
                 {members.length} members · {expenses.length} expenses · <span className="font-semibold text-slate-200">{formatINR(totalSpend)}</span>
@@ -1525,7 +1545,25 @@ export default function GroupDetailPage() {
           currentUser={currentUser}
           members={members}
           balances={ledger.balances}
-          onGroupUpdated={() => {
+          onGroupUpdated={(updatedGroup) => {
+            if (updatedGroup) {
+              setGroup((prev: any) => ({
+                ...prev,
+                name: updatedGroup.name,
+                description: updatedGroup.description,
+                type: updatedGroup.type,
+                currency: updatedGroup.currency,
+              }));
+              if (group?.id) {
+                saveCachedGroup(group.id, {
+                  ...group,
+                  name: updatedGroup.name,
+                  description: updatedGroup.description,
+                  type: updatedGroup.type,
+                  currency: updatedGroup.currency,
+                });
+              }
+            }
             loadGroup();
           }}
           onGroupDeleted={() => {

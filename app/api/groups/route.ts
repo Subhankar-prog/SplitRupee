@@ -39,6 +39,7 @@ export async function GET(req: Request) {
         groups: groups.map((g) => ({
           id: g.id,
           name: g.name,
+          description: g.description || null,
           type: g.type,
           currency: g.currency,
           createdAt: g.createdAt.toISOString(),

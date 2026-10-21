@@ -262,7 +262,7 @@ export default function Sidebar({
       </aside>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl" aria-label="Mobile bottom navigation">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl" aria-label="Mobile bottom navigation">
         <div className="flex items-center justify-around px-2 py-2">
           <Link
             href="/dashboard"

@@ -322,11 +322,11 @@ export default function ItineraryPage() {
 
         <div className="itinerary-content-container flex flex-col gap-8">
           {/* Top Horizontal Input Console */}
-          <div className="itinerary-form-console-card relative z-30 w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:hidden">
+          <div className="itinerary-form-console-card relative z-10 w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:hidden">
             <form onSubmit={handleGenerate} className="itinerary-generator-form space-y-6">
               
               {/* Row 1: Core Routing, Dates (Start & End), Duration (Days & Nights), Travellers, Group */}
-              <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-40">
+              <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-20">
                 {/* 1. Origin */}
                 <div className="origin-field origin-container">
                   <div className="h-7 flex items-center mb-1.5">
@@ -448,7 +448,7 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 2: Budgeting (Total Budget, Stay Budget/Night, Stay Preference, Trip Pace) */}
-              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-30">
+              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-10">
                 {/* Total Budget */}
                 <div className="total-group-budget-field total-group-budget-container">
                   <div className="h-7 flex items-center justify-between mb-1.5">
@@ -540,7 +540,7 @@ export default function ItineraryPage() {
                   <span>Transit Mode & Coach Preferences:</span>
                 </div>
 
-                <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-20">
+                <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-0">
                   {/* Train */}
                   <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
                     <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">

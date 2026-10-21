@@ -157,10 +157,15 @@ export async function PUT(req: Request, { params }: Params) {
       });
       const groupCheck = await prisma.group.findUnique({
         where: { id },
-        include: { activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 } },
+        include: {
+          members: { orderBy: { joinedAt: "asc" } },
+          activityLogs: { where: { action: "GROUP_CREATED" }, take: 1 },
+        },
       });
-      const creatorId = groupCheck?.activityLogs[0]?.userId;
-      const isAdmin = caller?.role === "ADMIN" || caller?.userId === creatorId;
+      const creatorId = groupCheck?.activityLogs[0]?.userId || groupCheck?.members[0]?.userId;
+      const hasAnyAdmin = groupCheck?.members.some((m) => m.role === "ADMIN");
+      const isFallbackAdmin = !hasAnyAdmin && caller?.userId === creatorId;
+      const isAdmin = caller?.role === "ADMIN" || caller?.userId === creatorId || isFallbackAdmin;
       if (!isAdmin) {
         return NextResponse.json(
           { ok: false, error: "FORBIDDEN", message: "Only group admins can modify group settings." },
@@ -173,7 +178,7 @@ export async function PUT(req: Request, { params }: Params) {
       where: { id },
       data: {
         ...(name ? { name: name.trim() } : {}),
-        ...(description !== undefined ? { description: description?.trim() || null } : {}),
+        ...(description !== undefined ? { description: description ? description.trim() : null } : {}),
         ...(type ? { type } : {}),
         ...(currency ? { currency } : {}),
       },

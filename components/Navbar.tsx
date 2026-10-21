@@ -340,29 +340,31 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   </div>
                 </div>
 
-                {/* Right: Small Circle Action Buttons (UPI, Notifications, Change Password, Logout) */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                {/* Right: Small Circle Action Buttons (UPI, Notifications, Theme, Password, Logout) */}
+                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                   {/* Add / Edit UPI Circle Button */}
                   <button
                     type="button"
                     onClick={() => setShowAddUpiModal(true)}
-                    className="h-8 w-8 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 grid place-items-center hover:bg-emerald-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center justify-center p-0 hover:bg-emerald-500/20 active:scale-95 transition shadow-sm"
                     title="Add or Edit UPI ID"
+                    aria-label="Add or Edit UPI ID"
                   >
                     <QrCode className="h-3.5 w-3.5" />
                   </button>
 
                   {/* Notifications Circle Button & Mobile Dropdown */}
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <button
                       type="button"
                       onClick={() => setNotificationsOpen(!notificationsOpen)}
-                      className="h-8 w-8 rounded-full border border-white/10 bg-white/5 text-slate-300 grid place-items-center relative hover:bg-white/10 active:scale-95 transition shadow-sm"
+                      className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-white/10 bg-white/5 text-slate-300 flex items-center justify-center p-0 relative hover:bg-white/10 active:scale-95 transition shadow-sm"
                       title="Notifications"
+                      aria-label="Notifications"
                     >
                       <Bell className="h-3.5 w-3.5" />
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-rose-500 font-bold text-[8px] text-white shadow">
+                        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 font-bold text-[8px] text-white shadow">
                           {unreadCount}
                         </span>
                       )}
@@ -435,7 +437,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <button
                     type="button"
                     onClick={toggleTheme}
-                    className="h-8 w-8 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 grid place-items-center hover:bg-indigo-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 flex items-center justify-center p-0 hover:bg-indigo-500/20 active:scale-95 transition shadow-sm"
                     title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
                     aria-label="Toggle theme"
                   >
@@ -446,8 +448,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <button
                     type="button"
                     onClick={() => setShowChangePassword(true)}
-                    className="h-8 w-8 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 grid place-items-center hover:bg-amber-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 flex items-center justify-center p-0 hover:bg-amber-500/20 active:scale-95 transition shadow-sm"
                     title="Change Password"
+                    aria-label="Change Password"
                   >
                     <KeyRound className="h-3.5 w-3.5" />
                   </button>
@@ -456,8 +459,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <button
                     type="button"
                     onClick={() => logout()}
-                    className="h-8 w-8 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-400 grid place-items-center hover:bg-rose-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-400 flex items-center justify-center p-0 hover:bg-rose-500/20 active:scale-95 transition shadow-sm"
                     title="Log Out"
+                    aria-label="Log Out"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                   </button>
@@ -476,15 +480,6 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       : "Offline Mode • Local Storage"}
                   </span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowGlobalAddExpense(true)}
-                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold active:scale-95 transition"
-                >
-                  <Plus className="h-3 w-3 stroke-[2.5]" />
-                  <span>Add Expense</span>
-                </button>
               </div>
             </div>
           </div>

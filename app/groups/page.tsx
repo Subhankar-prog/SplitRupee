@@ -234,6 +234,11 @@ export default function GroupsPage() {
                     <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition line-clamp-1">
                       {g.name}
                     </h3>
+                    {(g as any).description && (
+                      <p className="text-xs text-slate-300/80 mt-1 line-clamp-2 italic">
+                        &ldquo;{(g as any).description}&rdquo;
+                      </p>
+                    )}
                     <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
                       <Users className="h-3.5 w-3.5" />
                       <span>{g.members?.length || 1} Members</span>

@@ -21,6 +21,7 @@ export default function CreateGroupModal({
 }) {
   const { currentUser } = useUser();
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [type, setType] = useState<GroupTypeName>("TRIP");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,6 +46,7 @@ export default function CreateGroupModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          description: description.trim() || null,
           type,
           currency: "INR",
           memberUserIds: [currentUser.id],
@@ -103,6 +105,20 @@ export default function CreateGroupModal({
               onChange={(e) => setName(e.target.value)}
               required
               className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* Group Description */}
+          <div>
+            <label className="text-xs font-semibold text-slate-300">
+              Description <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+            </label>
+            <textarea
+              placeholder="Add trip dates, apartment rules, or a short note..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none"
             />
           </div>
 
