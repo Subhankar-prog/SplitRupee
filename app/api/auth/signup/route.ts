@@ -44,12 +44,17 @@ export async function POST(req: Request) {
       }
     }
 
-    // Check if user already exists
+    const cleanPhone = userPhone.replace(/\D/g, "").slice(-10);
+    const fallbackPhoneEmail = cleanPhone ? `${cleanPhone}@splitrupee.in` : null;
+
+    // Check if user already exists or has an unactivated placeholder account
     const existing = await prisma.user.findFirst({
       where: {
         OR: [
           { email: userEmail },
+          ...(fallbackPhoneEmail ? [{ email: fallbackPhoneEmail }] : []),
           ...(userPhone ? [{ phone: userPhone }] : []),
+          ...(cleanPhone ? [{ phone: cleanPhone }] : []),
         ],
       },
     });
