@@ -197,7 +197,7 @@ export default function AddExpenseModal({
       const expRate = initialExpense.exchangeRate || 1.0;
 
       initialExpense.splits.forEach((s) => {
-        const dispAmount = isExpForeign && expRate > 0 ? (s.amount / expRate).toFixed(2) : s.amount.toString();
+        const dispAmount = isExpForeign && expRate > 0 ? roundFigure(s.amount / expRate).toString() : roundFigure(s.amount).toString();
         exacts[s.userId] = dispAmount;
         if (s.percentage !== null) pcts[s.userId] = s.percentage.toString();
       });
@@ -225,7 +225,7 @@ export default function AddExpenseModal({
     // EXACT: If foreign currency, convert exact foreign amount to INR
     return includedMemberIds.map((uid) => {
       const foreignExact = parseFloat(exactAmounts[uid] ?? "") || 0;
-      const inrExact = isForeign ? Math.round(foreignExact * effectiveRate * 100) / 100 : foreignExact;
+      const inrExact = isForeign ? roundFigure(foreignExact * effectiveRate) : roundFigure(foreignExact);
       return {
         userId: uid,
         amount: inrExact,
@@ -257,7 +257,7 @@ export default function AddExpenseModal({
       const eq = equalAmounts(baseToSplit, includedMemberIds.length);
       const next: Record<string, string> = {};
       includedMemberIds.forEach((uid, i) => {
-        next[uid] = eq[i].toFixed(2);
+        next[uid] = roundFigure(eq[i]).toString();
       });
       setExactAmounts(next);
     }
@@ -297,7 +297,7 @@ export default function AddExpenseModal({
       }
 
       if (d.totalAmount && d.totalAmount > 0) {
-        setAmount(d.totalAmount.toString());
+        setAmount(roundFigure(d.totalAmount).toString());
       }
 
       if (d.category) {
@@ -323,7 +323,7 @@ export default function AddExpenseModal({
       }
 
       setOcrSuccessMsg(
-        `AI successfully scanned: ${d.merchant} (${d.currency} ${d.totalAmount})`
+        `AI successfully scanned: ${d.merchant} (${d.currency} ${roundFigure(d.totalAmount)})`
       );
     } catch (err: any) {
       console.warn("[OCR Scan] Failed:", err);
@@ -555,7 +555,7 @@ export default function AddExpenseModal({
                         {item.qty && item.qty > 1 ? `${item.qty}x ` : ""}{item.name}
                       </span>
                       <span className="font-mono font-bold text-white">
-                        {currencyInfo.symbol}{Number(item.price).toFixed(2)}
+                        {currencyInfo.symbol}{roundFigure(Number(item.price))}
                       </span>
                     </div>
                   ))}
@@ -620,11 +620,17 @@ export default function AddExpenseModal({
                   </span>
                   <input
                     type="number"
-                    step="0.01"
-                    min="0.01"
-                    placeholder="0.00"
+                    step="1"
+                    min="1"
+                    placeholder="0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    onBlur={() => {
+                      if (amount) {
+                        const n = parseFloat(amount);
+                        if (!isNaN(n)) setAmount(roundFigure(n).toString());
+                      }
+                    }}
                     required
                     className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-8 pr-3 text-sm font-semibold text-white placeholder-slate-500 outline-none focus:border-emerald-500 font-mono"
                   />
@@ -639,7 +645,7 @@ export default function AddExpenseModal({
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-white">Live INR Equivalent:</span>
                     <span className="font-extrabold text-sm text-emerald-400 tabular-nums">
-                      ≈ ₹{totalNum.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} INR
+                      ≈ ₹{roundFigure(totalNum).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} INR
                     </span>
                     <span className="text-[11px] text-slate-400 font-mono">
                       (1 {currency} = ₹{effectiveRate.toFixed(4)})
@@ -771,108 +777,118 @@ export default function AddExpenseModal({
 
               {/* Split Rows */}
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {members.map((m) => {
-                  const isIncluded = includedMemberIds.includes(m.id);
-                  const equalShareINR =
-                    totalNum > 0 && includedMemberIds.length > 0
-                      ? roundFigure(totalNum / includedMemberIds.length).toString()
-                      : "0";
-                  const equalShareForeign =
-                    enteredAmount > 0 && includedMemberIds.length > 0
-                      ? roundFigure(enteredAmount / includedMemberIds.length).toString()
-                      : "0";
+                {(() => {
+                  const base = isForeign ? enteredAmount : totalNum;
+                  const eq = equalAmounts(base, includedMemberIds.length);
+                  const equalMap: Record<string, number> = {};
+                  includedMemberIds.forEach((uid, i) => {
+                    equalMap[uid] = eq[i];
+                  });
 
-                  return (
-                    <div
-                      key={m.id}
-                      className={`flex items-center justify-between gap-2 rounded-xl border p-2 text-xs transition ${
-                        isIncluded
-                          ? "border-white/10 bg-white/[0.04]"
-                          : "border-transparent bg-transparent opacity-40"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleMember(m.id)}
-                        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                  return members.map((m) => {
+                    const isIncluded = includedMemberIds.includes(m.id);
+                    const memberShare = equalMap[m.id] ?? 0;
+                    const memberShareINR = isForeign ? roundFigure(memberShare * effectiveRate) : memberShare;
+
+                    return (
+                      <div
+                        key={m.id}
+                        className={`flex items-center justify-between gap-2 rounded-xl border p-2 text-xs transition ${
+                          isIncluded
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-transparent bg-transparent opacity-40"
+                        }`}
                       >
-                        <div
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                            isIncluded
-                              ? "border-emerald-500 bg-emerald-500 text-slate-950"
-                              : "border-slate-600 bg-transparent"
-                          }`}
+                        <button
+                          type="button"
+                          onClick={() => toggleMember(m.id)}
+                          className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                         >
-                          {isIncluded && <Check className="h-3 w-3 stroke-[3]" />}
-                        </div>
-                        <span className="font-medium text-slate-200 truncate">{m.name}</span>
-                      </button>
+                          <div
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                              isIncluded
+                                ? "border-emerald-500 bg-emerald-500 text-slate-950"
+                                : "border-slate-600 bg-transparent"
+                            }`}
+                          >
+                            {isIncluded && <Check className="h-3 w-3 stroke-[3]" />}
+                          </div>
+                          <span className="font-medium text-slate-200 truncate">{m.name}</span>
+                        </button>
 
-                      {isIncluded && (
-                        <div className="shrink-0 flex items-center gap-1.5">
-                          {splitType === "EQUAL" && (
-                            <div className="text-right">
-                              <span className="text-slate-200 font-semibold tabular-nums text-xs block">
-                                {isForeign ? `${currencyInfo.symbol}${equalShareForeign}` : `₹${equalShareINR}`}
-                              </span>
-                              {isForeign && (
-                                <span className="text-[10px] text-emerald-400 font-mono block">
-                                  ≈ ₹{equalShareINR}
+                        {isIncluded && (
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            {splitType === "EQUAL" && (
+                              <div className="text-right">
+                                <span className="text-slate-200 font-semibold tabular-nums text-xs block">
+                                  {isForeign ? `${currencyInfo.symbol}${memberShare}` : `₹${memberShare}`}
                                 </span>
-                              )}
-                            </div>
-                          )}
-
-                          {splitType === "EXACT" && (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <div className="flex items-center gap-1">
-                                <span className="text-slate-500 font-bold">{currencyInfo.symbol}</span>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  value={exactAmounts[m.id] ?? ""}
-                                  onChange={(e) =>
-                                    setExactAmounts({ ...exactAmounts, [m.id]: e.target.value })
-                                  }
-                                  className="w-20 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-right text-xs text-white outline-none focus:border-emerald-500"
-                                />
+                                {isForeign && (
+                                  <span className="text-[10px] text-emerald-400 font-mono block">
+                                    ≈ ₹{memberShareINR}
+                                  </span>
+                                )}
                               </div>
-                              {isForeign && exactAmounts[m.id] && (
-                                <span className="text-[10px] text-emerald-400 font-mono">
-                                  ≈ ₹{(parseFloat(exactAmounts[m.id] || "0") * effectiveRate).toFixed(2)}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                            )}
 
-                          {splitType === "PERCENTAGE" && (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="0"
-                                  value={percentages[m.id] ?? ""}
-                                  onChange={(e) =>
-                                    setPercentages({ ...percentages, [m.id]: e.target.value })
-                                  }
-                                  className="w-16 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-right text-xs text-white outline-none focus:border-emerald-500"
-                                />
-                                <span className="text-slate-500 font-bold">%</span>
+                            {splitType === "EXACT" && (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-slate-500 font-bold">{currencyInfo.symbol}</span>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    placeholder="0"
+                                    value={exactAmounts[m.id] ?? ""}
+                                    onChange={(e) =>
+                                      setExactAmounts({ ...exactAmounts, [m.id]: e.target.value })
+                                    }
+                                    onBlur={() => {
+                                      const val = exactAmounts[m.id];
+                                      if (val) {
+                                        const n = parseFloat(val);
+                                        if (!isNaN(n)) setExactAmounts({ ...exactAmounts, [m.id]: roundFigure(n).toString() });
+                                      }
+                                    }}
+                                    className="w-20 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-right text-xs text-white outline-none focus:border-emerald-500"
+                                  />
+                                </div>
+                                {isForeign && exactAmounts[m.id] && (
+                                  <span className="text-[10px] text-emerald-400 font-mono">
+                                    ≈ ₹{roundFigure(parseFloat(exactAmounts[m.id] || "0") * effectiveRate)}
+                                  </span>
+                                )}
                               </div>
-                              {percentages[m.id] && (
-                                <span className="text-[10px] text-emerald-400 font-mono">
-                                  ≈ ₹{((parseFloat(percentages[m.id] || "0") / 100) * totalNum).toFixed(2)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                            )}
+
+                            {splitType === "PERCENTAGE" && (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0"
+                                    value={percentages[m.id] ?? ""}
+                                    onChange={(e) =>
+                                      setPercentages({ ...percentages, [m.id]: e.target.value })
+                                    }
+                                    className="w-16 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-right text-xs text-white outline-none focus:border-emerald-500"
+                                  />
+                                  <span className="text-slate-500 font-bold">%</span>
+                                </div>
+                                {percentages[m.id] && (
+                                  <span className="text-[10px] text-emerald-400 font-mono">
+                                    ≈ ₹{roundFigure((parseFloat(percentages[m.id] || "0") / 100) * totalNum)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
               {splitType !== "EQUAL" && (

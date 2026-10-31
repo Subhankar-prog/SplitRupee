@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { expensePayloadSchema } from "@/lib/validation";
 import { computeSplits, SplitValidationError } from "@/lib/split";
 import { broadcastEvent } from "@/lib/eventBus";
+import { roundFigure } from "@/lib/money";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -142,7 +143,7 @@ export async function PUT(req: Request, { params }: Params) {
         const diffs: string[] = [];
         if (oldExpense.title !== p.title) diffs.push(`title: "${oldExpense.title}" → "${p.title}"`);
         if (oldExpense.totalAmount !== totalPaise / 100) {
-          diffs.push(`amount: ₹${oldExpense.totalAmount} → ₹${totalPaise / 100}`);
+          diffs.push(`amount: ₹${roundFigure(oldExpense.totalAmount)} → ₹${Math.round(totalPaise / 100)}`);
         }
         if (oldExpense.currency !== (p.currency || "INR")) {
           diffs.push(`currency: ${oldExpense.currency} → ${p.currency || "INR"}`);
@@ -209,7 +210,7 @@ export async function DELETE(req: Request, { params }: Params) {
         userId: deletedById || expense.paidById,
         action: "EXPENSE_DELETED",
         entityTitle: expense.title,
-        details: `Deleted expense "${expense.title}" (₹${expense.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })})`,
+        details: `Deleted expense "${expense.title}" (₹${roundFigure(expense.totalAmount).toLocaleString("en-IN")})`,
       },
     });
 

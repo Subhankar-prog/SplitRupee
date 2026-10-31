@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeNetBalances } from "@/lib/debt";
-import { toPaise } from "@/lib/money";
+import { toPaise, roundFigure } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
         throw new SettlementError(
           "OVER_SETTLEMENT",
           400,
-          `Payment amount ₹${amount.toFixed(2)} exceeds payer's remaining debt of ₹${(payerDebtPaise / 100).toFixed(2)}`
+          `Payment amount ₹${roundFigure(amount)} exceeds payer's remaining debt of ₹${roundFigure(payerDebtPaise / 100)}`
         );
       }
 
@@ -155,7 +155,7 @@ export async function POST(req: Request) {
           groupId,
           payerId,
           receiverId,
-          amount: Number(amount),
+          amount: roundFigure(Number(amount)),
           notes: finalNotes,
         },
         include: {
@@ -171,8 +171,8 @@ export async function POST(req: Request) {
           groupId,
           userId: payerId,
           action: "PAYMENT_SETTLED",
-          entityTitle: `Payment of ₹${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
-          details: `${p.payer.name} paid ${p.receiver.name} ₹${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}${notes ? ` ("${notes}")` : ""}`,
+          entityTitle: `Payment of ₹${roundFigure(Number(amount)).toLocaleString("en-IN")}`,
+          details: `${p.payer.name} paid ${p.receiver.name} ₹${roundFigure(Number(amount)).toLocaleString("en-IN")}${notes ? ` ("${notes}")` : ""}`,
         },
       });
 
@@ -251,8 +251,8 @@ export async function DELETE(req: Request) {
           groupId: payment.groupId,
           userId: callerId || payment.receiverId,
           action: "PAYMENT_SETTLED",
-          entityTitle: `Settlement Reversed: ₹${Number(payment.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
-          details: `Settlement of ₹${Number(payment.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })} from ${payment.payer.name} to ${payment.receiver.name} was reversed${reason ? ` ("${reason}")` : ""}`,
+          entityTitle: `Settlement Reversed: ₹${roundFigure(Number(payment.amount)).toLocaleString("en-IN")}`,
+          details: `Settlement of ₹${roundFigure(Number(payment.amount)).toLocaleString("en-IN")} from ${payment.payer.name} to ${payment.receiver.name} was reversed${reason ? ` ("${reason}")` : ""}`,
         },
       });
 

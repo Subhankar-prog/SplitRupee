@@ -19,7 +19,7 @@ import {
   Clock,
   Loader2,
 } from "lucide-react";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundFigure } from "@/lib/money";
 import type { MemberDTO } from "@/lib/types";
 
 interface RecurringItem {
@@ -122,7 +122,7 @@ export default function RecurringExpensesModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
-          totalAmount: parseFloat(amount),
+          totalAmount: roundFigure(parseFloat(amount)),
           paidById: paidById || members[0]?.id,
           dayOfMonth: parseInt(dayOfMonth, 10) || 1,
           frequency: "MONTHLY",
@@ -313,11 +313,17 @@ export default function RecurringExpensesModal({
                   <label className="text-[11px] font-semibold text-slate-300">Amount (₹)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="1"
                     min="1"
-                    placeholder="0.00"
+                    placeholder="0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    onBlur={() => {
+                      if (amount) {
+                        const n = parseFloat(amount);
+                        if (!isNaN(n)) setAmount(roundFigure(n).toString());
+                      }
+                    }}
                     required
                     className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-white placeholder-slate-500 outline-none focus:border-emerald-500"
                   />

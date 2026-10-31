@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { expensePayloadSchema } from "@/lib/validation";
 import { computeSplits, SplitValidationError } from "@/lib/split";
 import { broadcastEvent } from "@/lib/eventBus";
+import { roundFigure } from "@/lib/money";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
 
         // Log to Activity Log
         const foreignNote = p.currency && p.currency !== "INR" && p.originalAmount
-          ? ` (${p.currency} ${Number(p.originalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})`
+          ? ` (${p.currency} ${roundFigure(Number(p.originalAmount)).toLocaleString("en-IN")})`
           : "";
         await tx.activityLog.create({
           data: {
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
             userId: p.paidById,
             action: "EXPENSE_CREATED",
             entityTitle: p.title,
-            details: `Added expense "${p.title}" of ₹${(totalPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}${foreignNote} (${p.splitType === "EQUAL" ? "Equal split" : p.splitType === "PERCENTAGE" ? "Percentage split" : "Exact split"} among ${splits.length} members)${p.receiptUrl ? " with receipt attached" : ""}`,
+            details: `Added expense "${p.title}" of ₹${Math.round(totalPaise / 100).toLocaleString("en-IN")}${foreignNote} (${p.splitType === "EQUAL" ? "Equal split" : p.splitType === "PERCENTAGE" ? "Percentage split" : "Exact split"} among ${splits.length} members)${p.receiptUrl ? " with receipt attached" : ""}`,
           },
         });
 

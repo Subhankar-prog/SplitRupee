@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeSplits } from "@/lib/split";
 import { broadcastEvent } from "@/lib/eventBus";
+import { roundFigure } from "@/lib/money";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,7 +104,7 @@ async function processDueRecurringExpenses(groupId: string) {
             userId: payerId,
             action: "EXPENSE_CREATED",
             entityTitle: item.title,
-            details: `Auto-posted recurring expense "${item.title}" of ₹${(totalPaise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })} for this month`,
+            details: `Auto-posted recurring expense "${item.title}" of ₹${Math.round(totalPaise / 100).toLocaleString("en-IN")} for this month`,
           },
         });
 
@@ -213,7 +214,7 @@ export async function POST(req: Request, { params }: Params) {
         groupId,
         paidById,
         title: title.trim(),
-        totalAmount: Math.round(numAmount * 100) / 100,
+        totalAmount: roundFigure(numAmount),
         currency: "INR",
         category: category || "Rent",
         frequency: frequency || "MONTHLY",
@@ -234,7 +235,7 @@ export async function POST(req: Request, { params }: Params) {
         userId: paidById,
         action: "EXPENSE_CREATED",
         entityTitle: title.trim(),
-        details: `Configured automated monthly recurring expense "${title.trim()}" of ₹${numAmount.toLocaleString("en-IN")} on the ${day}th of every month`,
+        details: `Configured automated monthly recurring expense "${title.trim()}" of ₹${roundFigure(numAmount).toLocaleString("en-IN")} on the ${day}th of every month`,
       },
     });
 

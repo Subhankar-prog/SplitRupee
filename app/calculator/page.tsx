@@ -15,7 +15,7 @@ import {
   Check,
   Sparkles,
 } from "lucide-react";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundFigure } from "@/lib/money";
 
 interface ItemRow {
   id: string;
@@ -42,13 +42,13 @@ export default function CalculatorPage() {
 
   const subtotal =
     mode === "quick"
-      ? billAmount
-      : items.reduce((acc, item) => acc + (item.amount || 0), 0);
+      ? roundFigure(billAmount)
+      : roundFigure(items.reduce((acc, item) => acc + (item.amount || 0), 0));
 
-  const gstAmount = (subtotal * gstPercent) / 100;
-  const tipAmount = (subtotal * tipPercent) / 100;
-  const grandTotal = subtotal + gstAmount + tipAmount;
-  const perPerson = numPeople > 0 ? grandTotal / numPeople : 0;
+  const gstAmount = roundFigure((subtotal * gstPercent) / 100);
+  const tipAmount = roundFigure((subtotal * tipPercent) / 100);
+  const grandTotal = roundFigure(subtotal + gstAmount + tipAmount);
+  const perPerson = numPeople > 0 ? roundFigure(grandTotal / numPeople) : 0;
 
   const addItem = () => {
     if (!newItemName || !newItemAmount) return;
@@ -57,7 +57,7 @@ export default function CalculatorPage() {
       {
         id: Math.random().toString(),
         name: newItemName,
-        amount: parseFloat(newItemAmount) || 0,
+        amount: roundFigure(parseFloat(newItemAmount) || 0),
       },
     ]);
     setNewItemName("");

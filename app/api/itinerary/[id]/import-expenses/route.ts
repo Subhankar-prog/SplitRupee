@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { computeSplits } from "@/lib/split";
+import { roundFigure } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -47,26 +49,31 @@ export async function POST(
       const amount = Number(item.amount) || 0;
       if (amount <= 0) continue;
 
-      const splitAmount = parseFloat((amount / memberIds.length).toFixed(2));
+      const roundedTotal = roundFigure(amount);
+      const computed = computeSplits(
+        roundedTotal,
+        "EQUAL",
+        memberIds.map((uid) => ({ userId: uid }))
+      );
 
       const expense = await prisma.expense.create({
         data: {
           groupId,
           paidById: payer,
           title: item.title || "Itinerary Planned Expense",
-          totalAmount: amount,
+          totalAmount: roundedTotal,
           category: ["Food", "Rent", "Travel", "Utilities", "Shopping", "Entertainment", "Miscellaneous"].includes(item.category)
             ? item.category
             : "Travel",
           splitType: "EQUAL",
           notes: "Auto-imported from AI Travel Itinerary",
           splits: {
-            create: memberIds.map((uid) => ({
-              userId: uid,
-              amount: splitAmount
-            }))
-          }
-        }
+            create: computed.splits.map((s) => ({
+              userId: s.userId,
+              amount: s.amountPaise / 100,
+            })),
+          },
+        },
       });
       createdExpenses.push(expense);
     }

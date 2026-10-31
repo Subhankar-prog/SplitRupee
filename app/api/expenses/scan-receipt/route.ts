@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "@/lib/prisma";
+import { roundFigure } from "@/lib/money";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,7 +77,7 @@ Analyze this receipt image with extreme accuracy.
 Extract all bill details into a strict, valid JSON object matching this exact TypeScript interface:
 {
   "merchant": string, // Vendor, restaurant, store, taxi, or airline name (e.g. "Gulati Restaurant", "Swiggy", "Decathlon")
-  "totalAmount": number, // Final total payable amount as a float (e.g. 1450.50). Must be positive.
+  "totalAmount": number, // Final total payable amount as a whole round figure. No fractions/paise.
   "currency": string, // 3-letter currency code, e.g. "INR", "NPR", "THB", "AED", "USD", "EUR", etc. Default to "INR" unless currency symbol/country indicates otherwise. (Currency hint from user: "${currencyHint || 'INR'}")
   "date": string | null, // Date in "YYYY-MM-DD" format if visible on the bill, otherwise null.
   "category": "Food" | "Rent" | "Travel" | "Utilities" | "Shopping" | "Entertainment" | "Miscellaneous",
@@ -88,7 +89,7 @@ Extract all bill details into a strict, valid JSON object matching this exact Ty
 CRITICAL RULES:
 1. Return ONLY valid JSON.
 2. If total amount is not clearly printed, compute Subtotal + Taxes.
-3. Clean all prices to standard numbers (e.g., "₹1,450.50" -> 1450.50).
+3. Clean all prices to standard numbers. Round amounts to clean round figures: decimal <= .50 rounds down, > .50 rounds up.
 4. If currency symbol ₹ or Rs is seen, currency is INR. If ฿, THB. If रू or NPR, NPR. If $, USD.
 5. Choose the closest matching category from the allowed list.`;
 
@@ -152,8 +153,19 @@ CRITICAL RULES:
     // Sanitize currency
     let currency = (parsedResult.currency || "INR").trim().toUpperCase();
 
-    // Sanitize total amount
-    const totalAmount = Math.max(0, Math.round(Number(parsedResult.totalAmount) * 100) / 100);
+    // Sanitize total amount (round figure, no fraction)
+    const rawTotal = Math.max(0, Number(parsedResult.totalAmount) || 0);
+    const totalAmount = roundFigure(rawTotal);
+
+    // Sanitize tax amount (round figure)
+    const taxAmount = parsedResult.taxAmount ? roundFigure(Number(parsedResult.taxAmount)) : null;
+
+    // Sanitize items (round figure prices)
+    const items = (Array.isArray(parsedResult.items) ? parsedResult.items : []).map((it: any) => ({
+      name: String(it.name || "Item"),
+      price: roundFigure(Number(it.price) || 0),
+      qty: it.qty ? Number(it.qty) : undefined,
+    }));
 
     return NextResponse.json({
       ok: true,
@@ -163,8 +175,8 @@ CRITICAL RULES:
         currency,
         date: parsedResult.date || null,
         category,
-        taxAmount: parsedResult.taxAmount ? Number(parsedResult.taxAmount) : null,
-        items: Array.isArray(parsedResult.items) ? parsedResult.items : [],
+        taxAmount,
+        items,
         notes: parsedResult.notes || `Scanned bill from ${parsedResult.merchant || "Receipt"}`,
       },
     });

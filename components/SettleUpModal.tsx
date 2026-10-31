@@ -97,7 +97,7 @@ export default function SettleUpModal({
   const [payerId, setPayerId] = useState<string>(initialPayerId);
   const [receiverId, setReceiverId] = useState<string>(initialReceiverId);
   const [amount, setAmount] = useState<string>(
-    defaultAmount && defaultAmount > 0 ? defaultAmount.toFixed(2) : ""
+    defaultAmount && defaultAmount > 0 ? roundFigure(defaultAmount).toString() : ""
   );
 
   // Sync state whenever props change (e.g. clicking different friends in Friends Balances)
@@ -109,7 +109,7 @@ export default function SettleUpModal({
       setReceiverId(defaultReceiverId);
     }
     if (defaultAmount && defaultAmount > 0) {
-      setAmount(defaultAmount.toFixed(2));
+      setAmount(roundFigure(defaultAmount).toString());
     }
     setManualUpiOverride(null);
     setError("");
@@ -186,11 +186,11 @@ export default function SettleUpModal({
 
     // Auto-fill permissible obligation amount
     if (matching && matching.amountPaise > 0) {
-      setAmount((matching.amountPaise / 100).toFixed(2));
+      setAmount(roundFigure(matching.amountPaise / 100).toString());
     } else {
       const debt = balances[newPayerId] ?? 0;
       if (debt < 0) {
-        setAmount((Math.abs(debt) / 100).toFixed(2));
+        setAmount(roundFigure(Math.abs(debt) / 100).toString());
       }
     }
   }
@@ -207,7 +207,7 @@ export default function SettleUpModal({
     // Update suggested amount for this specific transfer if known
     const matching = transfers.find((t) => t.from === payerId && t.to === newReceiverId);
     if (matching) {
-      setAmount((matching.amountPaise / 100).toFixed(2));
+      setAmount(roundFigure(matching.amountPaise / 100).toString());
     }
   }
 
