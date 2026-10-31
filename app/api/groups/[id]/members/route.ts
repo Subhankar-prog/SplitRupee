@@ -7,36 +7,58 @@ interface Params {
   params: { id: string };
 }
 
-/** POST /api/groups/[id]/members: add member to group by userId, email, or phone number */
+async function resolveGroupId(rawId: string | undefined): Promise<string | null> {
+  const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
+  if (!cleanId) return null;
+  const group = await prisma.group.findFirst({
+    where: {
+      OR: [
+        { id: { equals: cleanId, mode: "insensitive" } },
+        { inviteCode: { equals: cleanId, mode: "insensitive" } },
+        { id: { startsWith: cleanId, mode: "insensitive" } },
+        { inviteCode: { startsWith: cleanId, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true },
+  });
+  return group?.id || null;
+}
+
+/** POST /api/groups/[id]/members: add member to group by userId, email, phone number, or name */
 export async function POST(req: Request, { params }: Params) {
   try {
-    const rawId = params?.id;
-    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
-    const groupRecord = await prisma.group.findFirst({
-      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
-      select: { id: true },
-    });
-    const groupId = groupRecord?.id || cleanId;
+    const groupId = await resolveGroupId(params?.id);
+    if (!groupId) {
+      return NextResponse.json({ ok: false, error: "GROUP_NOT_FOUND", message: "Group not found" }, { status: 404 });
+    }
+
     const body = await req.json();
     const { userId, email, phone, name, addedById } = body;
 
     let targetUserId = userId;
 
-    if (!targetUserId && (email || phone)) {
+    if (!targetUserId && (name || email || phone)) {
+      const cleanName = (name || "").trim();
       const cleanEmail = email ? email.trim().toLowerCase() : null;
       const cleanPhone = phone ? phone.trim().replace(/\D/g, "").slice(-10) : null;
+      const fallbackPhoneEmail = cleanPhone ? `${cleanPhone}@splitrupee.in` : null;
 
-      // 1. Search for existing registered or placeholder user by email OR phone
-      let user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            ...(cleanEmail ? [{ email: cleanEmail }] : []),
-            ...(cleanPhone ? [{ phone: cleanPhone }] : []),
-          ],
-        },
-      });
+      // 1. Search for existing registered or placeholder user
+      let user = null;
+      if (cleanEmail || cleanPhone) {
+        user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              ...(cleanEmail ? [{ email: { equals: cleanEmail, mode: "insensitive" as const } }] : []),
+              ...(fallbackPhoneEmail ? [{ email: { equals: fallbackPhoneEmail, mode: "insensitive" as const } }] : []),
+              ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+              ...(phone ? [{ phone: phone.trim() }] : []),
+            ],
+          },
+        });
+      }
 
-      // 2. If user already exists, update their phone if previously missing
+      // 2. If user already exists, update their phone if missing
       if (user) {
         if (cleanPhone && !user.phone) {
           user = await prisma.user.update({
@@ -46,61 +68,93 @@ export async function POST(req: Request, { params }: Params) {
         }
       } else {
         // 3. User does not exist yet: create a placeholder account
-        // When they later sign up using this email or mobile, they can claim the account & their groups auto-fetch!
+        // Unique fallback email ensures no collision even if added by name only
+        const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const fallbackEmail =
           cleanEmail ||
-          (cleanPhone ? `${cleanPhone}@splitrupee.in` : `user.${Date.now()}@splitrupee.in`);
+          (cleanPhone ? `${cleanPhone}@splitrupee.in` : `member_${uniqueSuffix}@splitrupee.in`);
         const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#3b82f6"];
         const chosenColor = colors[Math.floor(Math.random() * colors.length)];
 
-        user = await prisma.user.create({
-          data: {
-            name: (name || (cleanEmail ? cleanEmail.split("@")[0] : `Member ${cleanPhone}`)).trim(),
-            email: fallbackEmail,
-            phone: cleanPhone || null,
-            avatarColor: chosenColor,
-            passwordHash: null, // Invited placeholder until sign up
-          },
-        });
+        try {
+          user = await prisma.user.create({
+            data: {
+              name: cleanName || (cleanEmail ? cleanEmail.split("@")[0] : `Member ${cleanPhone || ""}`),
+              email: fallbackEmail,
+              phone: cleanPhone || null,
+              avatarColor: chosenColor,
+              passwordHash: null, // Invited placeholder until sign up
+            },
+          });
+        } catch (createErr: any) {
+          // If unique constraint collision occurs, recover by querying existing record
+          if (createErr.code === "P2002") {
+            user = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  ...(cleanEmail ? [{ email: { equals: cleanEmail, mode: "insensitive" as const } }] : []),
+                  ...(fallbackEmail ? [{ email: { equals: fallbackEmail, mode: "insensitive" as const } }] : []),
+                  ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+                ],
+              },
+            });
+          }
+          if (!user) throw createErr;
+        }
       }
-      targetUserId = user.id;
+      targetUserId = user?.id;
     }
 
     if (!targetUserId) {
-      return NextResponse.json({ ok: false, error: "User ID, Email, or Phone number is required" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Member name is required" }, { status: 400 });
     }
 
     const existingMembership = await prisma.groupMember.findUnique({
       where: {
         groupId_userId: { groupId, userId: targetUserId },
       },
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true } },
+      },
     });
 
     if (existingMembership) {
-      return NextResponse.json({ ok: false, error: "User is already a member of this group" }, { status: 400 });
+      return NextResponse.json({
+        ok: true,
+        member: { ...existingMembership.user, role: existingMembership.role },
+        message: "User is already a member of this group",
+        alreadyMember: true,
+      });
     }
 
     const membership = await prisma.groupMember.create({
       data: { groupId, userId: targetUserId },
       include: {
-        user: { select: { id: true, name: true, email: true, avatarColor: true } },
+        user: { select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true } },
       },
     });
 
     // Write to Activity Log
     if (addedById) {
-      await prisma.activityLog.create({
-        data: {
-          groupId,
-          userId: addedById,
-          action: "MEMBER_ADDED",
-          entityTitle: membership.user.name,
-          details: `Added ${membership.user.name} to the group`,
-        },
-      });
+      try {
+        await prisma.activityLog.create({
+          data: {
+            groupId,
+            userId: addedById,
+            action: "MEMBER_ADDED",
+            entityTitle: membership.user.name,
+            details: `Added ${membership.user.name} to the group`,
+          },
+        });
+      } catch (logErr) {
+        console.warn("Failed to write MEMBER_ADDED activity log:", logErr);
+      }
     }
 
-    return NextResponse.json({ ok: true, member: membership.user });
+    return NextResponse.json({
+      ok: true,
+      member: { ...membership.user, role: "MEMBER" as const },
+    });
   } catch (e) {
     console.error("[POST /api/groups/[id]/members]", e);
     return NextResponse.json({ ok: false, error: "FAILED_TO_ADD_MEMBER" }, { status: 500 });
@@ -110,13 +164,10 @@ export async function POST(req: Request, { params }: Params) {
 /** PATCH /api/groups/[id]/members: promote or demote a member (make admin / remove admin) */
 export async function PATCH(req: Request, { params }: Params) {
   try {
-    const rawId = params?.id;
-    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
-    const groupRecord = await prisma.group.findFirst({
-      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
-      select: { id: true },
-    });
-    const groupId = groupRecord?.id || cleanId;
+    const groupId = await resolveGroupId(params?.id);
+    if (!groupId) {
+      return NextResponse.json({ ok: false, error: "GROUP_NOT_FOUND" }, { status: 404 });
+    }
     const body = await req.json();
     const { targetUserId, role, performedById } = body;
 
@@ -171,13 +222,10 @@ export async function PATCH(req: Request, { params }: Params) {
 /** DELETE /api/groups/[id]/members: remove member from group or handle exit with random admin promotion */
 export async function DELETE(req: Request, { params }: Params) {
   try {
-    const rawId = params?.id;
-    const cleanId = typeof rawId === "string" ? decodeURIComponent(rawId).trim() : "";
-    const groupRecord = await prisma.group.findFirst({
-      where: { OR: [{ id: cleanId }, { inviteCode: cleanId }] },
-      select: { id: true },
-    });
-    const groupId = groupRecord?.id || cleanId;
+    const groupId = await resolveGroupId(params?.id);
+    if (!groupId) {
+      return NextResponse.json({ ok: false, error: "GROUP_NOT_FOUND" }, { status: 404 });
+    }
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
     const removedById = searchParams.get("removedById");

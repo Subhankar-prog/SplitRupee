@@ -167,9 +167,9 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       return;
     }
     const cached = getCachedGroup(groupId);
-    if (cached) {
+    if (isInitial && cached) {
       setGroup(cached);
-      if (isInitial && cached.expenses && cached.expenses.length > 0) {
+      if (cached.expenses && cached.expenses.length > 0) {
         setLoading(false);
       }
     } else if (isInitial && !groupRef.current) {
@@ -187,7 +187,10 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       if (data.ok && data.group) {
         setGroup(data.group);
         saveCachedGroup(groupId, data.group);
-      } else {
+        if (data.group.id && data.group.id !== groupId) {
+          saveCachedGroup(data.group.id, data.group);
+        }
+      } else if (!groupRef.current) {
         const fallback = getCachedGroup(groupId);
         if (fallback) {
           setGroup(fallback);
@@ -195,9 +198,11 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       }
     } catch (e) {
       console.warn("Failed to load group (offline mode active):", e);
-      const fallback = getCachedGroup(groupId);
-      if (fallback) {
-        setGroup(fallback);
+      if (!groupRef.current) {
+        const fallback = getCachedGroup(groupId);
+        if (fallback) {
+          setGroup(fallback);
+        }
       }
     } finally {
       setLoading(false);
@@ -1555,14 +1560,37 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {showAddMember && (
         <AddMemberModal
-          groupId={groupId}
-          groupName={group.name}
-          inviteCode={group.inviteCode}
+          groupId={group?.id || groupId}
+          groupName={group?.name || ""}
+          inviteCode={group?.inviteCode}
           existingMembers={members}
           onClose={() => setShowAddMember(false)}
-          onAdded={() => {
+          onAdded={(newMember) => {
             setShowAddMember(false);
-            loadGroup();
+            if (newMember) {
+              setGroup((prev: any) => {
+                if (!prev) return prev;
+                const prevMembers = prev.members || [];
+                const alreadyExists = prevMembers.some((m: any) => m.id === newMember.id);
+                if (alreadyExists) return prev;
+                const formattedMember = {
+                  id: newMember.id,
+                  name: newMember.name,
+                  email: newMember.email || null,
+                  phone: newMember.phone || null,
+                  avatarColor: newMember.avatarColor || "#10b981",
+                  upiId: newMember.upiId || null,
+                  role: "MEMBER" as const,
+                };
+                const updatedGroup = {
+                  ...prev,
+                  members: [...prevMembers, formattedMember],
+                };
+                saveCachedGroup(prev.id || groupId, updatedGroup);
+                return updatedGroup;
+              });
+            }
+            loadGroup(false);
           }}
         />
       )}

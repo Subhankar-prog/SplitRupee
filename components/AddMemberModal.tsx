@@ -18,7 +18,7 @@ export default function AddMemberModal({
   groupName?: string;
   existingMembers: MemberDTO[];
   onClose: () => void;
-  onAdded: () => void;
+  onAdded: (newMember?: any) => void;
 }) {
   const { currentUser, refreshUsers } = useUser();
   const [tab, setTab] = useState<"link" | "new">("link");
@@ -62,16 +62,24 @@ export default function AddMemberModal({
       setError("Member name is required");
       return;
     }
-    if (!cleanEmail && !cleanPhone) {
-      setError("Please provide at least an Email address or Mobile number");
-      return;
-    }
     if (cleanEmail && (!cleanEmail.includes("@") || !cleanEmail.includes("."))) {
       setError("Please enter a valid email address");
       return;
     }
     if (cleanPhone && cleanPhone.length !== 10) {
       setError("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    // Check if already in existingMembers list
+    const isAlreadyMember = existingMembers?.some((m) => {
+      const matchEmail = cleanEmail && m.email && m.email.toLowerCase() === cleanEmail.toLowerCase();
+      const matchPhone = cleanPhone && m.phone && m.phone.replace(/\D/g, "").slice(-10) === cleanPhone;
+      return matchEmail || matchPhone;
+    });
+
+    if (isAlreadyMember) {
+      setError("This member is already in the group.");
       return;
     }
 
@@ -89,9 +97,16 @@ export default function AddMemberModal({
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to add member");
-      await refreshUsers();
-      onAdded();
+      if (!res.ok || !data.ok) throw new Error(data.message || data.error || "Failed to add member");
+      
+      // Notify parent immediately with newly added member
+      onAdded(data.member);
+
+      // Trigger user context refresh in background
+      refreshUsers().catch(() => {});
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("splitrupee_refresh"));
+      }
     } catch (e: any) {
       setError(e.message || "Something went wrong");
     } finally {
@@ -221,7 +236,7 @@ export default function AddMemberModal({
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                <span>Mobile Number (Phone)</span>
+                <span>Mobile Number (Optional)</span>
                 <span className="text-[10px] text-slate-400">10-digit</span>
               </label>
               <div className="relative mt-1">
@@ -238,8 +253,7 @@ export default function AddMemberModal({
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                <span>Email Address</span>
-                <span className="text-[10px] text-slate-400">Optional if phone provided</span>
+                <span>Email Address (Optional)</span>
               </label>
               <input
                 type="email"
@@ -250,7 +264,7 @@ export default function AddMemberModal({
               />
             </div>
             <p className="text-[10.5px] text-emerald-400/90 leading-relaxed bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5">
-              💡 When this friend signs up using this email or mobile number, this group and their balances will automatically appear on their screen.
+              💡 You can add by name only, or include their mobile/email so their expenses auto-sync as soon as they sign up.
             </p>
             <div className="flex gap-2 pt-2">
               <button
