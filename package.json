@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "pro": "tsx scripts/grantPro.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
