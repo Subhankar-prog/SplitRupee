@@ -206,7 +206,7 @@ export const VERIFIED_LOCAL_GROUND_DATA: LocalGroundContext[] = [
 
   // 4. Puri / Odisha Coast
   {
-    destinationKeys: ["puri", "konark", "chilika", "bhubaneswar", "cuttack"],
+    destinationKeys: ["puri", "konark", "chilika", "Manatri", "cuttack"],
     hotels: [
       {
         name: "Chakra Tirtha Backpacker Lodges / Homestays, Puri",
@@ -432,7 +432,7 @@ export function getVerifiedHotelForBudget(destination: string, maxNightlyBudget:
 export function isDemoPhoneNumber(phoneStr: string | null | undefined): boolean {
   if (!phoneStr) return false;
   const cleaned = phoneStr.replace(/[\s\-\+\(\)\.]/g, "");
-  
+
   if (/987654321\d?/i.test(cleaned)) return true;
   if (/123456789/i.test(cleaned)) return true;
   if (/^0{6,}/.test(cleaned)) return true;

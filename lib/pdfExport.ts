@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { MemberDTO, ExpenseDTO, PaymentDTO } from "./types";
 import type { Transfer } from "./debt";
+import { roundFigure } from "./money";
 
 /**
  * Cleans string of Unicode characters that break in standard jsPDF WinAnsi fonts.
@@ -126,7 +127,7 @@ export function exportItineraryPDF(itineraryData: {
   doc.setTextColor(148, 163, 184); // slate-400
   doc.text("Curated itinerary with transit telemetry, stays, and budget optimization", margin + 17, y + 15);
 
-  // Trip Route Header (Bhubaneswar -> Goa with clean ASCII arrow)
+  // Trip Route Header (Manatri -> Goa with clean ASCII arrow)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(52, 211, 153); // emerald-400
@@ -637,7 +638,7 @@ export function exportGroupLedgerPDF(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text(`INR ${totalSpend.toFixed(2)}`, margin + 4, y + 8);
+  doc.text(`INR ${roundFigure(totalSpend)}`, margin + 4, y + 8);
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(`Total Group Expenses (${expenses.length})`, margin + 4, y + 13);
@@ -646,7 +647,7 @@ export function exportGroupLedgerPDF(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(5, 150, 105);
-  doc.text(`INR ${totalReconciled.toFixed(2)}`, margin + statW + 4, y + 8);
+  doc.text(`INR ${roundFigure(totalReconciled)}`, margin + statW + 4, y + 8);
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(`Direct Settlements Paid (${payments.length})`, margin + statW + 4, y + 13);
@@ -713,21 +714,21 @@ export function exportGroupLedgerPDF(
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(51, 65, 85);
-    doc.text(`INR ${(memberPaid[m.id] || 0).toFixed(2)}`, margin + 65, y + 4.5);
-    doc.text(`INR ${(memberShare[m.id] || 0).toFixed(2)}`, margin + 105, y + 4.5);
+    doc.text(`INR ${roundFigure(memberPaid[m.id] || 0)}`, margin + 65, y + 4.5);
+    doc.text(`INR ${roundFigure(memberShare[m.id] || 0)}`, margin + 105, y + 4.5);
 
     doc.setFont("helvetica", "bold");
     if (netINR > 0) {
       doc.setTextColor(5, 150, 105);
-      doc.text(`+INR ${netINR.toFixed(2)}`, margin + 145, y + 4.5);
+      doc.text(`+INR ${roundFigure(netINR)}`, margin + 145, y + 4.5);
       doc.text("Gets Back", pageWidth - margin - 3, y + 4.5, { align: "right" });
     } else if (netINR < 0) {
       doc.setTextColor(225, 29, 72); // rose-600
-      doc.text(`-INR ${Math.abs(netINR).toFixed(2)}`, margin + 145, y + 4.5);
+      doc.text(`-INR ${roundFigure(Math.abs(netINR))}`, margin + 145, y + 4.5);
       doc.text("Owes", pageWidth - margin - 3, y + 4.5, { align: "right" });
     } else {
       doc.setTextColor(100, 116, 139);
-      doc.text("INR 0.00", margin + 145, y + 4.5);
+      doc.text("INR 0", margin + 145, y + 4.5);
       doc.text("Settled", pageWidth - margin - 3, y + 4.5, { align: "right" });
     }
 
@@ -775,7 +776,7 @@ export function exportGroupLedgerPDF(
 
       doc.setFont("helvetica", "bold");
       doc.setTextColor(5, 150, 105);
-      doc.text(`INR ${(t.amountPaise / 100).toFixed(2)}`, margin + 130, y + 5);
+      doc.text(`INR ${roundFigure(t.amountPaise / 100)}`, margin + 130, y + 5);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
@@ -840,7 +841,7 @@ export function exportGroupLedgerPDF(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(`INR ${e.totalAmount.toFixed(2)}`, pageWidth - margin - 3, y + 4.5, { align: "right" });
+    doc.text(`INR ${roundFigure(e.totalAmount)}`, pageWidth - margin - 3, y + 4.5, { align: "right" });
 
     y += 6.5;
   });

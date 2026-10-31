@@ -91,7 +91,9 @@ export function validateSplitInput(
 
   if (splitType === "EQUAL") {
     const weights = new Array(inputs.length).fill(1);
-    const amounts = allocateByWeights(totalPaise, weights);
+    const wholeRupees = Math.round(totalPaise / 100);
+    const rupeeAllocations = allocateByWeights(wholeRupees, weights);
+    const amounts = rupeeAllocations.map((r) => r * 100);
     const pcts = allocateByWeights(BP_TOTAL, weights).map((bp) => bp / 100);
     return {
       ok: true,
@@ -119,7 +121,9 @@ export function validateSplitInput(
         errors: [`Percentages must total exactly 100.00% (currently ${(sum / 100).toFixed(2)}%)`],
       };
     }
-    const amounts = allocateByWeights(totalPaise, bps);
+    const wholeRupees = Math.round(totalPaise / 100);
+    const rupeeAllocations = allocateByWeights(wholeRupees, bps);
+    const amounts = rupeeAllocations.map((r) => r * 100);
     return {
       ok: true,
       totalPaise,
@@ -176,8 +180,9 @@ export function equalPercentages(n: number): number[] {
   return allocateByWeights(BP_TOTAL, new Array(n).fill(1)).map((bp) => bp / 100);
 }
 
-/** Rupee amounts for an n-way equal split of a bill that total exactly the bill. */
+/** Rupee amounts for an n-way equal split of a bill (whole round rupees with zero variance). */
 export function equalAmounts(totalAmount: number, n: number): number[] {
   if (n <= 0) return [];
-  return allocateByWeights(toPaise(totalAmount), new Array(n).fill(1)).map((p) => p / 100);
+  const roundedRupees = Math.round(toPaise(totalAmount) / 100);
+  return allocateByWeights(roundedRupees, new Array(n).fill(1));
 }

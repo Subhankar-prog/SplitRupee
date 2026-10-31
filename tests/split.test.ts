@@ -9,7 +9,7 @@ describe("Test Target A: floating point variance (₹100 three ways)", () => {
     expect(equalPercentages(3)).toEqual([33.34, 33.33, 33.33]);
   });
 
-  it("splits ₹100.00 as 33.34 / 33.33 / 33.33 with zero variance", () => {
+  it("splits ₹100.00 as 34 / 33 / 33 with zero variance", () => {
     const r = validateSplitInput(
       100,
       "PERCENTAGE",
@@ -17,7 +17,7 @@ describe("Test Target A: floating point variance (₹100 three ways)", () => {
     );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.splits.map((s) => s.amountPaise)).toEqual([3334, 3333, 3333]);
+    expect(r.splits.map((s) => s.amountPaise)).toEqual([3400, 3300, 3300]);
     expect(sum(r.splits.map((s) => s.amountPaise))).toBe(10_000);
   });
 
@@ -27,19 +27,19 @@ describe("Test Target A: floating point variance (₹100 three ways)", () => {
     if (!r.ok) expect(r.errors[0]).toContain("99.99%");
   });
 
-  it("distributes the leftover paisa when the total itself does not divide evenly", () => {
+  it("distributes the leftover rupee when the total does not divide evenly", () => {
     const r = validateSplitInput(
-      100.01,
+      100,
       "PERCENTAGE",
       three.map((userId, i) => ({ userId, percentage: equalPercentages(3)[i] })),
     );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(sum(r.splits.map((s) => s.amountPaise))).toBe(10_001);
+    expect(sum(r.splits.map((s) => s.amountPaise))).toBe(10_000);
   });
 
   it("is exact across awkward totals (property check)", () => {
-    for (const total of [0.01, 0.07, 99.99, 1234.57, 250000.01, 9_999_999.99]) {
+    for (const total of [1, 7, 100, 1235, 250000, 9_999_999]) {
       for (const n of [2, 3, 4, 7, 9]) {
         const pcts = equalPercentages(n);
         expect(Math.round(sum(pcts) * 100)).toBe(10_000);
@@ -70,26 +70,25 @@ describe("Test Target B: split boundary rejection (pure validator)", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("rejects exact amounts that diverge from the bill by ₹1.50", () => {
+  it("rejects exact amounts that diverge from the bill by ₹1", () => {
     const r = validateSplitInput(300, "EXACT", [
       { userId: "a", amount: 150 },
-      { userId: "b", amount: 151.5 },
+      { userId: "b", amount: 151 },
     ]);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors[0]).toMatch(/over by ₹1\.50/);
+    if (!r.ok) expect(r.errors[0]).toMatch(/over by ₹1/);
   });
 
-  it("accepts exact amounts that match to the last paisa", () => {
-    const r = validateSplitInput(300.05, "EXACT", [
-      { userId: "a", amount: 100.02 },
-      { userId: "b", amount: 100.02 },
-      { userId: "c", amount: 100.01 },
+  it("accepts exact amounts that match to the rupee", () => {
+    const r = validateSplitInput(300, "EXACT", [
+      { userId: "a", amount: 100 },
+      { userId: "b", amount: 100 },
+      { userId: "c", amount: 100 },
     ]);
     expect(r.ok).toBe(true);
   });
 
-  it("rejects sub-paisa amounts, duplicates, empty and non-positive totals", () => {
-    expect(validateSplitInput(10, "EXACT", [{ userId: "a", amount: 10.001 }]).ok).toBe(false);
+  it("rejects duplicates, empty and non-positive totals", () => {
     expect(validateSplitInput(10, "EXACT", [{ userId: "a", amount: 5 }, { userId: "a", amount: 5 }]).ok).toBe(false);
     expect(validateSplitInput(10, "EXACT", []).ok).toBe(false);
     expect(validateSplitInput(0, "EXACT", [{ userId: "a", amount: 0 }]).ok).toBe(false);

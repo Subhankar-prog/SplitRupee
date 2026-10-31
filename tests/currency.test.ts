@@ -92,15 +92,15 @@ describe("Global Multi-Currency Engine (lib/currencies.ts)", () => {
     expect(customRes.rate).toBe(0.635);
   });
 
-  it("formats foreign currency amounts with their proper symbol and locale formatting", () => {
+  it("formats foreign currency amounts with their proper symbol and round figure formatting", () => {
     const formattedNPR = formatCurrencyAmount(1250.5, "NPR");
-    expect(formattedNPR).toBe("रू1,250.50");
+    expect(formattedNPR).toBe("रू1,250");
 
     const formattedTHB = formatCurrencyAmount(3000, "THB");
-    expect(formattedTHB).toBe("฿3,000.00");
+    expect(formattedTHB).toBe("฿3,000");
 
     const formattedUSD = formatCurrencyAmount(99.99, "USD");
-    expect(formattedUSD).toBe("$99.99");
+    expect(formattedUSD).toBe("$100");
   });
 });
 
@@ -145,8 +145,8 @@ describe("Multi-Currency Expense Payload Validation & Split Engine", () => {
     expect(computed.totalPaise).toBe(62500);
     const sumPaise = computed.splits.reduce((acc, s) => acc + s.amountPaise, 0);
     expect(sumPaise).toBe(62500);
-    expect(computed.splits[0].amountPaise).toBe(20834);
-    expect(computed.splits[1].amountPaise).toBe(20833);
-    expect(computed.splits[2].amountPaise).toBe(20833);
+    expect(computed.splits[0].amountPaise).toBe(20900);
+    expect(computed.splits[1].amountPaise).toBe(20800);
+    expect(computed.splits[2].amountPaise).toBe(20800);
   });
 });

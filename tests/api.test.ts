@@ -29,7 +29,7 @@ describe("POST /api/expenses", () => {
     const res = await post(base);
     expect(res.status).toBe(201);
     expect(db.expenses).toHaveLength(1);
-    expect(db.splits.map((s) => s.amount)).toEqual([33.34, 33.33, 33.33]);
+    expect(db.splits.map((s) => s.amount)).toEqual([34, 33, 33]);
   });
 
   it("Target B: 99.5% payload is rejected with 422 and never opens a transaction", async () => {

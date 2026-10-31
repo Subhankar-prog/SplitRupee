@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Send,
 } from "lucide-react";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundFigure } from "@/lib/money";
 
 interface WhatsAppReminderModalProps {
   isOpen: boolean;
@@ -58,11 +58,11 @@ export default function WhatsAppReminderModal({
         : cleanPhone
       : "";
 
-  // Standard UPI URI format for Indian payments
+  // Standard UPI URI format for Indian payments (whole round figures)
   const upiUri = creditorUpiId
     ? `upi://pay?pa=${encodeURIComponent(creditorUpiId)}&pn=${encodeURIComponent(
         creditorName
-      )}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(
+      )}&am=${roundFigure(amount)}&cu=INR&tn=${encodeURIComponent(
         `SplitRupee settle for ${groupName}`
       )}`
     : "";

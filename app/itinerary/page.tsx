@@ -6,31 +6,31 @@ import MovieTrailerItineraryLoader from "@/components/MovieTrailerItineraryLoade
 import ThemeSelect from "@/components/ThemeSelect";
 import { isDemoPhoneNumber } from "@/lib/localGroundData";
 import { exportItineraryPDF } from "@/lib/pdfExport";
-import { 
-  Loader2, 
-  ArrowRight, 
-  MapPin, 
-  Calendar, 
-  Users, 
-  Wallet, 
-  Train, 
-  Hotel, 
-  Bus, 
-  Plane, 
-  Car, 
-  Activity, 
-  FileText, 
-  Download, 
-  CheckCircle2, 
-  ChevronRight, 
-  Phone, 
-  Sparkles, 
-  MessageSquare, 
-  TrendingUp, 
+import {
+  Loader2,
+  ArrowRight,
+  MapPin,
+  Calendar,
+  Users,
+  Wallet,
+  Train,
+  Hotel,
+  Bus,
+  Plane,
+  Car,
+  Activity,
+  FileText,
+  Download,
+  CheckCircle2,
+  ChevronRight,
+  Phone,
+  Sparkles,
+  MessageSquare,
+  TrendingUp,
   Compass,
   Info,
   AlertCircle,
-  X 
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -69,8 +69,8 @@ export default function ItineraryPage() {
   });
 
   const DUMMY_WORDS = [
-    "demo", "test", "testing", "sample", "example", "dummy", "fake", 
-    "placeholder", "asdf", "qwerty", "temp", "trial", "xxx", "foo", "bar", 
+    "demo", "test", "testing", "sample", "example", "dummy", "fake",
+    "placeholder", "asdf", "qwerty", "temp", "trial", "xxx", "foo", "bar",
     "none", "null", "undefined", "na", "n/a", "city", "origin", "destination",
     "somewhere", "anywhere", "abcd", "xyz"
   ];
@@ -102,7 +102,7 @@ export default function ItineraryPage() {
           const end = new Date(start.getTime() + numNights * 86400000).toISOString().split("T")[0];
           setForm({ ...form, nights: numNights, endDate: end });
           return;
-        } catch {}
+        } catch { }
       }
       setForm({ ...form, nights: numNights });
     } else if (name === "startDate") {
@@ -115,14 +115,14 @@ export default function ItineraryPage() {
             const newEnd = new Date(start.getTime() + nightsCount * 86400000).toISOString().split("T")[0];
             setForm({ ...form, startDate: value, endDate: newEnd });
             return;
-          } catch {}
+          } catch { }
         } else if (form.nights) {
           try {
             const start = new Date(value);
             const end = new Date(start.getTime() + (Number(form.nights) || 4) * 86400000).toISOString().split("T")[0];
             setForm({ ...form, startDate: value, endDate: end });
             return;
-          } catch {}
+          } catch { }
         }
       }
       setForm({ ...form, startDate: value });
@@ -139,7 +139,7 @@ export default function ItineraryPage() {
           const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
           setForm({ ...form, endDate: value, nights: diffDays });
           return;
-        } catch {}
+        } catch { }
       }
       setForm({ ...form, endDate: value });
     } else {
@@ -159,7 +159,7 @@ export default function ItineraryPage() {
     }
 
     if (isInvalidOrDemoLocation(orig)) {
-      setError(`"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Bhubaneswar, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`);
+      setError(`"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Manatri, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`);
       return;
     }
 
@@ -213,13 +213,13 @@ export default function ItineraryPage() {
       const res = await fetch("/api/itinerary/v2", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          ...form, 
+        body: JSON.stringify({
+          ...form,
           budget: effectiveBudget,
           nights: effectiveNights,
           travellers: effectiveTravellers,
           stayBudget: effectiveStayBudget,
-          transportPref 
+          transportPref
         })
       });
       const data = await res.json();
@@ -324,7 +324,7 @@ export default function ItineraryPage() {
           {/* Top Horizontal Input Console */}
           <div className="itinerary-form-console-card relative z-10 w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:hidden">
             <form onSubmit={handleGenerate} className="itinerary-generator-form space-y-6">
-              
+
               {/* Row 1: Core Routing, Dates (Start & End), Duration (Days & Nights), Travellers, Group */}
               <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-20">
                 {/* 1. Origin */}
@@ -334,13 +334,13 @@ export default function ItineraryPage() {
                       <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Origin
                     </label>
                   </div>
-                  <input 
-                    name="origin" 
-                    value={form.origin} 
-                    onChange={handleChange} 
+                  <input
+                    name="origin"
+                    value={form.origin}
+                    onChange={handleChange}
                     required
-                    placeholder="e.g. Bhubaneswar, Mumbai"
-                    className="origin-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
+                    placeholder="e.g. Manatri, Mumbai"
+                    className="origin-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
                   />
                 </div>
 
@@ -351,13 +351,13 @@ export default function ItineraryPage() {
                       <MapPin className="h-3.5 w-3.5 text-teal-400 shrink-0" /> Destination
                     </label>
                   </div>
-                  <input 
-                    name="destination" 
-                    value={form.destination} 
-                    onChange={handleChange} 
+                  <input
+                    name="destination"
+                    value={form.destination}
+                    onChange={handleChange}
                     required
                     placeholder="e.g. Darjeeling, Goa, Manali"
-                    className="destination-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
+                    className="destination-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
                   />
                 </div>
 
@@ -368,13 +368,13 @@ export default function ItineraryPage() {
                       <Calendar className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Start Date
                     </label>
                   </div>
-                  <input 
-                    type="date" 
-                    name="startDate" 
-                    value={form.startDate} 
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={form.startDate}
                     min={new Date().toISOString().split("T")[0]}
-                    onChange={handleChange} 
-                    className="start-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
+                    onChange={handleChange}
+                    className="start-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]"
                   />
                 </div>
 
@@ -385,13 +385,13 @@ export default function ItineraryPage() {
                       <Calendar className="h-3.5 w-3.5 text-teal-400 shrink-0" /> End Date (Return)
                     </label>
                   </div>
-                  <input 
-                    type="date" 
-                    name="endDate" 
-                    value={form.endDate} 
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={form.endDate}
                     min={form.startDate ? new Date(new Date(form.startDate).getTime() + 86400000).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]}
-                    onChange={handleChange} 
-                    className="end-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]" 
+                    onChange={handleChange}
+                    className="end-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]"
                   />
                 </div>
 
@@ -404,15 +404,15 @@ export default function ItineraryPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input 
-                      type="number" 
-                      name="nights" 
+                    <input
+                      type="number"
+                      name="nights"
                       min="1"
                       max="30"
                       placeholder="e.g. 5"
-                      value={form.nights} 
-                      onChange={handleChange} 
-                      className="nights-count-input duration-nights-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500" 
+                      value={form.nights}
+                      onChange={handleChange}
+                      className="nights-count-input duration-nights-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
                     />
                     <span className="duration-nights-unit text-xs text-slate-400 font-mono whitespace-nowrap">Nights</span>
                   </div>
@@ -426,14 +426,14 @@ export default function ItineraryPage() {
                     </label>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <input 
-                      type="number" 
-                      name="travellers" 
+                    <input
+                      type="number"
+                      name="travellers"
                       min="1"
                       placeholder="e.g. 2"
-                      value={form.travellers} 
-                      onChange={handleChange} 
-                      className="travellers-count-input h-11 w-full bg-slate-950/70 rounded-xl px-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center placeholder:text-slate-500" 
+                      value={form.travellers}
+                      onChange={handleChange}
+                      className="travellers-count-input h-11 w-full bg-slate-950/70 rounded-xl px-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center placeholder:text-slate-500"
                     />
                     <ThemeSelect
                       semanticName="group-type"
@@ -461,14 +461,14 @@ export default function ItineraryPage() {
                         : "e.g. ~₹15,000/person"}
                     </span>
                   </div>
-                  <input 
-                    type="number" 
-                    name="budget" 
+                  <input
+                    type="number"
+                    name="budget"
                     step="1000"
                     placeholder="e.g. 30000"
-                    value={form.budget} 
-                    onChange={handleChange} 
-                    className="total-group-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm placeholder:text-slate-500" 
+                    value={form.budget}
+                    onChange={handleChange}
+                    className="total-group-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm placeholder:text-slate-500"
                   />
                 </div>
 
@@ -480,14 +480,14 @@ export default function ItineraryPage() {
                     </label>
                     <span className="stay-budget-customizable-tag text-[10px] text-teal-300 shrink-0 ml-1">Customizable</span>
                   </div>
-                  <input 
-                    type="number" 
-                    name="stayBudget" 
+                  <input
+                    type="number"
+                    name="stayBudget"
                     step="100"
                     placeholder="e.g. 2500"
-                    value={form.stayBudget} 
-                    onChange={handleChange} 
-                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm placeholder:text-slate-500" 
+                    value={form.stayBudget}
+                    onChange={handleChange}
+                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm placeholder:text-slate-500"
                   />
                 </div>
 
@@ -544,12 +544,12 @@ export default function ItineraryPage() {
                   {/* Train */}
                   <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
                     <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        name="transportTrain" 
-                        checked={form.transportTrain} 
-                        onChange={handleChange} 
-                        className="transit-train-checkbox accent-emerald-500" 
+                      <input
+                        type="checkbox"
+                        name="transportTrain"
+                        checked={form.transportTrain}
+                        onChange={handleChange}
+                        className="transit-train-checkbox accent-emerald-500"
                       />
                       <Train className="h-4 w-4 text-cyan-500 dark:text-cyan-400" /> Train
                     </label>
@@ -581,12 +581,12 @@ export default function ItineraryPage() {
                   {/* Bus / Coach */}
                   <div className="transit-bus-card bus-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
                     <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        name="transportBus" 
-                        checked={form.transportBus} 
-                        onChange={handleChange} 
-                        className="transit-bus-checkbox accent-emerald-500" 
+                      <input
+                        type="checkbox"
+                        name="transportBus"
+                        checked={form.transportBus}
+                        onChange={handleChange}
+                        className="transit-bus-checkbox accent-emerald-500"
                       />
                       <Bus className="h-4 w-4 text-amber-500 dark:text-amber-400" /> Bus / Coach
                     </label>
@@ -615,12 +615,12 @@ export default function ItineraryPage() {
                   {/* Flight */}
                   <div className="transit-flight-card flight-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
                     <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        name="transportFlight" 
-                        checked={form.transportFlight} 
-                        onChange={handleChange} 
-                        className="transit-flight-checkbox accent-emerald-500" 
+                      <input
+                        type="checkbox"
+                        name="transportFlight"
+                        checked={form.transportFlight}
+                        onChange={handleChange}
+                        className="transit-flight-checkbox accent-emerald-500"
                       />
                       <Plane className="h-4 w-4 text-sky-500 dark:text-sky-400" /> Flight
                     </label>
@@ -646,12 +646,12 @@ export default function ItineraryPage() {
                   {/* Cab / Road */}
                   <div className="transit-cab-rental-card cab-rental-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between shadow-sm">
                     <label className="transit-cab-rental-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        name="transportRoad" 
-                        checked={form.transportRoad} 
-                        onChange={handleChange} 
-                        className="transit-cab-rental-checkbox accent-emerald-500" 
+                      <input
+                        type="checkbox"
+                        name="transportRoad"
+                        checked={form.transportRoad}
+                        onChange={handleChange}
+                        className="transit-cab-rental-checkbox accent-emerald-500"
                       />
                       <Car className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /> Cab / Rental / Shared Jeep
                     </label>
@@ -671,12 +671,12 @@ export default function ItineraryPage() {
                       <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" /> Interests & Activities
                     </label>
                   </div>
-                  <input 
-                    name="interests" 
-                    value={form.interests} 
-                    onChange={handleChange} 
+                  <input
+                    name="interests"
+                    value={form.interests}
+                    onChange={handleChange}
                     placeholder="e.g. Culture, Scenery, Trekking, Cafes, Local Food"
-                    className="interests-activities-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500" 
+                    className="interests-activities-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500"
                   />
                 </div>
 
@@ -688,12 +688,12 @@ export default function ItineraryPage() {
                     </label>
                     <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">Dietary, senior citizens, views...</span>
                   </div>
-                  <input 
-                    name="specialNotes" 
-                    value={form.specialNotes} 
-                    onChange={handleChange} 
-                    placeholder="e.g. Early departure, pure vegetarian food, senior-friendly stairs, mountain/beach view..." 
-                    className="remarks-special-instructions-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500" 
+                  <input
+                    name="specialNotes"
+                    value={form.specialNotes}
+                    onChange={handleChange}
+                    placeholder="e.g. Early departure, pure vegetarian food, senior-friendly stairs, mountain/beach view..."
+                    className="remarks-special-instructions-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500"
                   />
                 </div>
               </div>
@@ -709,8 +709,8 @@ export default function ItineraryPage() {
                   </span>
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={loading}
                   className="generate-elite-itinerary-button w-full sm:w-auto min-w-[260px] flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-8 rounded-xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 text-sm tracking-wide shrink-0"
                 >
@@ -801,14 +801,14 @@ export default function ItineraryPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button 
+                    <button
                       onClick={() => setIsCopilotOpen(true)}
                       className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-sm transition"
                     >
                       <MessageSquare className="h-4 w-4" /> Copilot
                     </button>
-                    <button 
-                      onClick={handleDownloadPDF} 
+                    <button
+                      onClick={handleDownloadPDF}
                       className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
                       title="Download Theme-Based Trip Blueprint PDF"
                     >
@@ -824,11 +824,10 @@ export default function ItineraryPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Estimated Trip Budget</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            financialSummary.budgetStatus === 'UNDER_BUDGET' 
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${financialSummary.budgetStatus === 'UNDER_BUDGET'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                               : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          }`}>
+                            }`}>
                             {financialSummary.budgetStatus === 'UNDER_BUDGET' ? '✓ UNDER BUDGET' : '⚠️ AT BUDGET LIMIT'}
                           </span>
                         </div>
@@ -869,7 +868,7 @@ export default function ItineraryPage() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* PDF Print Header */}
                 <div className="hidden print:block mb-8">
                   <h1 className="text-4xl font-bold text-black border-b-2 border-black pb-4 mb-4">Trip to {form.destination}</h1>
@@ -879,20 +878,20 @@ export default function ItineraryPage() {
 
                 {/* Tabs */}
                 <div className="flex border-b border-white/10 mb-6 print:hidden">
-                  <button 
-                    onClick={() => setActiveTab('itinerary')} 
+                  <button
+                    onClick={() => setActiveTab('itinerary')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'itinerary' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
                     Detailed Itinerary
                   </button>
-                  <button 
-                    onClick={() => setActiveTab('equipments')} 
+                  <button
+                    onClick={() => setActiveTab('equipments')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'equipments' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
                     Equipments ({result.equipments?.length || 0})
                   </button>
-                  <button 
-                    onClick={() => setActiveTab('tips')} 
+                  <button
+                    onClick={() => setActiveTab('tips')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'tips' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
                     Travel Tips ({result.tips?.length || 0})
@@ -1025,7 +1024,7 @@ export default function ItineraryPage() {
       <AnimatePresence>
         {isCopilotOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
-      origin = "Bhubaneswar",
+      origin = "Manatri",
       destination = "Nepal",
       startDate = new Date().toISOString().split("T")[0],
       endDate = new Date(Date.now() + 9 * 86400000).toISOString().split("T")[0],
@@ -47,13 +47,12 @@ export async function POST(req: Request) {
       try {
         const { GoogleGenerativeAI } = await import("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        
+
         let model;
-        const systemInstruction = `You are a strict, real-world verified travel engine for Indian Railways, international transit, hotels, and local transport. You PRIORITIZE ACCURACY AND VERIFICATION OVER SPEED. Take all necessary processing time to search, analyze, and validate real-world routes. You NEVER fabricate train numbers or routes. (For example, Train 22811 is the BBS-NDLS Rajdhani Express to New Delhi, NOT to New Jalpaiguri/Sikkim). Every train number you provide MUST be a real 5-digit IRCTC train number that actually operates on that specific route. Every hotel MUST be a real existing property. Every local taxi recommendation MUST be realistic with real tourist taxi union counters or verified local contacts. All math must be 100% exact. ${
-          !flightSelected
+        const systemInstruction = `You are a strict, real-world verified travel engine for Indian Railways, international transit, hotels, and local transport. You PRIORITIZE ACCURACY AND VERIFICATION OVER SPEED. Take all necessary processing time to search, analyze, and validate real-world routes. You NEVER fabricate train numbers or routes. (For example, Train 22811 is the BBS-NDLS Rajdhani Express to New Delhi, NOT to New Jalpaiguri/Sikkim). Every train number you provide MUST be a real 5-digit IRCTC train number that actually operates on that specific route. Every hotel MUST be a real existing property. Every local taxi recommendation MUST be realistic with real tourist taxi union counters or verified local contacts. All math must be 100% exact. ${!flightSelected
             ? 'CRITICAL NEGATIVE CONSTRAINT: "Flight" is NOT selected by the user. You are STRICTLY FORBIDDEN from including flights, airlines, airports, or flight booking steps anywhere in the itinerary output.'
             : ""
-        }`;
+          }`;
 
         try {
           model = genAI.getGenerativeModel({
@@ -94,11 +93,10 @@ ${trainContextString}
 STRICT ACCURACY & SEARCH VERIFICATION DIRECTIVES:
 1. ACCURACY OVER SPEED: Do NOT rush or give generic placeholder data. Perform live web search and route validation to confirm every train number, station code, highway route, and hotel property.
 2. DATE-SPECIFIC REAL-TIME DATA (${startDate} to ${endDate}): Search for hotel availability, seasonal rates, and taxi/transit options tailored specifically to these travel dates. Do NOT return outdated or demo templates.
-3. ${
-  !flightSelected
-    ? 'FORBIDDEN TRANSPORT MODES: The user DID NOT select "Flight". You are ABSOLUTELY PROHIBITED from mentioning flights, airlines, airport codes, or air travel anywhere in the JSON response.'
-    : 'ALLOW FLIGHTS: Include flight options if applicable.'
-}
+3. ${!flightSelected
+            ? 'FORBIDDEN TRANSPORT MODES: The user DID NOT select "Flight". You are ABSOLUTELY PROHIBITED from mentioning flights, airlines, airport codes, or air travel anywhere in the JSON response.'
+            : 'ALLOW FLIGHTS: Include flight options if applicable.'
+          }
 4. REAL IRCTC TRAIN NUMBERS ONLY: Search and verify Indian Railways train numbers. NEVER invent fake train numbers or map wrong routes (e.g., for BBS to NJP, use real trains like 15643 Puri-Kamakhya Express, 12513 Secunderabad-Guwahati SF, 12509, 22503, or 2-leg routes via HWH like 12074 Jan Shatabdi + 12041 Shatabdi / 12377 Padatik Express / 22301 Vande Bharat).
 5. REAL HOTELS & HOMESTAYS ONLY: Recommend actual existing properties (e.g. Zostel, Hotel Moonlight, Hotel Mulberry, Hotel Himalaya, local homestays) matching the budget tier and travel dates.
 6. REAL TAXI DESKS & HELPLINES: Provide real tourist taxi association counters, station prepaid cab desks, or verified local driver contacts with valid phone formats (+91-XXXXX-XXXXX or local helpline).
@@ -493,8 +491,8 @@ function generateUniversalMasterItinerary(opts: any) {
       dayTitle: i === 1
         ? `Day 1 — Outward Journey: ${origin} → ${destination} Circuit`
         : i === daysCount
-        ? `Day ${daysCount} — Return Journey: ${destination} → ${origin}`
-        : `Day ${i} — ${destination} Sightseeing & Circuit`,
+          ? `Day ${daysCount} — Return Journey: ${destination} → ${origin}`
+          : `Day ${i} — ${destination} Sightseeing & Circuit`,
       routeOverview: i === 1 ? `${origin} → Transit` : i === daysCount ? `Transit → ${origin}` : `${destination} Local`,
       timeline: [
         { time: "05:00", plan: i === 1 ? `Reach ${origin} ${stationLabel}` : `Morning breakfast & prep` },
@@ -511,31 +509,31 @@ function generateUniversalMasterItinerary(opts: any) {
 
   const defaultTrainList = verifiedTrains.length > 0
     ? verifiedTrains.map((vt) => ({
-        trainName: vt.trainName,
-        trainNumber: vt.trainNumber,
-        from: vt.from,
-        to: vt.to,
-        departure: vt.departure,
-        arrival: vt.arrival,
-        classPreference: trainClass,
-        estimatedCostPerPerson: vt.approxFarePerPerson[trainClass] || vt.approxFarePerPerson["SL"] || 400,
-        totalTrainCost: (vt.approxFarePerPerson[trainClass] || 400) * gSize,
-        tip: vt.tip
-      }))
+      trainName: vt.trainName,
+      trainNumber: vt.trainNumber,
+      from: vt.from,
+      to: vt.to,
+      departure: vt.departure,
+      arrival: vt.arrival,
+      classPreference: trainClass,
+      estimatedCostPerPerson: vt.approxFarePerPerson[trainClass] || vt.approxFarePerPerson["SL"] || 400,
+      totalTrainCost: (vt.approxFarePerPerson[trainClass] || 400) * gSize,
+      tip: vt.tip
+    }))
     : [
-        {
-          trainName: `${origin} → ${destination} Express / Transit`,
-          trainNumber: "12801",
-          from: `${origin} Station`,
-          to: `${destination} Station / Gateway`,
-          departure: "06:00 AM",
-          arrival: "02:00 PM",
-          classPreference: trainClass,
-          estimatedCostPerPerson: Math.round(totalTrainCost / gSize),
-          totalTrainCost,
-          tip: "Book early to lock in seats."
-        }
-      ];
+      {
+        trainName: `${origin} → ${destination} Express / Transit`,
+        trainNumber: "12801",
+        from: `${origin} Station`,
+        to: `${destination} Station / Gateway`,
+        departure: "06:00 AM",
+        arrival: "02:00 PM",
+        classPreference: trainClass,
+        estimatedCostPerPerson: Math.round(totalTrainCost / gSize),
+        totalTrainCost,
+        tip: "Book early to lock in seats."
+      }
+    ];
 
   return {
     summary: `${daysCount} Days / ${nightsCount} Nights full round-trip from ${origin} to ${destination} and returning to ${origin}.`,

@@ -10,9 +10,9 @@ describe("WhatsApp export", () => {
       [{ from: "a", to: "b", amountPaise: 25_000_000 }],
     );
     expect(text).toContain("*💸 SplitRupee: Goa Trip*");
-    expect(text).toContain("Aarav ➜ Diya: *₹2,50,000.00*");
-    expect(text).toContain("🔴 Aarav owes ₹2,50,000.00");
-    expect(text).toContain("🟢 Diya gets back ₹2,50,000.00");
+    expect(text).toContain("Aarav ➜ Diya: *₹2,50,000*");
+    expect(text).toContain("🔴 Aarav owes ₹2,50,000");
+    expect(text).toContain("🟢 Diya gets back ₹2,50,000");
   });
   it("celebrates a settled group", () => {
     expect(buildWhatsAppSummary("G", {}, {}, [])).toContain("Everyone is settled up");
@@ -52,9 +52,9 @@ describe("WhatsApp export", () => {
     expect(csv).toContain("SPLITRUPEE FINANCIAL STATEMENT & EXPENSE LEDGER");
     expect(csv).toContain('"Group Name:","Manali Road Trip"');
     expect(csv).toContain('"Member Name","Total Paid (INR)","Fair Share (INR)","Net Balance (INR)","Status"');
-    expect(csv).toContain('"Subhankar",3000.00,1500.00,1500.00,"Gets Back INR 1500.00"');
-    expect(csv).toContain('"Rahul",0.00,1500.00,-1500.00,"Owes INR 1500.00"');
-    expect(csv).toContain('"Rahul","Subhankar",1500.00,"1-Tap UPI / Cash"');
+    expect(csv).toContain('"Subhankar",3000,1500,1500,"Gets Back INR 1500"');
+    expect(csv).toContain('"Rahul",0,1500,-1500,"Owes INR 1500"');
+    expect(csv).toContain('"Rahul","Subhankar",1500,"1-Tap UPI / Cash"');
     expect(csv).not.toContain("FX Rate");
     expect(csv).not.toContain("NPR");
   });

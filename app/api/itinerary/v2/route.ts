@@ -50,40 +50,40 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
     // Sanitize legs
     const legs = Array.isArray(day.legs)
       ? day.legs.map((leg: any, lIdx: number) => {
-          let note = leg.note || "";
-          // Strip any demo phone numbers from leg notes
-          if (isDemoPhoneNumber(note)) {
-            note = note.replace(/(\+?91[- ]?)?98765\d{5}/g, "")
-                       .replace(/(\+?91[- ]?)?987654321\d/g, "")
-                       .replace(/123456789\d/g, "")
-                       .replace(/Contact:[^,.]*/gi, "")
-                       .trim();
-          }
+        let note = leg.note || "";
+        // Strip any demo phone numbers from leg notes
+        if (isDemoPhoneNumber(note)) {
+          note = note.replace(/(\+?91[- ]?)?98765\d{5}/g, "")
+            .replace(/(\+?91[- ]?)?987654321\d/g, "")
+            .replace(/123456789\d/g, "")
+            .replace(/Contact:[^,.]*/gi, "")
+            .trim();
+        }
 
-          // If note is empty, give realistic verified guidance
-          if (!note) {
-            const verifiedTaxi = groundData?.taxiServices?.[lIdx % (groundData.taxiServices.length || 1)];
-            if (verifiedTaxi?.phone) {
-              note = `${verifiedTaxi.name}. Verified Helpline: ${verifiedTaxi.phone}`;
-            } else if (verifiedTaxi) {
-              note = `${verifiedTaxi.name}. ${verifiedTaxi.locationTip}`;
-            } else {
-              note = "Book via official airport/station prepaid taxi counter or verified app.";
-            }
+        // If note is empty, give realistic verified guidance
+        if (!note) {
+          const verifiedTaxi = groundData?.taxiServices?.[lIdx % (groundData.taxiServices.length || 1)];
+          if (verifiedTaxi?.phone) {
+            note = `${verifiedTaxi.name}. Verified Helpline: ${verifiedTaxi.phone}`;
+          } else if (verifiedTaxi) {
+            note = `${verifiedTaxi.name}. ${verifiedTaxi.locationTip}`;
+          } else {
+            note = "Book via official airport/station prepaid taxi counter or verified app.";
           }
+        }
 
-          return {
-            from: leg.from || (lIdx === 0 ? body.origin : body.destination),
-            to: leg.to || body.destination,
-            mode: leg.mode || "Local Transport",
-            depart: leg.depart || (lIdx === 0 ? "08:00" : "14:00"),
-            duration_hours: Number(leg.duration_hours) || 2,
-            arrive: leg.arrive || (lIdx === 0 ? "10:00" : "16:00"),
-            buffer_after_minutes: Number(leg.buffer_after_minutes ?? 60),
-            note,
-            cost: Number(leg.cost) || 500
-          };
-        })
+        return {
+          from: leg.from || (lIdx === 0 ? body.origin : body.destination),
+          to: leg.to || body.destination,
+          mode: leg.mode || "Local Transport",
+          depart: leg.depart || (lIdx === 0 ? "08:00" : "14:00"),
+          duration_hours: Number(leg.duration_hours) || 2,
+          arrive: leg.arrive || (lIdx === 0 ? "10:00" : "16:00"),
+          buffer_after_minutes: Number(leg.buffer_after_minutes ?? 60),
+          note,
+          cost: Number(leg.cost) || 500
+        };
+      })
       : [];
 
     // Sanitize activities
@@ -147,7 +147,7 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
           costPerNight = maxNightlyBudget;
         }
       }
-      
+
       hotelDetails = {
         name: hotelDetails.name || `${body.destination} Hotel`,
         contact: contact || null,
@@ -214,7 +214,7 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
         duration_hours: 0.5,
         arrive: "14:00",
         buffer_after_minutes: 30,
-        note: verifiedTaxi1?.phone 
+        note: verifiedTaxi1?.phone
           ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}`
           : (verifiedTaxi1?.locationTip || "Official Prepaid Taxi Booth at station exit."),
         cost: 400
@@ -333,8 +333,8 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
 }
 
 const DUMMY_WORDS = [
-  "demo", "test", "testing", "sample", "example", "dummy", "fake", 
-  "placeholder", "asdf", "qwerty", "temp", "trial", "xxx", "foo", "bar", 
+  "demo", "test", "testing", "sample", "example", "dummy", "fake",
+  "placeholder", "asdf", "qwerty", "temp", "trial", "xxx", "foo", "bar",
   "none", "null", "undefined", "na", "n/a", "city", "origin", "destination",
   "somewhere", "anywhere", "abcd", "xyz"
 ];
@@ -345,7 +345,7 @@ function isInvalidOrDemoLocation(str: string): boolean {
   if (trimmed.length < 3) return true;
   const cleaned = trimmed.toLowerCase().replace(/[^a-z0-9\s]/g, "");
   if (cleaned.length < 3) return true;
-  
+
   const tokens = cleaned.split(/\s+/);
   if (tokens.some((t) => DUMMY_WORDS.includes(t))) return true;
   if (/\b(demo|test|testing|dummy|fake|sample|placeholder|asdf)\b/i.test(cleaned)) return true;
@@ -365,23 +365,23 @@ export async function POST(req: Request) {
     }
 
     if (isInvalidOrDemoLocation(orig)) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: `"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Bhubaneswar, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.` 
+      return NextResponse.json({
+        ok: false,
+        error: `"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Manatri, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`
       }, { status: 400 });
     }
 
     if (isInvalidOrDemoLocation(dest)) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: `"${dest}" is not recognized as a valid city. Please enter a real destination city (e.g. Darjeeling, Goa, Manali). Demo or test placeholder inputs are not permitted.` 
+      return NextResponse.json({
+        ok: false,
+        error: `"${dest}" is not recognized as a valid city. Please enter a real destination city (e.g. Darjeeling, Goa, Manali). Demo or test placeholder inputs are not permitted.`
       }, { status: 400 });
     }
 
     if (orig.toLowerCase() === dest.toLowerCase()) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Origin and destination cannot be the same city. Please provide different departure and arrival locations." 
+      return NextResponse.json({
+        ok: false,
+        error: "Origin and destination cannot be the same city. Please provide different departure and arrival locations."
       }, { status: 400 });
     }
 
@@ -389,9 +389,9 @@ export async function POST(req: Request) {
       const start = new Date(body.startDate);
       const end = new Date(body.endDate);
       if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
-        return NextResponse.json({ 
-          ok: false, 
-          error: "Start date must be strictly before the return/end date." 
+        return NextResponse.json({
+          ok: false,
+          error: "Start date must be strictly before the return/end date."
         }, { status: 400 });
       }
     }

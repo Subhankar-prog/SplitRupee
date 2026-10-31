@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       messages = [],
       currentPlan,
       userQuery,
-      origin = "Bhubaneswar",
+      origin = "Manatri",
       destination = "Darjeeling",
       startDate,
       endDate,
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       });
 
     // 2. Active Trip Parameters
-    const activeOrigin = currentPlan?.origin || origin || "Bhubaneswar";
+    const activeOrigin = currentPlan?.origin || origin || "Manatri";
     const activeDestination = currentPlan?.destination || destination || "Darjeeling";
     const activeStartDate = currentPlan?.startDate || startDate || currentISODate;
     const activeEndDate = currentPlan?.endDate || endDate || "";
@@ -275,9 +275,8 @@ CRITICAL ACCURACY & GROUNDING RULES:
             if (wikiRes.ok) {
               const wikiData = await wikiRes.json();
               if (wikiData.extract) {
-                replyText = `### ${wikiData.title}\n\n${wikiData.extract}${
-                  wikiData.description ? `\n\n* **Category**: ${wikiData.description}` : ""
-                }`;
+                replyText = `### ${wikiData.title}\n\n${wikiData.extract}${wikiData.description ? `\n\n* **Category**: ${wikiData.description}` : ""
+                  }`;
               }
             }
           } catch (wErr) {
@@ -307,8 +306,8 @@ CRITICAL ACCURACY & GROUNDING RULES:
           replyText = `### Verified IRCTC Trains (${origin} → ${destination})
 
 ${verifiedTrains.length > 0
-  ? verifiedTrains.map((t) => `* **${t.trainName} (Train #${t.trainNumber})**\n  * **Dep**: ${t.departure} | **Arr**: ${t.arrival}\n  * **Runs**: ${t.operatingDays} | **Classes**: ${t.availableClasses.join(", ")}`).join("\n\n")
-  : `* **${origin} → ${destination} Express (Train #12801)**\n  * **Dep**: 06:00 AM | **Arr**: 02:00 PM\n  * **Classes**: SL, 3A, 2A`}`;
+              ? verifiedTrains.map((t) => `* **${t.trainName} (Train #${t.trainNumber})**\n  * **Dep**: ${t.departure} | **Arr**: ${t.arrival}\n  * **Runs**: ${t.operatingDays} | **Classes**: ${t.availableClasses.join(", ")}`).join("\n\n")
+              : `* **${origin} → ${destination} Express (Train #12801)**\n  * **Dep**: 06:00 AM | **Arr**: 02:00 PM\n  * **Classes**: SL, 3A, 2A`}`;
         } else {
           replyText = `### Knowledge Response: ${userQuery}
 

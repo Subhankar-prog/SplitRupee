@@ -17,7 +17,7 @@ import {
   validateSplitInput,
   type SplitInput,
 } from "@/lib/split";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundFigure } from "@/lib/money";
 import { addOfflineExpense } from "@/lib/offlineSync";
 import CurrencyPickerModal from "@/components/CurrencyPickerModal";
 import {
@@ -176,10 +176,10 @@ export default function AddExpenseModal({
 
   const enteredAmount = parseFloat(amount) || 0;
 
-  // The primary balance / database total is always in INR:
+  // The primary balance / database total is always in whole rounded INR:
   const totalNum = useMemo(() => {
-    if (!isForeign) return enteredAmount;
-    return Math.round(enteredAmount * effectiveRate * 100) / 100;
+    if (!isForeign) return roundFigure(enteredAmount);
+    return roundFigure(enteredAmount * effectiveRate);
   }, [isForeign, enteredAmount, effectiveRate]);
 
   // Initialize splits on group or initialExpense change
@@ -775,12 +775,12 @@ export default function AddExpenseModal({
                   const isIncluded = includedMemberIds.includes(m.id);
                   const equalShareINR =
                     totalNum > 0 && includedMemberIds.length > 0
-                      ? (totalNum / includedMemberIds.length).toFixed(2)
-                      : "0.00";
+                      ? roundFigure(totalNum / includedMemberIds.length).toString()
+                      : "0";
                   const equalShareForeign =
                     enteredAmount > 0 && includedMemberIds.length > 0
-                      ? (enteredAmount / includedMemberIds.length).toFixed(2)
-                      : "0.00";
+                      ? roundFigure(enteredAmount / includedMemberIds.length).toString()
+                      : "0";
 
                   return (
                     <div

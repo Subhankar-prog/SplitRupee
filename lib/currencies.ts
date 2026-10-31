@@ -4,6 +4,8 @@
  * instant INR conversions, and search capabilities.
  */
 
+import { roundFigure } from "./money";
+
 export interface CurrencyInfo {
   code: string;
   name: string;
@@ -277,7 +279,7 @@ export function getRateToINR(currencyCode: string, customRate?: number | null): 
 }
 
 /**
- * Convert a foreign currency amount to INR
+ * Convert a foreign currency amount to INR (rounded to whole rupee)
  */
 export function convertToINR(
   amount: number,
@@ -286,18 +288,19 @@ export function convertToINR(
 ): { inrAmount: number; rate: number } {
   if (!amount || isNaN(amount) || amount <= 0) return { inrAmount: 0, rate: 1.0 };
   const rate = getRateToINR(currencyCode, customRate);
-  const inrAmount = Math.round(amount * rate * 100) / 100;
+  const inrAmount = roundFigure(amount * rate);
   return { inrAmount, rate };
 }
 
 /**
- * Format currency with proper symbol & 2 decimal places
+ * Format currency with proper symbol & round figure (no decimals)
  */
 export function formatCurrencyAmount(amount: number, currencyCode = "INR"): string {
   const info = getCurrency(currencyCode);
-  const formatted = amount.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const rounded = roundFigure(amount);
+  const formatted = rounded.toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
   return `${info.symbol}${formatted}`;
 }

@@ -1,4 +1,4 @@
-import { formatINR, formatPaise } from "./money";
+import { formatINR, formatPaise, roundFigure } from "./money";
 import type { Transfer } from "./debt";
 import type { MemberDTO, ExpenseDTO, PaymentDTO } from "./types";
 
@@ -72,9 +72,9 @@ export function buildGroupLedgerCSV(
   lines.push(`"SPLITRUPEE FINANCIAL STATEMENT & EXPENSE LEDGER"`);
   lines.push(`"Group Name:",${JSON.stringify(groupName)}`);
   lines.push(`"Export Date:",${JSON.stringify(new Date().toLocaleDateString("en-IN"))}`);
-  lines.push(`"Total Group Spend (INR):",${totalSpend.toFixed(2)}`);
-  lines.push(`"Total Reconciled Paid (INR):",${totalReconciled.toFixed(2)}`);
-  lines.push(`"Group Ledger Health:","Balanced (Variance: 0.00)"`);
+  lines.push(`"Total Group Spend (INR):",${roundFigure(totalSpend)}`);
+  lines.push(`"Total Reconciled Paid (INR):",${roundFigure(totalReconciled)}`);
+  lines.push(`"Group Ledger Health:","Balanced (Variance: 0)"`);
   lines.push("");
 
   // SECTION 1: Member Balances
@@ -83,21 +83,21 @@ export function buildGroupLedgerCSV(
 
   members.forEach((m) => {
     const netPaise = balances[m.id] || 0;
-    const netINR = netPaise / 100;
+    const netINR = roundFigure(netPaise / 100);
     const status =
       netINR > 0
-        ? `Gets Back INR ${netINR.toFixed(2)}`
+        ? `Gets Back INR ${netINR}`
         : netINR < 0
-        ? `Owes INR ${Math.abs(netINR).toFixed(2)}`
+        ? `Owes INR ${Math.abs(netINR)}`
         : "Settled (All Square)";
 
-    const paid = (memberPaid[m.id] || 0).toFixed(2);
-    const share = (memberShare[m.id] || 0).toFixed(2);
-    lines.push(`${JSON.stringify(m.name)},${paid},${share},${netINR.toFixed(2)},${JSON.stringify(status)}`);
+    const paid = roundFigure(memberPaid[m.id] || 0);
+    const share = roundFigure(memberShare[m.id] || 0);
+    lines.push(`${JSON.stringify(m.name)},${paid},${share},${netINR},${JSON.stringify(status)}`);
   });
 
   lines.push(
-    `"Total",${totalSpend.toFixed(2)},${totalSpend.toFixed(2)},0.00,"Balanced"`
+    `"Total",${roundFigure(totalSpend)},${roundFigure(totalSpend)},0,"Balanced"`
   );
   lines.push("");
   lines.push("");
@@ -107,10 +107,10 @@ export function buildGroupLedgerCSV(
   lines.push(`"Debtor (Pays)","Creditor (Receives)","Amount (INR)","Recommended Method"`);
 
   if (transfers.length === 0) {
-    lines.push(`"All Square","All Square",0.00,"Everyone is settled up"`);
+    lines.push(`"All Square","All Square",0,"Everyone is settled up"`);
   } else {
     transfers.forEach((t) => {
-      const amountINR = (t.amountPaise / 100).toFixed(2);
+      const amountINR = roundFigure(t.amountPaise / 100);
       lines.push(`${JSON.stringify(nm(t.from))},${JSON.stringify(nm(t.to))},${amountINR},"1-Tap UPI / Cash"`);
     });
   }
@@ -126,16 +126,16 @@ export function buildGroupLedgerCSV(
   expenses.forEach((e) => {
     const dateStr = new Date(e.date || e.createdAt).toLocaleDateString("en-IN");
     const count = e.splits.length;
-    const perPerson = count > 0 ? (e.totalAmount / count).toFixed(2) : "0.00";
+    const perPerson = count > 0 ? roundFigure(e.totalAmount / count) : 0;
 
     lines.push(
       `${JSON.stringify(dateStr)},${JSON.stringify(e.title)},${JSON.stringify(e.category)},${JSON.stringify(
         nm(e.paidById)
-      )},${JSON.stringify(e.splitType || "EQUAL")},${e.totalAmount.toFixed(2)},${count},${perPerson}`
+      )},${JSON.stringify(e.splitType || "EQUAL")},${roundFigure(e.totalAmount)},${count},${perPerson}`
     );
   });
 
-  lines.push(`"Total Expenses (${expenses.length})","","","","",${totalSpend.toFixed(2)},"",""`);
+  lines.push(`"Total Expenses (${expenses.length})","","","","",${roundFigure(totalSpend)},"",""`);
   lines.push("");
   lines.push("");
 
@@ -144,19 +144,19 @@ export function buildGroupLedgerCSV(
   lines.push(`"Date","Sender (Payer)","Receiver (Paid To)","Amount (INR)","Notes"`);
 
   if (payments.length === 0) {
-    lines.push(`"-","No direct settlements recorded yet","-",0.00,"-"`);
+    lines.push(`"-","No direct settlements recorded yet","-",0,"-"`);
   } else {
     payments.forEach((p) => {
       const pDate = new Date(p.createdAt).toLocaleDateString("en-IN");
       lines.push(
         `${JSON.stringify(pDate)},${JSON.stringify(nm(p.payerId))},${JSON.stringify(
           nm(p.receiverId)
-        )},${p.amount.toFixed(2)},${JSON.stringify(p.notes || "Direct UPI Settle")}`
+        )},${roundFigure(p.amount)},${JSON.stringify(p.notes || "Direct UPI Settle")}`
       );
     });
   }
 
-  lines.push(`"Total Reconciled Settlements (${payments.length})","","",${totalReconciled.toFixed(2)},""`);
+  lines.push(`"Total Reconciled Settlements (${payments.length})","","",${roundFigure(totalReconciled)},""`);
 
   return lines.join("\n");
 }

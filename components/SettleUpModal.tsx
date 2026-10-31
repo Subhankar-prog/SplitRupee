@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { MemberDTO } from "@/lib/types";
 import type { Transfer } from "@/lib/debt";
-import { formatINR } from "@/lib/money";
+import { formatINR, roundFigure } from "@/lib/money";
 
 interface Props {
   groupId: string;
@@ -150,12 +150,13 @@ export default function SettleUpModal({
       ? Math.abs(payerNetPaise) / 100
       : (defaultAmount && defaultAmount > 0 ? defaultAmount : 0);
 
-  // Standard UPI URI format (NPCI specification)
+  // Standard UPI URI format (NPCI specification with whole round figure)
   const upiUri = useMemo(() => {
     if (!isValidUPI || numAmount <= 0) return "";
+    const rounded = roundFigure(numAmount);
     return `upi://pay?pa=${encodeURIComponent(effectiveUPI)}&pn=${encodeURIComponent(
       receiver?.name || "Friend"
-    )}&am=${numAmount.toFixed(2)}&cu=INR&tn=SplitRupee%20Settlement`;
+    )}&am=${rounded}&cu=INR&tn=SplitRupee%20Settlement`;
   }, [isValidUPI, effectiveUPI, receiver, numAmount]);
 
   // Real-time QR Code generation
@@ -429,7 +430,7 @@ export default function SettleUpModal({
               {maxOutstandingRupees > 0 && (
                 <button
                   type="button"
-                  onClick={() => setAmount(maxOutstandingRupees.toFixed(2))}
+                  onClick={() => setAmount(String(roundFigure(maxOutstandingRupees)))}
                   className="text-[10px] text-emerald-400 hover:underline"
                 >
                   Pay Full ({formatINR(maxOutstandingRupees)})
@@ -442,7 +443,7 @@ export default function SettleUpModal({
               </span>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 min="0.01"
                 max={maxOutstandingRupees > 0 ? maxOutstandingRupees : undefined}
                 placeholder="0.00"
@@ -590,7 +591,7 @@ export default function SettleUpModal({
                       className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-2.5 text-xs font-bold text-slate-950 hover:opacity-95 transition shadow-lg shadow-emerald-500/20"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      <span>Pay ₹{numAmount.toFixed(2)} via UPI App</span>
+                      <span>Pay ₹{roundFigure(numAmount)} via UPI App</span>
                     </a>
                     <p className="text-[10px] text-slate-400">
                       Paying to: <span className="font-mono text-emerald-300">{effectiveUPI}</span>
@@ -610,7 +611,7 @@ export default function SettleUpModal({
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 Record an in-person cash handover or direct bank transfer. This will immediately deduct{" "}
-                <span className="font-bold text-white">₹{numAmount > 0 ? numAmount.toFixed(2) : "0.00"}</span> from{" "}
+                <span className="font-bold text-white">₹{numAmount > 0 ? roundFigure(numAmount) : "0"}</span> from{" "}
                 {payer?.name}'s debt and adjust {receiver?.name}'s credit in the group ledger.
               </p>
             </div>

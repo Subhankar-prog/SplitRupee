@@ -1,46 +1,72 @@
 /**
- * All arithmetic is done in integer paise. Floats only exist at the edges
- * (JSON in, Prisma Float columns out) and are rounded on the way through.
+ * All arithmetic is done in integer units with custom round figure rules.
+ * Rule:
+ *  - Fractional decimal <= 0.50 rounds DOWN to previous integer.
+ *  - Fractional decimal > 0.50 (>= 0.51) rounds UP to next integer.
+ *  - No fractions or decimal amounts exist in billing/settlements for easy payment.
  */
 export class MoneyError extends Error {}
 
-/** Convert rupees to integer paise; rejects NaN/Infinity and >2 decimal places. */
+/**
+ * Custom Round Figure Rule:
+ * <= 0.50 rounds down to previous whole number.
+ * > 0.50 (>= 0.51) rounds up to next whole number.
+ * Examples:
+ *  10.00 -> 10
+ *  10.49 -> 10
+ *  10.50 -> 10
+ *  10.51 -> 11
+ *  10.99 -> 11
+ *  -10.50 -> -10
+ *  -10.51 -> -11
+ */
+export function roundFigure(val: number): number {
+  if (typeof val !== "number" || !Number.isFinite(val)) return 0;
+  const sign = val < 0 ? -1 : 1;
+  const abs = Math.abs(val);
+  const floor = Math.floor(abs);
+  const fraction = Math.round((abs - floor) * 100) / 100;
+  if (fraction <= 0.5) {
+    return sign * floor;
+  } else {
+    return sign * Math.ceil(abs);
+  }
+}
+
+/** Convert rupees to integer paise; rejects NaN/Infinity. Rounds to whole round figure rupees. */
 export function toPaise(rupees: number): number {
   if (typeof rupees !== "number" || !Number.isFinite(rupees)) {
     throw new MoneyError("Amount must be a finite number");
   }
-  const paise = Math.round(rupees * 100);
-  if (Math.abs(rupees * 100 - paise) > 1e-6) {
-    throw new MoneyError(`${rupees} has more than two decimal places`);
-  }
-  return paise;
+  const roundedRupees = roundFigure(rupees);
+  return Math.round(roundedRupees * 100);
 }
 
 /** Lenient conversion for values already stored in the DB. */
 export function paiseFromStored(rupees: number): number {
-  return Math.round(rupees * 100);
+  return Math.round(roundFigure(rupees) * 100);
 }
 
 export function toRupees(paise: number): number {
-  return Math.round(paise) / 100;
+  return roundFigure(Math.round(paise) / 100);
 }
 
 export function roundMoney(rupees: number): number {
-  return Math.round((rupees + Number.EPSILON) * 100) / 100;
+  return roundFigure(rupees);
 }
 
 const inr = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
-/** ₹2,50,000.00 style output (Indian digit grouping). */
+/** ₹2,50,000 style output (Indian digit grouping with zero fractions/decimals). */
 export function formatINR(rupees: number): string {
-  return inr.format(roundMoney(rupees));
+  return inr.format(roundFigure(rupees));
 }
 
 export function formatPaise(paise: number): string {
-  return inr.format(paise / 100);
+  return inr.format(roundFigure(paise / 100));
 }
