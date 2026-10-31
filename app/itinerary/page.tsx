@@ -159,7 +159,7 @@ export default function ItineraryPage() {
     }
 
     if (isInvalidOrDemoLocation(orig)) {
-      setError(`"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Manatri, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`);
+      setError(`"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Bhubaneswar, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`);
       return;
     }
 
@@ -339,7 +339,7 @@ export default function ItineraryPage() {
                     value={form.origin}
                     onChange={handleChange}
                     required
-                    placeholder="e.g. Manatri, Mumbai"
+                    placeholder="e.g. Bhubaneswar, Mumbai"
                     className="origin-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
                   />
                 </div>

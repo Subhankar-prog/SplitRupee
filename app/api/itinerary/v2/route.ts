@@ -367,7 +367,7 @@ export async function POST(req: Request) {
     if (isInvalidOrDemoLocation(orig)) {
       return NextResponse.json({
         ok: false,
-        error: `"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Manatri, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`
+        error: `"${orig}" is not recognized as a valid city. Please enter a real departure city (e.g. Bhubaneswar, Mumbai, Delhi). Demo or test placeholder inputs are not permitted.`
       }, { status: 400 });
     }
 

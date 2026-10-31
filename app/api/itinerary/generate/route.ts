@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
-      origin = "Manatri",
+      origin = "Bhubaneswar",
       destination = "Nepal",
       startDate = new Date().toISOString().split("T")[0],
       endDate = new Date(Date.now() + 9 * 86400000).toISOString().split("T")[0],

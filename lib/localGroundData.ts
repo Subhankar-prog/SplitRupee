@@ -206,7 +206,7 @@ export const VERIFIED_LOCAL_GROUND_DATA: LocalGroundContext[] = [
 
   // 4. Puri / Odisha Coast
   {
-    destinationKeys: ["puri", "konark", "chilika", "Manatri", "cuttack"],
+    destinationKeys: ["puri", "konark", "chilika", "bhubaneswar", "cuttack"],
     hotels: [
       {
         name: "Chakra Tirtha Backpacker Lodges / Homestays, Puri",

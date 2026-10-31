@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       messages = [],
       currentPlan,
       userQuery,
-      origin = "Manatri",
+      origin = "Bhubaneswar",
       destination = "Darjeeling",
       startDate,
       endDate,
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       });
 
     // 2. Active Trip Parameters
-    const activeOrigin = currentPlan?.origin || origin || "Manatri";
+    const activeOrigin = currentPlan?.origin || origin || "Bhubaneswar";
     const activeDestination = currentPlan?.destination || destination || "Darjeeling";
     const activeStartDate = currentPlan?.startDate || startDate || currentISODate;
     const activeEndDate = currentPlan?.endDate || endDate || "";

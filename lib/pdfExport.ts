@@ -127,7 +127,7 @@ export function exportItineraryPDF(itineraryData: {
   doc.setTextColor(148, 163, 184); // slate-400
   doc.text("Curated itinerary with transit telemetry, stays, and budget optimization", margin + 17, y + 15);
 
-  // Trip Route Header (Manatri -> Goa with clean ASCII arrow)
+  // Trip Route Header (Bhubaneswar -> Goa with clean ASCII arrow)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(52, 211, 153); // emerald-400

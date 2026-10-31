@@ -25,15 +25,15 @@ export interface RouteMapping {
 }
 
 export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
-  // 1. Manatri (BBS) to New Jalpaiguri (NJP) / Sikkim Corridor
+  // 1. Bhubaneswar (BBS) to New Jalpaiguri (NJP) / Sikkim Corridor
   {
-    originKeys: ["Manatri", "bbs", "puri", "cuttack"],
+    originKeys: ["bhubaneswar", "bbs", "puri", "cuttack"],
     destinationKeys: ["sikkim", "gangtok", "njp", "new jalpaiguri", "siliguri", "darjeeling", "kalimpong", "pelling"],
     directTrains: [
       {
         trainNumber: "15643",
         trainName: "Puri - Kamakhya Weekly Express",
-        from: "Manatri (BBS)",
+        from: "Bhubaneswar (BBS)",
         to: "New Jalpaiguri (NJP)",
         departure: "11:30 PM (Day 1)",
         arrival: "07:30 PM (Day 2)",
@@ -45,7 +45,7 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
       {
         trainNumber: "12513",
         trainName: "Secunderabad - Guwahati SF Express",
-        from: "Manatri (BBS)",
+        from: "Bhubaneswar (BBS)",
         to: "New Jalpaiguri (NJP)",
         departure: "07:30 PM (Day 1)",
         arrival: "02:15 PM (Day 2)",
@@ -57,7 +57,7 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
       {
         trainNumber: "12509",
         trainName: "Bengaluru - Guwahati SF Express",
-        from: "Manatri (BBS)",
+        from: "Bhubaneswar (BBS)",
         to: "New Jalpaiguri (NJP)",
         departure: "02:00 AM (Day 1)",
         arrival: "09:50 PM (Day 1)",
@@ -69,7 +69,7 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
       {
         trainNumber: "22503",
         trainName: "Kanyakumari - Dibrugarh Vivek SF Express",
-        from: "Manatri (BBS)",
+        from: "Bhubaneswar (BBS)",
         to: "New Jalpaiguri (NJP)",
         departure: "05:35 PM (Day 1)",
         arrival: "11:20 AM (Day 2)",
@@ -85,8 +85,8 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
         leg1: [
           {
             trainNumber: "12074",
-            trainName: "Manatri - Howrah Jan Shatabdi Express",
-            from: "Manatri (BBS)",
+            trainName: "Bhubaneswar - Howrah Jan Shatabdi Express",
+            from: "Bhubaneswar (BBS)",
             to: "Howrah Junction (HWH)",
             departure: "06:00 AM",
             arrival: "12:40 PM",
@@ -98,7 +98,7 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
           {
             trainNumber: "22896",
             trainName: "Howrah Vande Bharat Express",
-            from: "Puri / Manatri (BBS)",
+            from: "Puri / Bhubaneswar (BBS)",
             to: "Howrah Junction (HWH)",
             departure: "05:45 AM",
             arrival: "12:15 PM",
@@ -150,9 +150,9 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
     ]
   },
 
-  // 2. Manatri (BBS) to Raxaul / Nepal Border Corridor
+  // 2. Bhubaneswar (BBS) to Raxaul / Nepal Border Corridor
   {
-    originKeys: ["Manatri", "bbs", "cuttack", "puri"],
+    originKeys: ["bhubaneswar", "bbs", "cuttack", "puri"],
     destinationKeys: ["nepal", "raxaul", "rxl", "birgunj", "kathmandu", "pokhara", "gandrukh", "mustang"],
     directTrains: [],
     connectingRoutes: [
@@ -161,8 +161,8 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
         leg1: [
           {
             trainNumber: "12074",
-            trainName: "Manatri - Howrah Jan Shatabdi Express",
-            from: "Manatri (BBS)",
+            trainName: "Bhubaneswar - Howrah Jan Shatabdi Express",
+            from: "Bhubaneswar (BBS)",
             to: "Howrah Junction (HWH)",
             departure: "06:00 AM",
             arrival: "12:40 PM",
@@ -174,7 +174,7 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
           {
             trainNumber: "12838",
             trainName: "Puri - Howrah SF Express",
-            from: "Manatri (BBS)",
+            from: "Bhubaneswar (BBS)",
             to: "Howrah Junction (HWH)",
             departure: "09:30 PM",
             arrival: "04:45 AM (Next Day)",
@@ -214,15 +214,15 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
     ]
   },
 
-  // 3. Manatri (BBS) to New Delhi (NDLS) / North India
+  // 3. Bhubaneswar (BBS) to New Delhi (NDLS) / North India
   {
-    originKeys: ["Manatri", "bbs", "cuttack"],
+    originKeys: ["bhubaneswar", "bbs", "cuttack"],
     destinationKeys: ["delhi", "ndls", "new delhi", "agra", "jaipur"],
     directTrains: [
       {
         trainNumber: "22811",
-        trainName: "Manatri - New Delhi Rajdhani Express",
-        from: "Manatri (BBS)",
+        trainName: "Bhubaneswar - New Delhi Rajdhani Express",
+        from: "Bhubaneswar (BBS)",
         to: "New Delhi (NDLS)",
         departure: "10:35 AM",
         arrival: "09:55 AM (Next Day)",
@@ -234,7 +234,7 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
       {
         trainNumber: "12801",
         trainName: "Purushottam Express",
-        from: "Manatri (BBS)",
+        from: "Bhubaneswar (BBS)",
         to: "New Delhi (NDLS)",
         departure: "11:00 PM",
         arrival: "04:00 AM (Day 3)",
