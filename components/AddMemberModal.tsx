@@ -99,6 +99,12 @@ export default function AddMemberModal({
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.message || data.error || "Failed to add member");
       
+      // Reset form fields
+      setName("");
+      setEmail("");
+      setPhone("");
+      setError("");
+
       // Notify parent immediately with newly added member
       onAdded(data.member);
 
@@ -243,10 +249,18 @@ export default function AddMemberModal({
                 <span className="absolute left-3 top-2 text-xs text-slate-400 font-mono">+91</span>
                 <input
                   type="tel"
-                  maxLength={10}
+                  maxLength={16}
                   placeholder="9876543210"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    // If user enters/pastes number with +91 or country code or leading 0, extract the 10 digits
+                    if (digits.length > 10) {
+                      setPhone(digits.slice(-10));
+                    } else {
+                      setPhone(digits);
+                    }
+                  }}
                   className="w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 font-mono"
                 />
               </div>

@@ -58,12 +58,18 @@ export async function POST(req: Request, { params }: Params) {
         });
       }
 
-      // 2. If user already exists, update their phone if missing
+      // 2. If user already exists, update their phone or placeholder name if missing
       if (user) {
-        if (cleanPhone && !user.phone) {
+        const needsPhone = cleanPhone && !user.phone;
+        const needsNameUpdate =
+          cleanName && (!user.name || user.name.startsWith("Member ") || user.name.startsWith("user."));
+        if (needsPhone || needsNameUpdate) {
           user = await prisma.user.update({
             where: { id: user.id },
-            data: { phone: cleanPhone },
+            data: {
+              ...(needsPhone ? { phone: cleanPhone } : {}),
+              ...(needsNameUpdate ? { name: cleanName } : {}),
+            },
           });
         }
       } else {
