@@ -236,7 +236,8 @@ export function exportItineraryPDF(itineraryData: {
           leg.mode ? `Mode: ${cleanPdfText(leg.mode)}` : "",
           leg.depart ? `Depart: ${cleanPdfText(leg.depart)}` : "",
           leg.arrive ? `Arrive: ${cleanPdfText(leg.arrive)}` : "",
-          leg.duration ? `Duration: ${cleanPdfText(leg.duration)}` : "",
+          (leg as any).distance_km ? `Dist: ~${cleanPdfText((leg as any).distance_km)} km` : "",
+          (leg as any).duration_hours ? `Duration: ${cleanPdfText((leg as any).duration_hours)}h` : leg.duration ? `Duration: ${cleanPdfText(leg.duration)}` : "",
           leg.cost ? `Cost: INR ${cleanPdfText(leg.cost)}` : "",
         ]
           .filter(Boolean)

@@ -925,6 +925,12 @@ export default function ItineraryPage() {
                                     <span className="flex items-center gap-1"><strong>Mode:</strong> {leg.mode}</span>
                                     <span className="flex items-center gap-1 text-emerald-300"><strong>Depart:</strong> {leg.depart}</span>
                                     <span className="flex items-center gap-1 text-teal-300"><strong>Arrive:</strong> {leg.arrive}</span>
+                                    {leg.distance_km ? (
+                                      <span className="flex items-center gap-1 text-sky-300"><strong>Distance:</strong> ~{leg.distance_km} km</span>
+                                    ) : null}
+                                    {leg.duration_hours ? (
+                                      <span className="flex items-center gap-1 text-indigo-300"><strong>Duration:</strong> {leg.duration_hours}h</span>
+                                    ) : null}
                                     {leg.cost ? (
                                       <span className="flex items-center gap-1 font-bold text-amber-400 print:text-black">
                                         Cost: ₹{leg.cost} {form.travellers > 1 ? `(total for ${form.travellers})` : ""}

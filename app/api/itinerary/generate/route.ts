@@ -108,6 +108,10 @@ STRICT ACCURACY & SEARCH VERIFICATION DIRECTIVES:
    - "totalStayCost" = "pricePerNight" * "nights"
    - "totalEstimatedCost" = sum of all transport, stay, food & activities.
    - If "totalEstimatedCost" > ${numBudget}, set "budgetStatus" to "EXCEEDS_BUDGET".
+9. ROAD TRAVEL DISTANCE, SPEED & TIMELINE REALISM (ZERO FAKE SPEEDS / NO TELEPORTATION):
+   - Hill & Mountain Roads (Nepal, Sikkim, Darjeeling, Himachal, Uttarakhand): Average driving speed is strictly 20-35 km/h. NEVER schedule 200 km in 2 hours! (e.g. Raxaul/Birgunj to Kathmandu is ~145 km and takes 6-8 hours; Kathmandu to Pokhara is ~200 km and takes 6-8 hours).
+   - Plain National/State Highways: 45-60 km/h average speed.
+   - Chronological Coherence: Arrival times must mathematically reflect departure time + realistic transit duration. After a 5+ hour road journey, allocate the remaining day for check-in and local rest; do NOT schedule exhaustive treks immediately after long mountain drives. Include 1.5-2h buffer for border crossings (e.g. Raxaul/Birgunj).
 
 Output strictly VALID JSON (without markdown code blocks) matching this schema:
 {

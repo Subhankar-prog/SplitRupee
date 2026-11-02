@@ -72,12 +72,29 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
           }
         }
 
+        const distKm = Number(leg.distance_km) || 0;
+        let durHours = Number(leg.duration_hours) || 2;
+        const isFlight = /flight|plane|air/i.test(leg.mode || "");
+
+        // Self-healing: enforce road speed physics so 200 km in 2 hours can NEVER slip through
+        if (!isFlight && distKm > 40) {
+          const isMountain = /nepal|himalay|sikkim|darjeeling|manali|shimla|leh|ladakh|mussoorie|nainital|gangtok|pokhara|kathmandu|raxaul|birgunj|mcleodganj|ooty|munnar/i.test(
+            `${leg.from} ${leg.to} ${body.destination} ${body.origin}`
+          );
+          const maxSpeed = isMountain ? 35 : 70; // km/h max realistic average
+          const minRealisticHours = Math.round((distKm / maxSpeed) * 10) / 10;
+          if (durHours < minRealisticHours) {
+            durHours = minRealisticHours;
+          }
+        }
+
         return {
           from: leg.from || (lIdx === 0 ? body.origin : body.destination),
           to: leg.to || body.destination,
           mode: leg.mode || "Local Transport",
+          distance_km: distKm > 0 ? distKm : undefined,
           depart: leg.depart || (lIdx === 0 ? "08:00" : "14:00"),
-          duration_hours: Number(leg.duration_hours) || 2,
+          duration_hours: durHours,
           arrive: leg.arrive || (lIdx === 0 ? "10:00" : "16:00"),
           buffer_after_minutes: Number(leg.buffer_after_minutes ?? 60),
           note,
@@ -470,12 +487,13 @@ ${groundData.generalHelplines.map((gh) => `- ${gh.name}: ${gh.number}`).join("\n
           "from": "string",
           "to": "string",
           "mode": "string (e.g. 'Private Taxi', 'Shared Jeep', 'Train (3A)', 'Flight')",
+          "distance_km": 145,
           "depart": "HH:MM",
-          "duration_hours": 2.5,
+          "duration_hours": 6.5,
           "arrive": "HH:MM",
-          "buffer_after_minutes": 120,
-          "note": "string (verified taxi stand, official helpline, or real phone number if known)",
-          "cost": 1500
+          "buffer_after_minutes": 60,
+          "note": "string (terrain / road note, verified taxi stand, or real phone number if known)",
+          "cost": 3500
         }
       ],
       "activities": {
@@ -509,7 +527,7 @@ Trip Details:
 ${groundContextString}
 ${verifiedTrains.length > 0 ? `VERIFIED IRCTC TRAIN ROUTE DATA:\n${JSON.stringify(verifiedTrains, null, 2)}` : ""}
 
-CRITICAL STRICT RULES ON BUDGET ACCURACY & PHONE NUMBERS:
+CRITICAL STRICT RULES ON BUDGET ACCURACY, PHONE NUMBERS & ROAD TRANSIT REALISM:
 1. BUDGET ACCURACY FOR NIGHT STAYS:
    - The selected accommodation MUST genuinely fit within or near the target nightly budget of ₹${targetNightlyStayBudget}/night.
    - If target stay budget is under ₹1,500/night: Select authentic backpacker hostels (e.g. Zostel, goSTOPS, Hosteller dorm beds/private budget rooms), verified budget guesthouses, or homestays that truly cost under ₹1,500.
@@ -522,7 +540,26 @@ CRITICAL STRICT RULES ON BUDGET ACCURACY & PHONE NUMBERS:
    - The total budget of ₹${budget} is the TOTAL budget for ALL ${travellers} travellers combined.
    - Every "cost" for transit/legs (e.g., trains, buses, flights, shared jeeps, private cabs) MUST be the TOTAL combined cost for ALL ${travellers} passengers. (For example, if 1 train ticket is ₹1,000 and there are ${travellers} travellers, leg cost must be ₹${1000 * Number(travellers)}, NOT ₹1,000. If a cab costs ₹2,500, that covers the entire group).
    - "costPerNight" in hotelDetails is the TOTAL nightly room cost for the entire group (${travellers} travellers), NOT divided or split per person.
-4. Return ONLY valid JSON in the exact schema provided.
+4. ROAD TRAVEL DISTANCE, SPEED & TIMELINE REALISM (STRICT PHYSICS — NO TELEPORTING):
+   - REAL-WORLD ROAD SPEED LIMITS BASED ON TERRAIN:
+     • Hilly & Mountainous Roads (e.g., Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand, Western Ghats):
+       Average driving speed is STRICTLY 20 to 35 km/h due to winding hairpin bends, single lanes, gradients, and road work.
+       NEVER schedule impossible speeds like 200 km in 2 hours!
+       - Raxaul / Birgunj ➜ Kathmandu (~145 km): Takes 6 to 8 hours by road.
+       - Kathmandu ➜ Pokhara (~200 km): Takes 6 to 8 hours by road.
+       - Siliguri / NJP ➜ Gangtok / Darjeeling (~70 to 115 km): Takes 3.5 to 5 hours by road.
+       - Delhi ➜ Manali (~530 km): Takes 12 to 14 hours by road.
+     • Plain National / State Highways: Average speed is 45 to 60 km/h (e.g., 200 km takes 3.5 to 4.5 hours).
+     • Expressways (4-lane/6-lane): Average speed is 75 to 85 km/h.
+   - TIME-DISTANCE COHERENCE:
+     • Every road leg MUST state a realistic "distance_km".
+     • Calculate "duration_hours" = Math.round((distance_km / terrain_speed) * 10) / 10.
+     • "arrive" MUST equal "depart" + "duration_hours" (e.g., Depart 08:30 + 6h = Arrive 14:30).
+   - CHRONOLOGICAL & PHYSICAL LOGIC:
+     • No Teleporting: Travellers cannot be in one town in the morning and 200 km away in the afternoon without the full multi-hour journey between them.
+     • Post-Travel Buffer & Rest: If road travel duration exceeds 5 hours, the afternoon/evening of that day MUST be reserved for hotel check-in, freshening up, and relaxed local walking. NEVER schedule strenuous full-day treks immediately following a 7-hour mountain drive!
+     • Border Crossings: Include a 1.5 to 2.5 hour buffer for immigration, customs, and vehicle permit processing at land borders (e.g. Raxaul/Birgunj, Kakarbhitta, Sunauli).
+5. Return ONLY valid JSON in the exact schema provided.
 
 SCHEMA:
 ${schemaStr}`;

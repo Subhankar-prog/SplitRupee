@@ -126,7 +126,8 @@ CRITICAL ACCURACY & GROUNDING RULES:
 4. GROUND TRUTH TRAINS: Ground all train advice in real IRCTC trains (e.g. 15643 Puri-Kamakhya, 12513 Secunderabad-Guwahati, 12509, 22503, or 12074+12041 via Howrah). Never invent fake train numbers.
 5. STRICT ZERO DEMO PHONE NUMBERS: NEVER provide dummy, demo, or placeholder phone numbers (like 9876543210). ONLY provide verified telephone numbers for registered taxi unions, verified hotels, or official government helplines. If unknown, direct to physical terminal prepaid counters or official tourism websites.
 6. STRICT HOTEL BUDGET RULE: Respect their nightly budget limit of ₹${activeStayBudget}/night. If under ₹1500, recommend authentic hostels/guesthouses (Zostel, goSTOPS, local homestays). Never claim luxury 4-star/5-star hotels cost ₹1500.
-7. GENERAL CONVERSATION: If asked general knowledge, greetings, science, or casual questions, answer directly, fluidly, intelligently, and politely in clean GitHub markdown.`;
+7. GENERAL CONVERSATION: If asked general knowledge, greetings, science, or casual questions, answer directly, fluidly, intelligently, and politely in clean GitHub markdown.
+8. ROAD TRAVEL TIME & DISTANCE REALISM: Always base travel estimates on realistic terrain speeds: in mountainous regions (Nepal, Sikkim, Darjeeling, Himachal, Uttarakhand), average driving speed is strictly 25-35 km/h (e.g. Raxaul to Kathmandu is ~145 km and takes 6-8 hours; Kathmandu to Pokhara is ~200 km and takes 6-8 hours). NEVER suggest 200 km can be covered in 2 hours in the hills! Plain highways average 45-60 km/h.`;
 
     // 4. Direct Google Gemini REST API Integration
     const apiKey = (process.env.GEMINI_API_KEY || "").trim();
