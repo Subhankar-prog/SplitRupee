@@ -253,16 +253,16 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
             tip: "Direct train to Nepal Border (Raxaul/Birgunj)."
           },
           {
-            trainNumber: "15271",
-            trainName: "Howrah - Raxaul Weekly Express",
+            trainNumber: "13043",
+            trainName: "Howrah - Raxaul Express",
             from: "Howrah Junction (HWH)",
             to: "Raxaul Junction (RXL)",
-            departure: "04:30 PM",
-            arrival: "08:50 AM (Next Day)",
-            operatingDays: "Wednesdays",
+            departure: "11:00 PM",
+            arrival: "02:05 PM (Next Day)",
+            operatingDays: "Wednesdays, Fridays",
             availableClasses: ["SL", "3A", "2A"],
-            approxFarePerPerson: { SL: 380, "3A": 1020, "2A": 1450 },
-            tip: "Weekly alternative to Raxaul."
+            approxFarePerPerson: { SL: 385, "3A": 1045, "2A": 1495 },
+            tip: "Bi-weekly overnight express from Howrah directly to Raxaul."
           }
         ],
         returnLeg1: [
@@ -271,24 +271,24 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
             trainName: "Mithila Express",
             from: "Raxaul Junction (RXL)",
             to: "Howrah Junction (HWH)",
-            departure: "10:00 AM (Day 1)",
-            arrival: "04:00 AM (Day 2)",
+            departure: "10:10 AM",
+            arrival: "04:00 AM (Next Day)",
             operatingDays: "Daily",
             availableClasses: ["SL", "3A", "2A"],
             approxFarePerPerson: { SL: 380, "3A": 1020, "2A": 1450 },
-            tip: "Direct train from Nepal Border back to Howrah."
+            tip: "Direct daily morning express from Nepal border back to Howrah. Note: Road transit from Pokhara/Kathmandu takes 8–10 hours, so travelers taking this morning train must stay overnight near Raxaul the night before."
           },
           {
-            trainNumber: "15272",
-            trainName: "Raxaul - Howrah Weekly Express",
+            trainNumber: "13044",
+            trainName: "Raxaul - Howrah Express",
             from: "Raxaul Junction (RXL)",
             to: "Howrah Junction (HWH)",
-            departure: "01:20 PM",
-            arrival: "04:05 AM (Next Day)",
-            operatingDays: "Tuesdays",
+            departure: "09:00 PM (21:00)",
+            arrival: "12:15 PM (Next Day)",
+            operatingDays: "Thursdays, Saturdays",
             availableClasses: ["SL", "3A", "2A"],
-            approxFarePerPerson: { SL: 380, "3A": 1020, "2A": 1450 },
-            tip: "Weekly return service to Howrah."
+            approxFarePerPerson: { SL: 385, "3A": 1045, "2A": 1495 },
+            tip: "Evening express to Howrah. Ideal for same-day road travel from Pokhara/Kathmandu (depart 04:00–06:00, arrive Raxaul 14:00–16:00, allowing a relaxed 5+ hour buffer before 21:00 departure)."
           }
         ],
         returnLeg2: [

@@ -92,7 +92,7 @@ export default function ThemeSelect({
       ref={containerRef}
       id={id}
       data-dropdown={baseSlug}
-      className={`dropdown-container dropdown-wrapper ${baseSlug}-container ${baseSlug}-wrapper relative w-full ${isOpen ? "z-50" : "z-10"} ${className}`}
+      className={`dropdown-container dropdown-wrapper ${baseSlug}-container ${baseSlug}-wrapper relative w-full ${isOpen ? "z-[60]" : "z-10"} ${className}`}
     >
       {name && <input type="hidden" name={name} value={value} />}
 
@@ -132,7 +132,7 @@ export default function ThemeSelect({
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
             data-menu={baseSlug}
-            style={{ backgroundColor: isLight ? "#ffffff" : "#08101b" }}
+            style={{ backgroundColor: isLight ? "#ffffff" : "#08101b", zIndex: 100 }}
             className={`dropdown-menu ${baseSlug}-menu absolute top-full left-0 w-full min-w-full sm:min-w-[240px] mt-1.5 z-[100] ${
               isLight
                 ? "bg-white border border-slate-300 shadow-xl shadow-slate-900/10 text-slate-900"

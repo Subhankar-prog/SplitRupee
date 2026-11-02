@@ -108,6 +108,39 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
       })
       : [];
 
+    // Ensure chronological consistency between consecutive legs on the same day (no negative transfer buffers!)
+    for (let l = 0; l < legs.length - 1; l++) {
+      const cur = legs[l];
+      const next = legs[l + 1];
+      if (cur.arrive && next.depart) {
+        const curArrParts = cur.arrive.split(":").map(Number);
+        const nextDepParts = next.depart.split(":").map(Number);
+        if (!isNaN(curArrParts[0]) && !isNaN(nextDepParts[0])) {
+          const arrMins = curArrParts[0] * 60 + (curArrParts[1] || 0);
+          const depMins = nextDepParts[0] * 60 + (nextDepParts[1] || 0);
+          // If next leg departs earlier than current leg arrives (e.g. arrive 14:00, depart 13:20 or 10:10):
+          if (depMins <= arrMins) {
+            if (/raxaul|rxl/i.test(`${cur.to} ${next.from}`) && /howrah|hwh|kolkata/i.test(next.to)) {
+              next.depart = "21:00";
+              next.arrive = "12:15";
+              next.duration_hours = 15.25;
+              next.mode = "Train (13044 Raxaul - Howrah Express)";
+              next.note = "Evening express train departing Raxaul at 21:00 with comfortable 6+ hour buffer after road transit.";
+            } else {
+              const safeDepMins = arrMins + 90;
+              const safeH = Math.floor(safeDepMins / 60) % 24;
+              const safeM = safeDepMins % 60;
+              next.depart = `${String(safeH).padStart(2, "0")}:${String(safeM).padStart(2, "0")}`;
+              const safeArrMins = safeDepMins + Math.round((Number(next.duration_hours) || 2) * 60);
+              const safeArrH = Math.floor(safeArrMins / 60) % 24;
+              const safeArrM = safeArrMins % 60;
+              next.arrive = `${String(safeArrH).padStart(2, "0")}:${String(safeArrM).padStart(2, "0")}`;
+            }
+          }
+        }
+      }
+    }
+
     // Sanitize activities
     const acts = day.activities || {};
     const activities = {
@@ -425,8 +458,13 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
   }
 
   // Final Return Journey (guaranteeing return all the way to origin)
+  // Final Return Journey (guaranteeing return all the way to origin)
   if (routePlan?.isConnecting && routePlan.returnLeg1?.[0] && routePlan.returnLeg2?.[0]) {
-    const r1 = routePlan.returnLeg1[0];
+    // Select the return train that aligns with realistic road arrival time:
+    // Driving from Pokhara/Kathmandu takes 8–10 hours, reaching Raxaul border in the afternoon (~14:00–15:30).
+    // Therefore, the evening train 13044 (departs 21:00 / 09:00 PM) provides a relaxed 5+ hour connection buffer!
+    const eveningTrain = routePlan.returnLeg1.find((t) => t.trainNumber === "13044") || routePlan.returnLeg1[1];
+    const r1 = eveningTrain || routePlan.returnLeg1[0];
     const r2 = routePlan.returnLeg2[0];
 
     // Penultimate Day: Check-out, road transfer to gateway, board overnight train
@@ -437,31 +475,31 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
         {
           from: "Hotel Check-out",
           to: `${destination} Border / Station`,
-          mode: "Local Cab / Shared Sumo",
-          depart: "07:00",
-          duration_hours: 6.5,
-          arrive: "13:30",
-          buffer_after_minutes: 60,
-          note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Scenic mountain return drive.",
-          cost: 1200
+          mode: "Local Cab / Shared Sumo / Private Van",
+          depart: "05:30",
+          duration_hours: 9.0,
+          arrive: "14:30",
+          buffer_after_minutes: 390,
+          note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Scenic mountain return drive with rest & meal stops.",
+          cost: Math.round(Math.min(14000, numTravellers * 1400))
         },
         {
           from: `${destination} Border / Station`,
           to: routePlan.hubName || "Connecting Hub",
           mode: `Train (${r1.trainName} #${r1.trainNumber})`,
-          depart: r1.departure.split(" ")[0] || "10:00",
-          duration_hours: 14.0,
-          arrive: r1.arrival.split(" ")[0] || "04:00",
-          buffer_after_minutes: 90,
-          note: `Overnight return connection to ${routePlan.hubName}.`,
-          cost: Math.round(numTravellers * 1020)
+          depart: r1.departure.split(" ")[0] || "21:00",
+          duration_hours: 15.25,
+          arrive: r1.arrival.split(" ")[0] || "12:15",
+          buffer_after_minutes: 70,
+          note: `${r1.tip} Overnight express connection to ${routePlan.hubName}.`,
+          cost: Math.round(numTravellers * (r1.approxFarePerPerson["SL"] || 385))
         }
       ],
       activities: {
-        morning: `Hotel check-out and morning road transit to border station.`,
-        afternoon: `Clear return border checkpost and arrive at railway gateway.`,
-        evening: `Board overnight ${r1.trainName} towards connecting hub.`,
-        food: `Dinner on board or at gateway station.`
+        morning: `Early check-out and scenic road transit across mountain valleys towards border.`,
+        afternoon: `Arrive at border terminal, clear customs & immigration checkpoints, and relax in waiting lounge.`,
+        evening: `Board overnight ${r1.trainName} (departs ${r1.departure}) towards ${routePlan.hubName}.`,
+        food: `Lunch en route at highway diner and dinner near gateway railway station.`
       },
       hotelDetails: null
     });
@@ -479,15 +517,15 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
           duration_hours: 6.5,
           arrive: r2.arrival.split(" ")[0] || "19:55",
           buffer_after_minutes: 30,
-          note: `Connecting train safely bringing you back home to ${origin}!`,
-          cost: Math.round(numTravellers * 745)
+          note: `${r2.tip} Connecting train safely bringing you back home to ${origin}!`,
+          cost: Math.round(numTravellers * (r2.approxFarePerPerson["2S"] || r2.approxFarePerPerson["CC"] || 650))
         }
       ],
       activities: {
-        morning: `Early morning arrival at ${routePlan.hubName}, station lounge rest & breakfast.`,
-        afternoon: `Board connecting train ${r2.trainName} back home to ${origin}.`,
-        evening: `Arrive safely back in ${origin} with unforgettable trip memories!`,
-        food: `Homecoming celebratory dinner with family and friends.`
+        morning: `Arrival at ${routePlan.hubName} at 12:15 PM, comfortable station lounge transfer.`,
+        afternoon: `Board connecting train ${r2.trainName} (departs 13:25) heading directly home towards ${origin}.`,
+        evening: `Arrive safely back in ${origin} by 19:55 with unforgettable memories and stories!`,
+        food: `Homecoming celebratory dinner with loved ones.`
       },
       hotelDetails: null
     });
@@ -773,8 +811,8 @@ CRITICAL STRICT RULES ON ROUND-TRIP COMPLETION, ROOM CAPACITY, & ROAD TRANSIT RE
 1. ROUND-TRIP RETURN TO "${origin}" (NEVER LEAVE TRAVELLERS STRANDED AT HUBS):
    - The user departed from "${origin}". The return journey on the final day MUST bring them ALL THE WAY BACK TO "${origin}"!
    - If using connecting trains (e.g. Nepal ➜ Raxaul ➜ Howrah ➜ Bhubaneswar):
-     • Return Leg 1: Raxaul (RXL) to Howrah Junction (HWH) via Mithila Express 13022.
-     • Return Leg 2: Howrah Junction (HWH) to "${origin}" (BBS) via Jan Shatabdi 12073 / Vande Bharat 22895 / Puri SF 12837.
+     • Return Leg 1 (Raxaul RXL ➜ Howrah HWH): If leaving destination by road in the morning and reaching Raxaul border in the afternoon (14:00–16:00), schedule evening train #13044 Raxaul – Howrah Express (departs RXL 21:00 / 09:00 PM, arrives HWH 12:15 PM Next Day). Do NOT schedule morning train #13022 (departs 10:10 AM) unless travellers stayed overnight near Raxaul the prior night! There is NO 13:20 train from Raxaul.
+     • Return Leg 2 (Howrah HWH ➜ "${origin}" BBS): Schedule connecting train #12073 Jan Shatabdi Express (departs HWH 13:25, arrives BBS 19:55) or #22895 Vande Bharat / #12837 Puri SF Express.
      • The very last transit leg MUST end at "${origin}". DO NOT terminate at Howrah!
 2. REALISTIC GROUP ROOM CAPACITY & BUDGET PHYSICS FOR ${numTravellers} GUESTS:
    - Standard hotel rooms strictly permit a MAXIMUM OF 2 ADULTS.
@@ -825,7 +863,11 @@ CRITICAL STRICT RULES ON ROUND-TRIP COMPLETION, ROOM CAPACITY, & ROAD TRANSIT RE
      • No Teleporting.
      • If road travel duration exceeds 5 hours, the afternoon/evening of that day MUST be reserved for hotel check-in and relaxed local walking.
      • Border Crossings: Include a 1.5 to 2.5 hour buffer for immigration at land borders (e.g. Raxaul/Birgunj).
-6. Return ONLY valid JSON in the exact schema provided.
+8. STRICT CHRONOLOGICAL CONNECTION BUFFERS (ZERO NEGATIVE BUFFERS):
+   - For consecutive transit legs: The departure of leg 2 MUST be AFTER the arrival of leg 1 + minimum transfer buffer!
+   - Arriving at border station at 14:00 and departing at 10:10 or 13:20 is physically impossible.
+   - For Raxaul (RXL) to Howrah (HWH), the genuine evening train is #13044 (departs 21:00, arrives 12:15 Next Day).
+9. Return ONLY valid JSON in the exact schema provided.
 
 SCHEMA:
 ${schemaStr}`;
