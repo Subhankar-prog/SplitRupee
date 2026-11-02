@@ -210,18 +210,26 @@ export function generateSingleDayICSContent(
   const departTime = firstLeg?.depart || "09:00";
   const arriveTime = lastLeg?.arrive || "18:00";
 
+  const endDateObj = new Date(dayDate);
+  const [depH] = (departTime || "09:00").split(":").map(Number);
+  const [arrH] = (arriveTime || "18:00").split(":").map(Number);
+  if (arrH < depH || (lastLeg?.note && /overnight|next day/i.test(lastLeg.note))) {
+    endDateObj.setDate(endDateObj.getDate() + 1);
+  }
+
   const dtStart = formatDateToICS(dayDate, departTime);
-  const dtEnd = formatDateToICS(dayDate, arriveTime);
+  const dtEnd = formatDateToICS(endDateObj, arriveTime);
 
-  const title = `Day ${day.day}: ${day.stay || trip.destination} - SplitRupee Trip`;
+  const title = `Day ${day.day}: ${day.stay || trip.destination} - SplitRupee`;
 
+  const dateStr = dayDate.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
   let descLines: string[] = [];
-  descLines.push(`📅 TRIP SCHEDULE - DAY ${day.day}`);
-  descLines.push(`From: ${trip.origin} ➜ To: ${trip.destination}`);
+  descLines.push(`🗓️ DAY ${day.day} SCHEDULE (${dateStr})`);
+  descLines.push(`Part of ${trip.destination} Trip`);
   descLines.push("");
 
   if (day.legs && day.legs.length > 0) {
-    descLines.push("🚗 TRANSIT & TRAVEL LEGS:");
+    descLines.push("🚗 TODAY'S TRANSIT:");
     day.legs.forEach((l) => {
       descLines.push(`• ${l.from} -> ${l.to} via ${l.mode} (${l.depart || "--:--"} to ${l.arrive || "--:--"})`);
       if (l.note) descLines.push(`  Note: ${l.note}`);
@@ -230,7 +238,7 @@ export function generateSingleDayICSContent(
   }
 
   if (day.activities) {
-    descLines.push("📍 ACTIVITIES & SIGHTSEEING:");
+    descLines.push("📍 TODAY'S SIGHTSEEING:");
     if (day.activities.morning) descLines.push(`• Morning: ${day.activities.morning}`);
     if (day.activities.afternoon) descLines.push(`• Afternoon: ${day.activities.afternoon}`);
     if (day.activities.evening) descLines.push(`• Evening: ${day.activities.evening}`);
@@ -239,8 +247,10 @@ export function generateSingleDayICSContent(
   }
 
   if (day.hotelDetails) {
-    descLines.push("🏨 NIGHT STAY & ACCOMMODATION:");
-    descLines.push(`• ${day.hotelDetails.name} (approx ₹${day.hotelDetails.costPerNight || 0}/night)`);
+    descLines.push("🏨 NIGHT STAY:");
+    descLines.push(`• ${day.hotelDetails.name}`);
+    if (day.hotelDetails.roomType) descLines.push(`  Room: ${day.hotelDetails.roomType}`);
+    if (day.hotelDetails.costPerNight) descLines.push(`  Cost: ₹${day.hotelDetails.costPerNight}/night`);
     if (day.hotelDetails.contact) descLines.push(`  Verified Contact: ${day.hotelDetails.contact}`);
   }
 
@@ -332,19 +342,40 @@ export function getSingleDayGoogleCalendarUrl(
   const departTime = firstLeg?.depart || "09:00";
   const arriveTime = lastLeg?.arrive || "18:00";
 
-  const startStr = formatDateToICS(dayDate, departTime);
-  const endStr = formatDateToICS(dayDate, arriveTime);
-
-  const title = encodeURIComponent(`Day ${day.day}: ${day.stay || trip.destination} - SplitRupee Trip`);
-
-  let desc = `Trip: ${trip.origin} -> ${trip.destination}\nDay ${day.day} Schedule:`;
-  if (day.legs && day.legs.length > 0) {
-    desc += `\nTransit: ${day.legs.map((l) => `${l.from} -> ${l.to} (${l.mode})`).join(", ")}`;
+  const endDateObj = new Date(dayDate);
+  const [depH] = (departTime || "09:00").split(":").map(Number);
+  const [arrH] = (arriveTime || "18:00").split(":").map(Number);
+  if (arrH < depH || (lastLeg?.note && /overnight|next day/i.test(lastLeg.note))) {
+    endDateObj.setDate(endDateObj.getDate() + 1);
   }
-  if (day.activities?.morning) desc += `\nMorning: ${day.activities.morning}`;
-  if (day.activities?.afternoon) desc += `\nAfternoon: ${day.activities.afternoon}`;
-  if (day.activities?.evening) desc += `\nEvening: ${day.activities.evening}`;
-  if (day.hotelDetails?.name) desc += `\nStay: ${day.hotelDetails.name} (${day.hotelDetails.contact || "front desk"})`;
+
+  const startStr = formatDateToICS(dayDate, departTime);
+  const endStr = formatDateToICS(endDateObj, arriveTime);
+
+  const title = encodeURIComponent(`Day ${day.day}: ${day.stay || trip.destination} - SplitRupee`);
+
+  const dateStr = dayDate.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+  let desc = `🗓️ Day ${day.day} of ${trip.days.length} (${dateStr})\nPart of ${trip.destination} Trip`;
+  if (day.legs && day.legs.length > 0) {
+    desc += `\n\n🚗 Today's Transit:`;
+    day.legs.forEach((l) => {
+      desc += `\n• ${l.from} ➔ ${l.to} via ${l.mode} (${l.depart || "--:--"} - ${l.arrive || "--:--"})`;
+      if (l.note) desc += ` (${l.note})`;
+    });
+  }
+  if (day.activities) {
+    desc += `\n\n📍 Today's Sightseeing:`;
+    if (day.activities.morning) desc += `\n• Morning: ${day.activities.morning}`;
+    if (day.activities.afternoon) desc += `\n• Afternoon: ${day.activities.afternoon}`;
+    if (day.activities.evening) desc += `\n• Evening: ${day.activities.evening}`;
+    if (day.activities.food) desc += `\n• Food: ${day.activities.food}`;
+  }
+  if (day.hotelDetails?.name) {
+    desc += `\n\n🏨 Night Stay: ${day.hotelDetails.name}`;
+    if (day.hotelDetails.roomType) desc += ` [${day.hotelDetails.roomType}]`;
+    if (day.hotelDetails.costPerNight) desc += ` (~₹${day.hotelDetails.costPerNight}/night)`;
+    if (day.hotelDetails.contact) desc += ` (📞 ${day.hotelDetails.contact})`;
+  }
 
   const details = encodeURIComponent(desc);
   const location = encodeURIComponent(day.stay || trip.destination);

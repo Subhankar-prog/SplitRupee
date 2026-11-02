@@ -41,10 +41,15 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
     return null;
   }
 
+  // Maintain a consistent base accommodation property across the destination stay (eliminate 4-5 hostels hopping)
+  let establishedDestinationHotel: any = null;
+
   // Sanitize each day
   const sanitizedDays = plan.days.map((day: any, idx: number) => {
     const dayNum = Number(day.day) || idx + 1;
-    const isOvernight = day.stay && String(day.stay).toLowerCase().includes("overnight");
+    const isOvernight = day.stay && /overnight/i.test(String(day.stay));
+    const isHomeDay = /home|return\s+home/i.test(String(day.stay || "")) && dayNum === plan.days.length;
+    const isOvernightOrHome = isOvernight || isHomeDay;
     const stay = day.stay || (isOvernight ? "Overnight Travel" : `${body.destination} Stay`);
 
     // Sanitize legs
@@ -121,9 +126,9 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
       body.stayPreference
     );
 
-    // Sanitize hotelDetails — strictly enforce group room capacity & zero demo numbers!
+    // Sanitize hotelDetails — strictly enforce group room capacity, zero demo numbers & SINGLE property consistency!
     let hotelDetails = day.hotelDetails;
-    if (!isOvernight && !hotelDetails) {
+    if (!isOvernightOrHome && !hotelDetails) {
       hotelDetails = {
         name: optimalAccom.name,
         contact: optimalAccom.phone,
@@ -133,7 +138,7 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
         costPerNight: optimalAccom.costPerNight,
         breakdownNote: optimalAccom.breakdownNote
       };
-    } else if (hotelDetails && !isOvernight) {
+    } else if (hotelDetails && !isOvernightOrHome) {
       let contact = hotelDetails.contact ? String(hotelDetails.contact).trim() : null;
       if (isDemoPhoneNumber(contact)) {
         contact = optimalAccom.phone || null;
@@ -141,16 +146,17 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
 
       let costPerNight = Number(hotelDetails.costPerNight) || optimalAccom.costPerNight;
 
-      // Group Capacity Physics Anti-Hallucination:
-      // If group is >= 3 people, but costPerNight is impossibly low (< numTravellers * 350)
-      // (e.g. ₹1,500 total for 8 people = ₹187/person — physically impossible for 8 adults to stay in 1 room for ₹1,500!)
-      const isImpossibleGroupCost = numTravellers >= 3 && costPerNight < numTravellers * 350;
+      // Clean up multi-hostel lists like "Hostel A / Hostel B / Hostel C"
+      let cleanHotelName = String(hotelDetails.name || optimalAccom.name).trim();
+      if (/[\/,|]|\s+or\s+/i.test(cleanHotelName)) {
+        cleanHotelName = cleanHotelName.split(/\s*[\/,|]\s*|\s+or\s+/i)[0].trim();
+      }
 
-      // Anti-hallucination check: if staying budget is low (<= 2000), but hotel name is a luxury/resort brand
-      const isLuxuryBrand = /taj|oberoi|marriott|hyatt|leela|hilton|radisson|elgin|mayfair|palace|resort|spa|luxury|grand\s+hotel|5-star|five\s*star|boutique/i.test(hotelDetails.name);
+      // Group Capacity Physics Anti-Hallucination:
+      const isImpossibleGroupCost = numTravellers >= 3 && costPerNight < numTravellers * 350;
+      const isLuxuryBrand = /taj|oberoi|marriott|hyatt|leela|hilton|radisson|elgin|mayfair|palace|resort|spa|luxury|grand\s+hotel|5-star|five\s*star|boutique/i.test(cleanHotelName);
 
       if (isImpossibleGroupCost || (maxNightlyBudget <= 2000 && isLuxuryBrand)) {
-        // Enforce the realistic group accommodation
         hotelDetails = {
           name: optimalAccom.name,
           contact: optimalAccom.phone,
@@ -170,7 +176,7 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
           : `1 Room allocated for ${numTravellers} guest(s) @ ₹${costPerNight.toLocaleString()}/night.`);
 
         hotelDetails = {
-          name: hotelDetails.name || optimalAccom.name,
+          name: cleanHotelName || optimalAccom.name,
           contact: contact || null,
           roomType,
           roomCount,
@@ -179,6 +185,14 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
           breakdownNote
         };
       }
+
+      // Consistency: Keep the same established property for the destination (no switching hostels every single day!)
+      if (!establishedDestinationHotel) {
+        establishedDestinationHotel = { ...hotelDetails };
+      } else {
+        hotelDetails.name = establishedDestinationHotel.name;
+        hotelDetails.contact = establishedDestinationHotel.contact || hotelDetails.contact;
+      }
     }
 
     return {
@@ -186,7 +200,7 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
       stay,
       legs,
       activities,
-      hotelDetails: isOvernight ? null : hotelDetails
+      hotelDetails: isOvernightOrHome ? null : hotelDetails
     };
   });
 
@@ -271,86 +285,117 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
 
   const days: any[] = [];
 
-  // Day 1: Origin -> Destination (connecting or direct)
-  const day1Legs: any[] = [];
+  // Days generation: Origin -> Destination
   if (routePlan?.isConnecting && routePlan.outboundLeg1?.[0] && routePlan.outboundLeg2?.[0]) {
     const l1 = routePlan.outboundLeg1[0];
     const l2 = routePlan.outboundLeg2[0];
-    day1Legs.push({
-      from: origin,
-      to: routePlan.hubName || "Connecting Hub",
-      mode: `Train (${l1.trainName} #${l1.trainNumber})`,
-      depart: l1.departure.split(" ")[0] || "06:00",
-      duration_hours: 6.5,
-      arrive: l1.arrival.split(" ")[0] || "12:30",
-      buffer_after_minutes: 90,
-      note: `${l1.tip} IRCTC 24x7 Helpline: 139.`,
-      cost: Math.round(numTravellers * 750)
+
+    // Day 1: Board connection at Origin to Hub, then board overnight train to Gateway
+    days.push({
+      day: 1,
+      stay: `Overnight Train (${l2.trainName})`,
+      legs: [
+        {
+          from: origin,
+          to: routePlan.hubName || "Connecting Hub",
+          mode: `Train (${l1.trainName} #${l1.trainNumber})`,
+          depart: l1.departure.split(" ")[0] || "06:00",
+          duration_hours: 6.5,
+          arrive: l1.arrival.split(" ")[0] || "12:30",
+          buffer_after_minutes: 90,
+          note: `${l1.tip} IRCTC 24x7 Helpline: 139.`,
+          cost: Math.round(numTravellers * 750)
+        },
+        {
+          from: routePlan.hubName || "Connecting Hub",
+          to: `${destination} Gateway / Station`,
+          mode: `Connecting Train (${l2.trainName} #${l2.trainNumber})`,
+          depart: l2.departure.split(" ")[0] || "15:50",
+          duration_hours: 14.5,
+          arrive: l2.arrival.split(" ")[0] || "08:30",
+          buffer_after_minutes: 60,
+          note: `${l2.tip} Overnight sleeper train.`,
+          cost: Math.round(numTravellers * 1050)
+        }
+      ],
+      activities: {
+        morning: `Depart from ${origin} aboard ${l1.trainName} to ${routePlan.hubName}.`,
+        afternoon: `Arrive at ${routePlan.hubName}, transit lunch and station waiting lounge.`,
+        evening: `Board connecting overnight ${l2.trainName} towards ${destination} gateway.`,
+        food: `Dinner on board or at connecting hub station.`
+      },
+      hotelDetails: null
     });
-    day1Legs.push({
-      from: routePlan.hubName || "Connecting Hub",
-      to: `${destination} Gateway / Station`,
-      mode: `Connecting Train (${l2.trainName} #${l2.trainNumber})`,
-      depart: l2.departure.split(" ")[0] || "15:50",
-      duration_hours: 14.5,
-      arrive: l2.arrival.split(" ")[0] || "08:30",
-      buffer_after_minutes: 60,
-      note: `${l2.tip} Overnight journey.`,
-      cost: Math.round(numTravellers * 1050)
-    });
-    day1Legs.push({
-      from: `${destination} Gateway / Station`,
-      to: fallbackHotelDetails.name,
-      mode: "Prepaid Taxi / Shared Sumo",
-      depart: "09:30",
-      duration_hours: 6.5,
-      arrive: "16:00",
-      buffer_after_minutes: 30,
-      note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : (verifiedTaxi1?.locationTip || "Official taxi counter."),
-      cost: 1200
+
+    // Day 2: Morning arrival at Gateway, road transfer to Destination, check-in to single primary hostel
+    days.push({
+      day: 2,
+      stay: `${destination} Central`,
+      legs: [
+        {
+          from: `${destination} Gateway / Station`,
+          to: fallbackHotelDetails.name,
+          mode: "Prepaid Taxi / Shared Sumo",
+          depart: "09:30",
+          duration_hours: 6.5,
+          arrive: "16:00",
+          buffer_after_minutes: 30,
+          note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : (verifiedTaxi1?.locationTip || "Official taxi counter."),
+          cost: 1200
+        }
+      ],
+      activities: {
+        morning: `Arrive at gateway station, complete transit/border formalities and board scenic road transit.`,
+        afternoon: `Arrive in ${destination}, check in at ${fallbackHotelDetails.name}, unpack and freshen up.`,
+        evening: `Leisure walk around town square or local bazaar.`,
+        food: `Authentic welcome meal at highly rated local cafe or diner.`
+      },
+      hotelDetails: fallbackHotelDetails
     });
   } else {
-    day1Legs.push({
-      from: origin,
-      to: `${destination} Terminal / Junction`,
-      mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
-      depart: "08:00",
-      duration_hours: 4.5,
-      arrive: "12:30",
-      buffer_after_minutes: 60,
-      note: pref.includes("Train") ? "IRCTC National Railway Helpline: 139" : "Check transit schedule 24h prior.",
-      cost: estMainTransport
-    });
-    day1Legs.push({
-      from: `${destination} Terminal`,
-      to: fallbackHotelDetails.name,
-      mode: "Official Prepaid Taxi",
-      depart: "13:30",
-      duration_hours: 0.5,
-      arrive: "14:00",
-      buffer_after_minutes: 30,
-      note: verifiedTaxi1?.phone
-        ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}`
-        : (verifiedTaxi1?.locationTip || "Official Prepaid Taxi Booth at station exit."),
-      cost: 400
+    // Direct or Simple Route: Day 1 Arrival & Check-in
+    days.push({
+      day: 1,
+      stay: `${destination} Central`,
+      legs: [
+        {
+          from: origin,
+          to: `${destination} Terminal / Junction`,
+          mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
+          depart: "08:00",
+          duration_hours: 4.5,
+          arrive: "12:30",
+          buffer_after_minutes: 60,
+          note: pref.includes("Train") ? "IRCTC National Railway Helpline: 139" : "Check transit schedule 24h prior.",
+          cost: estMainTransport
+        },
+        {
+          from: `${destination} Terminal`,
+          to: fallbackHotelDetails.name,
+          mode: "Official Prepaid Taxi",
+          depart: "13:30",
+          duration_hours: 0.5,
+          arrive: "14:00",
+          buffer_after_minutes: 30,
+          note: verifiedTaxi1?.phone
+            ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}`
+            : (verifiedTaxi1?.locationTip || "Official Prepaid Taxi Booth at station exit."),
+          cost: 400
+        }
+      ],
+      activities: {
+        morning: `Depart from ${origin} via selected transit.`,
+        afternoon: `Arrive in ${destination}, check in at accommodation, freshen up and relax.`,
+        evening: `Leisure walk around ${destination} city center or town square.`,
+        food: `Authentic welcome meal at highly rated local cafe or diner.`
+      },
+      hotelDetails: fallbackHotelDetails
     });
   }
 
-  days.push({
-    day: 1,
-    stay: `${destination} Central`,
-    legs: day1Legs,
-    activities: {
-      morning: `Depart from ${origin} via selected transit.`,
-      afternoon: `Arrive in ${destination}, check in at accommodation, freshen up and relax.`,
-      evening: `Leisure walk around ${destination} city center or town square.`,
-      food: `Authentic welcome meal at highly rated local cafe or diner.`
-    },
-    hotelDetails: fallbackHotelDetails
-  });
-
-  // Intermediate Days: Exploring destination
-  for (let i = 2; i <= numNights; i++) {
+  // Intermediate Days: Exploring destination (STRICTLY same primary hotelDetails)
+  const startExploreDay = routePlan?.isConnecting ? 3 : 2;
+  for (let i = startExploreDay; i <= numNights; i++) {
     const vTaxi = groundData?.taxiServices?.[(i - 1) % (groundData.taxiServices.length || 1)] || verifiedTaxi2;
 
     days.push({
@@ -379,81 +424,111 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
     });
   }
 
-  // Final Departure Day (guaranteeing return all the way to origin)
-  const returnLegs: any[] = [];
+  // Final Return Journey (guaranteeing return all the way to origin)
   if (routePlan?.isConnecting && routePlan.returnLeg1?.[0] && routePlan.returnLeg2?.[0]) {
     const r1 = routePlan.returnLeg1[0];
     const r2 = routePlan.returnLeg2[0];
-    returnLegs.push({
-      from: "Hotel Check-out",
-      to: `${destination} Border / Station`,
-      mode: "Local Cab / Shared Sumo",
-      depart: "07:00",
-      duration_hours: 6.5,
-      arrive: "13:30",
-      buffer_after_minutes: 60,
-      note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Scenic mountain return drive.",
-      cost: 1200
+
+    // Penultimate Day: Check-out, road transfer to gateway, board overnight train
+    days.push({
+      day: numNights + 1,
+      stay: `Overnight Train (${r1.trainName})`,
+      legs: [
+        {
+          from: "Hotel Check-out",
+          to: `${destination} Border / Station`,
+          mode: "Local Cab / Shared Sumo",
+          depart: "07:00",
+          duration_hours: 6.5,
+          arrive: "13:30",
+          buffer_after_minutes: 60,
+          note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Scenic mountain return drive.",
+          cost: 1200
+        },
+        {
+          from: `${destination} Border / Station`,
+          to: routePlan.hubName || "Connecting Hub",
+          mode: `Train (${r1.trainName} #${r1.trainNumber})`,
+          depart: r1.departure.split(" ")[0] || "10:00",
+          duration_hours: 14.0,
+          arrive: r1.arrival.split(" ")[0] || "04:00",
+          buffer_after_minutes: 90,
+          note: `Overnight return connection to ${routePlan.hubName}.`,
+          cost: Math.round(numTravellers * 1020)
+        }
+      ],
+      activities: {
+        morning: `Hotel check-out and morning road transit to border station.`,
+        afternoon: `Clear return border checkpost and arrive at railway gateway.`,
+        evening: `Board overnight ${r1.trainName} towards connecting hub.`,
+        food: `Dinner on board or at gateway station.`
+      },
+      hotelDetails: null
     });
-    returnLegs.push({
-      from: `${destination} Border / Station`,
-      to: routePlan.hubName || "Connecting Hub",
-      mode: `Train (${r1.trainName} #${r1.trainNumber})`,
-      depart: r1.departure.split(" ")[0] || "10:00",
-      duration_hours: 14.0,
-      arrive: r1.arrival.split(" ")[0] || "04:00",
-      buffer_after_minutes: 90,
-      note: `Overnight return connection to ${routePlan.hubName}.`,
-      cost: Math.round(numTravellers * 1020)
-    });
-    returnLegs.push({
-      from: routePlan.hubName || "Connecting Hub",
-      to: origin,
-      mode: `Connecting Train (${r2.trainName} #${r2.trainNumber})`,
-      depart: r2.departure.split(" ")[0] || "13:25",
-      duration_hours: 6.5,
-      arrive: r2.arrival.split(" ")[0] || "19:55",
-      buffer_after_minutes: 30,
-      note: `Connecting train safely bringing you back home to ${origin}!`,
-      cost: Math.round(numTravellers * 745)
+
+    // Final Day: Morning at Hub & Connecting train bringing travellers safely back home
+    days.push({
+      day: numNights + 2,
+      stay: `Home (${origin})`,
+      legs: [
+        {
+          from: routePlan.hubName || "Connecting Hub",
+          to: origin,
+          mode: `Connecting Train (${r2.trainName} #${r2.trainNumber})`,
+          depart: r2.departure.split(" ")[0] || "13:25",
+          duration_hours: 6.5,
+          arrive: r2.arrival.split(" ")[0] || "19:55",
+          buffer_after_minutes: 30,
+          note: `Connecting train safely bringing you back home to ${origin}!`,
+          cost: Math.round(numTravellers * 745)
+        }
+      ],
+      activities: {
+        morning: `Early morning arrival at ${routePlan.hubName}, station lounge rest & breakfast.`,
+        afternoon: `Board connecting train ${r2.trainName} back home to ${origin}.`,
+        evening: `Arrive safely back in ${origin} with unforgettable trip memories!`,
+        food: `Homecoming celebratory dinner with family and friends.`
+      },
+      hotelDetails: null
     });
   } else {
-    returnLegs.push({
-      from: "Hotel Check-out",
-      to: `${destination} Departure Station / Airport`,
-      mode: "Local Cab",
-      depart: "10:00",
-      duration_hours: 0.5,
-      arrive: "10:30",
-      buffer_after_minutes: 60,
-      note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Pre-book station transfer via hotel reception.",
-      cost: 400
-    });
-    returnLegs.push({
-      from: `${destination} Station / Airport`,
-      to: origin,
-      mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
-      depart: "12:00",
-      duration_hours: 4.5,
-      arrive: "16:30",
-      buffer_after_minutes: 60,
-      note: `Return journey to ${origin}.`,
-      cost: estMainTransport
+    // Direct or Simple Departure Day
+    days.push({
+      day: numNights + 1,
+      stay: `Home (${origin})`,
+      legs: [
+        {
+          from: "Hotel Check-out",
+          to: `${destination} Departure Station / Airport`,
+          mode: "Local Cab",
+          depart: "10:00",
+          duration_hours: 0.5,
+          arrive: "10:30",
+          buffer_after_minutes: 60,
+          note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Pre-book station transfer via hotel reception.",
+          cost: 400
+        },
+        {
+          from: `${destination} Station / Airport`,
+          to: origin,
+          mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
+          depart: "12:00",
+          duration_hours: 4.5,
+          arrive: "16:30",
+          buffer_after_minutes: 60,
+          note: `Return journey to ${origin}.`,
+          cost: estMainTransport
+        }
+      ],
+      activities: {
+        morning: `Souvenir shopping and morning breakfast before hotel check-out.`,
+        afternoon: `Board return connection back towards ${origin}.`,
+        evening: `Arrive back at ${origin} with memorable memories!`,
+        food: `Pantry or airport lunch on return journey.`
+      },
+      hotelDetails: null
     });
   }
-
-  days.push({
-    day: numNights + 1,
-    stay: "Home / Journey Back",
-    legs: returnLegs,
-    activities: {
-      morning: `Souvenir shopping and morning breakfast before hotel check-out.`,
-      afternoon: `Board return connection back towards ${origin}.`,
-      evening: `Arrive back at ${origin} with memorable memories!`,
-      food: `Pantry or airport lunch on return journey.`
-    },
-    hotelDetails: null
-  });
 
   const tips = [
     `Ideal for ${group} looking for a balanced pace in ${destination}.`,
@@ -714,15 +789,25 @@ CRITICAL STRICT RULES ON ROUND-TRIP COMPLETION, ROOM CAPACITY, & ROAD TRANSIT RE
      • "ratePerUnit": Rate per bed (e.g. ₹500) or rate per room (e.g. ₹1,400).
      • "costPerNight": Total group nightly stay cost for all ${numTravellers} guests.
      • "breakdownNote": Realistic explanation of room sizing.
-3. ZERO DEMO PHONE NUMBERS:
+3. STRICT SINGLE BASE HOTEL/HOSTEL RULE (ZERO HOSTEL HOPPING & ZERO MULTI-HOSTEL LISTS):
+   - In "${destination}", select EXACTLY ONE primary authentic accommodation (e.g. "${optimalAccom.name}") and keep that SAME property for EVERY night of stay in that destination!
+   - DO NOT switch hostels every single night. Travelers do not change hostels every morning in the same city.
+   - In "hotelDetails.name", write ONLY ONE single property name (e.g. "${optimalAccom.name}"). NEVER write multiple names separated by slashes or commas (e.g. NEVER write "Hostel A / Hostel B / Hostel C").
+   - On nights spent on an overnight train or overnight bus, set "stay": "Overnight Travel" and "hotelDetails": null. Never assign a hotel in the destination on a night the traveller is sleeping on an overnight train!
+4. CONNECTING TRANSIT TIMELINE REALISM (DO NOT CRAM MULTIPLE DAYS INTO DAY 1):
+   - If outbound travel requires an overnight train (e.g. Howrah to Raxaul):
+     • Day 1: Board train from origin to connecting hub, then board overnight train. Day 1 ends on the overnight train! (stay: "Overnight Train", hotelDetails: null).
+     • Day 2: Morning arrival at gateway station, road transfer/taxi to destination, check in to accommodation. (stay: "${destination} Central", hotelDetails: assigned).
+     • NEVER put Day 2's road transfer and hotel check-in into Day 1! Day 1 must only cover Day 1's actual travel.
+5. ZERO DEMO PHONE NUMBERS:
    - NEVER provide dummy, demo, placeholder, or fake numbers (such as +91-9876543210, +91-987654321X, 1234567890, etc.).
    - ONLY provide a phone number if it is a real, authentic, verified telephone number of a real hotel or registered taxi union.
    - If not known with 100% certainty, "contact" MUST be null.
-4. ALL COSTS MUST BE GROUP TOTALS FOR ALL ${travellers} TRAVELLERS (NOT PER-PERSON):
+6. ALL COSTS MUST BE GROUP TOTALS FOR ALL ${travellers} TRAVELLERS (NOT PER-PERSON):
    - The total budget of ₹${budget} is the TOTAL budget for ALL ${travellers} travellers combined.
    - Every "cost" for transit/legs (e.g., trains, buses, flights, shared jeeps, private cabs) MUST be the TOTAL combined cost for ALL ${travellers} passengers.
    - "costPerNight" in hotelDetails is the TOTAL nightly room cost for the entire group (${travellers} travellers).
-5. ROAD TRAVEL DISTANCE, SPEED & TIMELINE REALISM (STRICT PHYSICS — NO TELEPORTING):
+7. ROAD TRAVEL DISTANCE, SPEED & TIMELINE REALISM (STRICT PHYSICS — NO TELEPORTING):
    - REAL-WORLD ROAD SPEED LIMITS BASED ON TERRAIN:
      • Hilly & Mountainous Roads (Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand):
        Average driving speed is STRICTLY 20 to 35 km/h due to winding hairpin bends and road conditions.
