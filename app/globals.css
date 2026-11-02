@@ -537,6 +537,21 @@ html.light select option:checked {
   color: #047857 !important;
 }
 
+/* Custom ThemeSelect dropdown styles */
+.dropdown-menu {
+  z-index: 100 !important;
+  opacity: 1 !important;
+}
+
+.dropdown-container:focus-within,
+.dropdown-container[class*="z-[100]"] {
+  z-index: 100 !important;
+}
+
+html.dark .dropdown-menu {
+  background-color: #08101b !important;
+}
+
 /* Custom ThemeSelect dropdown styles in light mode */
 html.light .dropdown-trigger {
   background-color: #ffffff !important;

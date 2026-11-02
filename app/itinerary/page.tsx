@@ -407,11 +407,6 @@ export default function ItineraryPage() {
             const filtered = prev.filter((item) => item.id !== json.itinerary.id);
             return [json.itinerary, ...filtered];
           });
-          if (typeof window !== "undefined") {
-            try {
-              localStorage.setItem("splitrupee_last_saved_itinerary", JSON.stringify(json.itinerary));
-            } catch {}
-          }
         }
       } else {
         setSaveToast(`Error: ${json.error || "Could not save itinerary"}`);
@@ -497,12 +492,6 @@ export default function ItineraryPage() {
       setLinkedGroup(null);
     }
 
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("splitrupee_last_saved_itinerary", JSON.stringify(it));
-      } catch {}
-    }
-
     setIsSavedTripsModalOpen(false);
     if (showToast) {
       setSaveToast(`✓ Loaded: ${it.title || `${it.origin} ➔ ${it.destination}`}`);
@@ -544,20 +533,15 @@ export default function ItineraryPage() {
     }
   };
 
-  // Auto-fetch saved itineraries on mount and auto-load saved trip so it shows immediately
+  // Auto-fetch saved itineraries on mount for count badge & saved trips showcase.
+  // The form intentionally starts BLANK as usual unless an explicit ?id= query param is provided.
   useEffect(() => {
     let isCancelled = false;
 
-    // Check cached itinerary in localStorage for zero-latency instant rendering
+    // Clear any lingering cached last itinerary so new visits always start blank
     if (typeof window !== "undefined") {
       try {
-        const cached = localStorage.getItem("splitrupee_last_saved_itinerary");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.planData && !result) {
-            handleLoadSavedItinerary(parsed, false);
-          }
-        }
+        localStorage.removeItem("splitrupee_last_saved_itinerary");
       } catch {}
     }
 
@@ -572,14 +556,11 @@ export default function ItineraryPage() {
         if (!isCancelled && json.ok && Array.isArray(json.itineraries)) {
           setSavedTripsList(json.itineraries);
 
-          // If no plan is active in view, automatically load the most recent saved itinerary!
-          if (!result && json.itineraries.length > 0) {
-            const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-            const requestedId = urlParams ? urlParams.get("id") : null;
-            const target = requestedId
-              ? json.itineraries.find((it: any) => it.id === requestedId) || json.itineraries[0]
-              : json.itineraries[0];
-
+          // ONLY auto-load if a specific trip ID was explicitly passed in the URL (e.g. ?id=xxx)
+          const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+          const requestedId = urlParams ? urlParams.get("id") : null;
+          if (requestedId) {
+            const target = json.itineraries.find((it: any) => it.id === requestedId);
             if (target && target.planData) {
               handleLoadSavedItinerary(target, false);
             }
@@ -853,7 +834,7 @@ export default function ItineraryPage() {
             <form onSubmit={handleGenerate} className="itinerary-generator-form space-y-6">
 
               {/* Row 1: Core Routing, Dates (Start & End), Duration (Days & Nights), Travellers, Group */}
-              <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-40">
+              <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-50">
                 {/* 1. Origin */}
                 <div className="origin-field origin-container">
                   <div className="h-7 flex items-center mb-1.5">
@@ -975,7 +956,7 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 2: Budgeting (Total Budget, Stay Budget/Night, Stay Preference, Trip Pace) */}
-              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-30">
+              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-40">
                 {/* Total Budget */}
                 <div className="total-group-budget-field total-group-budget-container">
                   <div className="h-7 flex items-center justify-between mb-1.5">
@@ -1061,13 +1042,13 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 3: Transit Modes & Detailed Classes (Train with 2S/SL/3A/etc., Bus Coach Options, Flight, Cab) */}
-              <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-white/5 space-y-3 relative z-20">
+              <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-white/5 space-y-3 relative z-30">
                 <div className="transit-mode-coach-preferences-heading text-xs font-semibold text-slate-300 flex items-center gap-2">
                   <Train className="h-4 w-4 text-emerald-400" />
                   <span>Transit Mode & Coach Preferences:</span>
                 </div>
 
-                <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-20">
+                <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-30">
                   {/* Train */}
                   <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-40 focus-within:z-50">
                     <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
@@ -1190,7 +1171,7 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 4: Interests & Remarks Customization */}
-              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-0">
+              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-10">
                 {/* Interests */}
                 <div className="interests-activities-field interests-activities-container lg:col-span-5">
                   <div className="h-7 flex items-center mb-1.5">
@@ -1226,7 +1207,7 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 5: Action Button at Bottom */}
-              <div className="itinerary-bottom-cta-section pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="itinerary-bottom-cta-section pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-0">
                 <div className="flex items-center gap-2.5 text-xs text-slate-400">
                   <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
                     <Compass className="h-4 w-4" />

@@ -92,7 +92,7 @@ export default function ThemeSelect({
       ref={containerRef}
       id={id}
       data-dropdown={baseSlug}
-      className={`dropdown-container dropdown-wrapper ${baseSlug}-container ${baseSlug}-wrapper relative w-full ${isOpen ? "z-[60]" : "z-10"} ${className}`}
+      className={`dropdown-container dropdown-wrapper ${baseSlug}-container ${baseSlug}-wrapper relative w-full ${isOpen ? "z-[100]" : "z-10"} ${className}`}
     >
       {name && <input type="hidden" name={name} value={value} />}
 
