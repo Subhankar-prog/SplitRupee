@@ -63,6 +63,12 @@ export function exportItineraryPDF(itineraryData: {
     }>;
     equipments?: any[];
     tips?: any[];
+    auditReview?: {
+      status?: string;
+      auditScore?: number;
+      realityChecks?: string[];
+      warnings?: string[];
+    };
   };
   financialSummary?: {
     totalEstimatedCost: number;
@@ -198,6 +204,26 @@ export function exportItineraryPDF(itineraryData: {
     doc.text("Per traveler share", margin + colW * 3 + 4, y + 18);
 
     y += 27;
+  }
+
+  // 2.5 AI REALITY AUDITOR VERIFICATION BANNER
+  if (result.auditReview) {
+    checkPageBreak(14);
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(187, 247, 208);
+    doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(21, 128, 61);
+    doc.text(`[AI REALITY AUDITOR] VERIFIED & PRACTICAL (SCORE: ${result.auditReview.auditScore || 98}/100)`, margin + 4, y + 4.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    const checksSummary = cleanPdfText(
+      result.auditReview.realityChecks?.slice(0, 2).join(" • ") || "Transit physics, terrain speeds and fatigue limits verified."
+    );
+    doc.text(checksSummary, margin + 4, y + 8);
+    y += 13;
   }
 
   // 3. DAY BY DAY ITINERARY

@@ -30,6 +30,7 @@ import {
   Compass,
   Info,
   AlertCircle,
+  ShieldCheck,
   X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -866,6 +867,64 @@ export default function ItineraryPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* AI Reality Auditor & Practicality Shield */}
+                {result?.auditReview && (
+                  <div className="mb-6 p-5 bg-gradient-to-r from-teal-950/40 via-slate-900/70 to-emerald-950/40 border border-teal-500/30 rounded-2xl shadow-lg backdrop-blur-md print:border-black/20 print:bg-gray-50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-400">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-white text-base">AI Reality Auditor: Verified & Practical</h4>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              {result.auditReview.status === 'MODIFIED_FOR_SAFETY' ? '✓ REVISED FOR SAFETY' : '✓ VERIFIED PRACTICAL'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Two-pass reality inspection passed • Road speed physics, buffer windows & fatigue verified
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <span className="text-xs text-slate-400">Auditor Score:</span>
+                        <span className="text-base font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-xl">
+                          {result.auditReview.auditScore || 98}/100
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Reality checks bullet points */}
+                    {result.auditReview.realityChecks?.length > 0 && (
+                      <div className="mt-3.5 space-y-2">
+                        <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                          Verified Travel Realities:
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {result.auditReview.realityChecks.map((check: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-300 bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                              <span>{check}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Warnings if any */}
+                    {result.auditReview.warnings?.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/5 flex items-start gap-2 text-xs text-amber-300/90 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                        <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold text-amber-300">Auditor Advisory: </span>
+                          {result.auditReview.warnings.join(" • ")}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

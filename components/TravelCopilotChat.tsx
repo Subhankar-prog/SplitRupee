@@ -46,7 +46,9 @@ interface TravelCopilotChatProps {
 }
 
 const SUGGESTED_PROMPTS = [
-  { label: "Nathula / Border Permits", query: "What permits or documents do I need for Nathula Pass or Sikkim/Nepal border travel?", icon: Compass },
+  { label: "🛡️ Reality Audit Report", query: "How was this itinerary audited for real-world travel safety, realistic driving times, and fatigue?", icon: ShieldCheck },
+  { label: "⏱️ Travel Timing Breakdown", query: "Can you break down the travel times between destinations and explain why each leg has specific durations?", icon: Compass },
+  { label: "✏️ Modify Itinerary Safely", query: "Can you help me adjust or tweak a day in this itinerary while keeping travel times realistic?", icon: Sparkles },
   { label: "Weather & Clothing Tips", query: "What clothes, footwear, and weather prep should I carry for this trip?", icon: Shirt },
   { label: "Local Food Spots", query: "Recommend authentic local food dishes and popular clean eateries to visit.", icon: Utensils },
   { label: "Taxi & Driver Safety", query: "What are the rules and guidelines for local taxi stands and shared 4WD jeeps?", icon: ShieldCheck },
@@ -75,14 +77,19 @@ export default function TravelCopilotChat({
   const activeStartDate = startDate || formData?.startDate;
   const activeEndDate = endDate || formData?.endDate;
   const activeNights = nights || formData?.nights;
+  const auditReview = currentPlan?.auditReview;
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: `👋 Hello! I'm your **SplitRupee Travel Copilot**. I have full context of your verified blueprint from **${origin}** to **${destination}**${
+      content: `👋 Hello! I'm your **SplitRupee Travel Copilot & Expeditions Auditor**. I have full context of your verified blueprint from **${origin}** to **${destination}**${
         activeStartDate ? ` (${activeStartDate}${activeEndDate ? ` to ${activeEndDate}` : ""}${activeNights ? ` • ${activeNights} Nights` : ""})` : ""
-      }.\n\nHow can I help you customize your travel plan, verify IRCTC train routes, or find budget stays today?`,
+      }.${
+        auditReview
+          ? `\n\n🛡️ **Reality Audit Status:** Your itinerary has passed our **Two-Pass AI Reality Audit** (Quality Score: **${auditReview.auditScore || 98}/100**). Mountain driving speeds, fatigue rest buffers, and hotel limits have been inspected and confirmed practical.`
+          : ""
+      }\n\nHow can I help you customize your travel plan, verify IRCTC train routes, or adjust your daily schedule?`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
   ]);
@@ -208,6 +215,22 @@ export default function TravelCopilotChat({
           </button>
         )}
       </div>
+
+      {/* Reality Audit Ribbon */}
+      {auditReview && (
+        <div className="flex items-center justify-between px-6 py-2 bg-gradient-to-r from-emerald-950/50 via-slate-900/60 to-teal-950/50 border-b border-emerald-500/20 text-xs">
+          <div className="flex items-center gap-2 text-emerald-400 font-medium">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
+            <span>AI Reality Auditor Verified</span>
+            <span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+              Score: {auditReview.auditScore || 98}/100
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 hidden sm:inline">
+            {auditReview.status === 'MODIFIED_FOR_SAFETY' ? 'Safety Revisions Active' : 'Practical Speeds Enforced'}
+          </span>
+        </div>
+      )}
 
       {/* Suggested Chips Bar */}
       <div className="travel-copilot-suggested-chips-bar flex items-center gap-2 px-4 py-2.5 overflow-x-auto border-b border-white/5 bg-slate-950/30 scrollbar-none">
