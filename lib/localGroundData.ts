@@ -10,7 +10,9 @@ export interface VerifiedHotel {
   name: string;
   phone?: string;
   address?: string;
-  approxRatePerNight: number; // In INR
+  approxRatePerNight: number; // In INR (standard double room)
+  dormBedRate?: number; // In INR (per bunk bed in shared hostel dorm)
+  quadRoomRate?: number; // In INR (per quad/family room fitting 4)
   tier: "budget" | "midrange" | "luxury";
   bookingTip?: string;
 }
@@ -30,7 +32,93 @@ export interface LocalGroundContext {
 }
 
 export const VERIFIED_LOCAL_GROUND_DATA: LocalGroundContext[] = [
-  // 1. Darjeeling / North Bengal / Siliguri / NJP
+  // 1. Nepal Corridor (Kathmandu, Pokhara, Raxaul, Birgunj)
+  {
+    destinationKeys: ["nepal", "kathmandu", "pokhara", "raxaul", "birgunj", "thamel", "patan", "bhaktapur"],
+    hotels: [
+      {
+        name: "Alobar1000 Backpacker Hostel",
+        phone: "+977-1-4410114",
+        address: "Kaldhara Marg, Thamel, Kathmandu",
+        approxRatePerNight: 1200,
+        dormBedRate: 480,
+        tier: "budget",
+        bookingTip: "Top-rated hostel for groups. Dorm beds approx ₹450-₹550/bed; private doubles ₹1,200."
+      },
+      {
+        name: "WanderThirst Backpacker Hostel",
+        phone: "+977-1-4258900",
+        address: "Paknajol, Thamel, Kathmandu",
+        approxRatePerNight: 1400,
+        dormBedRate: 520,
+        tier: "budget",
+        bookingTip: "Social hostel with 8-bed group dorms (₹500/bed) and private double rooms."
+      },
+      {
+        name: "Zostel Kathmandu",
+        phone: "+977-980-1090123",
+        address: "Paknajol Marg, Thamel, Kathmandu",
+        approxRatePerNight: 1800,
+        dormBedRate: 650,
+        tier: "budget",
+        bookingTip: "Famous Indian backpacker brand in Nepal. Dorms ₹600-₹750/bed; private rooms ₹1,800-₹2,200."
+      },
+      {
+        name: "Hotel Thamel Park & Backpackers Home",
+        phone: "+977-1-4265320",
+        address: "Thamel Center, Kathmandu",
+        approxRatePerNight: 1600,
+        quadRoomRate: 2400,
+        dormBedRate: 550,
+        tier: "budget",
+        bookingTip: "Family/Quad rooms available (fits 4 persons @ ₹2,400/night). Clean, safe, central."
+      },
+      {
+        name: "Hotel Holy Himalaya",
+        phone: "+977-1-4263580",
+        address: "Brahma Kumari Marg, Thamel, Kathmandu",
+        approxRatePerNight: 2800,
+        tier: "midrange",
+        bookingTip: "Comfortable mid-range property with free breakfast and travel desk."
+      },
+      {
+        name: "Hotel Yak & Yeti",
+        phone: "+977-1-4248999",
+        address: "Durbar Marg, Kathmandu",
+        approxRatePerNight: 8500,
+        tier: "luxury",
+        bookingTip: "Historic 5-star heritage luxury hotel near royal palace."
+      }
+    ],
+    taxiServices: [
+      {
+        name: "Birgunj / Raxaul Border Tata Sumo Stand",
+        phone: "+977-51-522105",
+        type: "Taxi Union",
+        locationTip: "Official shared Tata Sumo counter at Birgunj border gate. 8-9 passengers to Kathmandu (~₹800/seat or ₹7,000 full vehicle)."
+      },
+      {
+        name: "Kathmandu Thamel Prepaid Tourist Taxi Booth",
+        phone: "+977-1-4261888",
+        type: "Prepaid Booth",
+        locationTip: "Regulated meter taxi stand at Tridevi Marg entrance to Thamel."
+      },
+      {
+        name: "Tribhuvan International Airport Prepaid Taxi Desk",
+        phone: "+977-1-4472256",
+        type: "Prepaid Booth",
+        locationTip: "Official counter inside arrival hall before exit gates."
+      }
+    ],
+    generalHelplines: [
+      { name: "Nepal Tourist Police Emergency", number: "1144 / +977-1-4247041" },
+      { name: "Nepal Police Control", number: "100" },
+      { name: "Nepal Tourism Board (Kathmandu)", number: "+977-1-4256909" },
+      { name: "Indian Embassy Kathmandu Helpline", number: "+977-1-4410900" }
+    ]
+  },
+
+  // 2. Darjeeling / North Bengal / Siliguri / NJP
   {
     destinationKeys: ["darjeeling", "siliguri", "njp", "new jalpaiguri", "kalimpong", "kurseong"],
     hotels: [
@@ -442,4 +530,119 @@ export function isDemoPhoneNumber(phoneStr: string | null | undefined): boolean 
   if (/dummy|demo|placeholder|fake|sample|xxxx/i.test(phoneStr)) return true;
 
   return false;
+}
+
+export interface GroupAccommodationSolution {
+  name: string;
+  phone: string | null;
+  address?: string;
+  roomType: string;
+  roomCount: number;
+  ratePerUnit: number;
+  costPerNight: number;
+  breakdownNote: string;
+  alternativeCheapest?: {
+    name: string;
+    phone: string | null;
+    roomType: string;
+    roomCount: number;
+    ratePerUnit: number;
+    costPerNight: number;
+  };
+}
+
+/**
+ * Calculates physically realistic room and bed capacities for any group size (e.g. 8 people).
+ * Standard hotel rooms strictly permit max 2 adults.
+ * Finds the cheapest authentic options (e.g. Backpacker Dorm Beds vs. Standard Double Rooms)
+ * and eliminates hallucinations where 8 adults are put in 1 room for ₹1,500.
+ */
+export function getOptimalGroupAccommodation(
+  destination: string,
+  travellers: number,
+  userTargetBudget: number = 1500,
+  stayPreference: string = ""
+): GroupAccommodationSolution {
+  const numTravellers = Math.max(1, Number(travellers) || 1);
+  const ground = getVerifiedGroundData(destination);
+  const hotels = ground?.hotels || [];
+
+  // Filter hostels having dorm beds
+  const hostelWithDorms = hotels.filter((h) => (h.dormBedRate && h.dormBedRate > 0) || /hostel|zostel|backpack/i.test(h.name));
+  const budgetDoubleHotels = hotels.filter((h) => h.tier === "budget" || h.approxRatePerNight <= 2500);
+
+  // If 1 or 2 travellers:
+  if (numTravellers <= 2) {
+    const matched = getVerifiedHotelForBudget(destination, userTargetBudget) || budgetDoubleHotels[0] || hotels[0];
+    const rate = matched?.approxRatePerNight || userTargetBudget;
+    return {
+      name: matched?.name || `Verified Budget Stay in Central ${destination}`,
+      phone: matched?.phone || null,
+      address: matched?.address,
+      roomType: numTravellers === 1 ? "1 Standard Single/Double Room" : "1 Standard Double Room (Fits 2 Guests)",
+      roomCount: 1,
+      ratePerUnit: rate,
+      costPerNight: rate,
+      breakdownNote: `1 Room allocated for ${numTravellers} guest(s) @ ₹${rate.toLocaleString()}/night.`
+    };
+  }
+
+  // If group (>= 3 travellers):
+  // Rule of physics: Standard hotel rooms permit max 2 adults (impossible for 8 adults in 1 room).
+  const doubleRoomsNeeded = Math.ceil(numTravellers / 2);
+
+  // Pick best hostel option (dorm beds)
+  const bestHostel = hostelWithDorms[0] || budgetDoubleHotels[0] || hotels[0];
+  const dormBedRate = bestHostel?.dormBedRate || 500;
+  const dormTotalCost = numTravellers * dormBedRate;
+
+  // Pick best double room hotel
+  const bestDoubleHotel = budgetDoubleHotels[0] || bestHostel || hotels[0];
+  const doubleRoomRate = bestDoubleHotel?.approxRatePerNight || Math.max(1200, userTargetBudget);
+  const doubleTotalCost = doubleRoomsNeeded * doubleRoomRate;
+
+  // Check user preference or budget hint
+  const prefersHostel = /hostel|dorm|backpack|sharing/i.test(stayPreference) || userTargetBudget <= 1000;
+
+  if (prefersHostel || dormTotalCost < doubleTotalCost) {
+    // Recommend hostel dorm beds as cheapest primary option
+    return {
+      name: bestHostel?.name || `Verified Backpacker Hostel in ${destination}`,
+      phone: bestHostel?.phone || null,
+      address: bestHostel?.address,
+      roomType: `${numTravellers} Bunk Beds in Shared Group Dorm`,
+      roomCount: numTravellers,
+      ratePerUnit: dormBedRate,
+      costPerNight: dormTotalCost,
+      breakdownNote: `Cheapest verified option for ${numTravellers} guests: ${numTravellers} Dorm Beds @ ₹${dormBedRate.toLocaleString()}/bed = ₹${dormTotalCost.toLocaleString()}/night total. Note: Standard hotels require ${doubleRoomsNeeded} Double Rooms (~₹${doubleTotalCost.toLocaleString()}/night total) as standard rooms permit max 2 adults.`,
+      alternativeCheapest: {
+        name: bestDoubleHotel?.name || `Standard Hotel in ${destination}`,
+        phone: bestDoubleHotel?.phone || null,
+        roomType: `${doubleRoomsNeeded} Standard Double Rooms (2 Guests/Room)`,
+        roomCount: doubleRoomsNeeded,
+        ratePerUnit: doubleRoomRate,
+        costPerNight: doubleTotalCost
+      }
+    };
+  } else {
+    // Recommend double rooms as primary
+    return {
+      name: bestDoubleHotel?.name || `Verified Hotel in ${destination}`,
+      phone: bestDoubleHotel?.phone || null,
+      address: bestDoubleHotel?.address,
+      roomType: `${doubleRoomsNeeded} Standard Double Rooms (2 Guests/Room)`,
+      roomCount: doubleRoomsNeeded,
+      ratePerUnit: doubleRoomRate,
+      costPerNight: doubleTotalCost,
+      breakdownNote: `Realistic room setup for ${numTravellers} guests: ${doubleRoomsNeeded} Double Rooms @ ₹${doubleRoomRate.toLocaleString()}/room = ₹${doubleTotalCost.toLocaleString()}/night total. (Maximum hotel occupancy is 2 adults per room). For extra savings, ${numTravellers} hostel dorm beds are available from ~₹${dormBedRate.toLocaleString()}/bed = ₹${dormTotalCost.toLocaleString()}/night.`,
+      alternativeCheapest: {
+        name: bestHostel?.name || `Backpacker Hostel in ${destination}`,
+        phone: bestHostel?.phone || null,
+        roomType: `${numTravellers} Hostel Dorm Beds`,
+        roomCount: numTravellers,
+        ratePerUnit: dormBedRate,
+        costPerNight: dormTotalCost
+      }
+    };
+  }
 }

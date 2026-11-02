@@ -59,6 +59,10 @@ export function exportItineraryPDF(itineraryData: {
         name: string;
         costPerNight: number;
         contact?: string;
+        roomType?: string;
+        roomCount?: number;
+        ratePerUnit?: number;
+        breakdownNote?: string;
       };
     }>;
     equipments?: any[];
@@ -401,16 +405,19 @@ export function exportItineraryPDF(itineraryData: {
     if (d.hotelDetails && d.hotelDetails.name) {
       const hotelName = cleanPdfText(d.hotelDetails.name);
       const contactText = d.hotelDetails.contact ? cleanPdfText(d.hotelDetails.contact) : "";
-      const priceText = d.hotelDetails.costPerNight ? `INR ${d.hotelDetails.costPerNight} / night` : "";
+      const roomTypeText = d.hotelDetails.roomType ? ` (${cleanPdfText(d.hotelDetails.roomType)})` : "";
+      const priceText = d.hotelDetails.costPerNight ? `INR ${Number(d.hotelDetails.costPerNight).toLocaleString()} / night` : "";
+      const breakdownText = d.hotelDetails.breakdownNote ? cleanPdfText(d.hotelDetails.breakdownNote) : "";
 
-      checkPageBreak(14);
+      const cardHeight = breakdownText ? 16 : 12;
+      checkPageBreak(cardHeight + 2);
 
       doc.setFillColor(240, 253, 244); // emerald-50
       doc.setDrawColor(187, 247, 208); // emerald-200
-      doc.roundedRect(margin, y, contentWidth, 12, 1, 1, "FD");
+      doc.roundedRect(margin, y, contentWidth, cardHeight, 1, 1, "FD");
 
       doc.setFillColor(16, 185, 129);
-      doc.rect(margin, y, 1.5, 12, "F");
+      doc.rect(margin, y, 1.5, cardHeight, "F");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
@@ -420,7 +427,7 @@ export function exportItineraryPDF(itineraryData: {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(15, 23, 42);
-      doc.text(hotelName, margin + 40, y + 4.5);
+      doc.text(`${hotelName}${roomTypeText}`, margin + 38, y + 4.5);
 
       if (priceText) {
         doc.setFont("helvetica", "bold");
@@ -434,10 +441,18 @@ export function exportItineraryPDF(itineraryData: {
       doc.setTextColor(71, 85, 105);
       const deskLine = contactText
         ? `Verified Reception / Front Desk: ${contactText}`
-        : "Reservation via official hotel front desk or verified online booking portal";
+        : "Reservation via official hostel/hotel front desk or verified online booking portal";
       doc.text(deskLine, margin + 4, y + 8.5);
 
-      y += 14;
+      if (breakdownText) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        const splitBreakdown = doc.splitTextToSize(breakdownText, contentWidth - 8);
+        doc.text(splitBreakdown[0] || "", margin + 4, y + 12.5);
+      }
+
+      y += cardHeight + 2;
     }
 
     y += 3;

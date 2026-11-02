@@ -176,3 +176,4 @@ export function getGoogleCalendarUrl(trip: CalendarTripData): string {
 
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&location=${location}`;
 }
+

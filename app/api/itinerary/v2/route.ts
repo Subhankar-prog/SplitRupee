@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getVerifiedGroundData, getVerifiedHotelForBudget, isDemoPhoneNumber } from "@/lib/localGroundData";
-import { getVerifiedTrainsForRoute } from "@/lib/irctcData";
+import { getVerifiedGroundData, getVerifiedHotelForBudget, getOptimalGroupAccommodation, isDemoPhoneNumber } from "@/lib/localGroundData";
+import { getVerifiedTrainsForRoute, getVerifiedRoutePlan } from "@/lib/irctcData";
 
 export const dynamic = "force-dynamic";
 
@@ -112,64 +112,73 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
       food: acts.food || "Enjoy regional local delicacies and specialties."
     };
 
-    // Sanitize hotelDetails — strictly enforce budget accuracy & zero demo numbers!
+    // Calculate optimal, physically realistic group accommodation
+    const numTravellers = Math.max(1, Number(body.travellers) || 1);
+    const optimalAccom = getOptimalGroupAccommodation(
+      body.destination,
+      numTravellers,
+      maxNightlyBudget,
+      body.stayPreference
+    );
+
+    // Sanitize hotelDetails — strictly enforce group room capacity & zero demo numbers!
     let hotelDetails = day.hotelDetails;
     if (!isOvernight && !hotelDetails) {
-      if (matchedBudgetHotel) {
-        hotelDetails = {
-          name: matchedBudgetHotel.name,
-          contact: matchedBudgetHotel.phone || null,
-          costPerNight: matchedBudgetHotel.approxRatePerNight
-        };
-      } else {
-        hotelDetails = {
-          name: `Verified Budget Stay / Homestay in Central ${body.destination}`,
-          contact: null,
-          costPerNight: maxNightlyBudget
-        };
-      }
-    } else if (hotelDetails) {
+      hotelDetails = {
+        name: optimalAccom.name,
+        contact: optimalAccom.phone,
+        roomType: optimalAccom.roomType,
+        roomCount: optimalAccom.roomCount,
+        ratePerUnit: optimalAccom.ratePerUnit,
+        costPerNight: optimalAccom.costPerNight,
+        breakdownNote: optimalAccom.breakdownNote
+      };
+    } else if (hotelDetails && !isOvernight) {
       let contact = hotelDetails.contact ? String(hotelDetails.contact).trim() : null;
-      // If contact is a demo number, PURGE IT!
       if (isDemoPhoneNumber(contact)) {
-        contact = matchedBudgetHotel?.phone || null;
+        contact = optimalAccom.phone || null;
       }
 
-      let costPerNight = Number(hotelDetails.costPerNight) || maxNightlyBudget;
+      let costPerNight = Number(hotelDetails.costPerNight) || optimalAccom.costPerNight;
+
+      // Group Capacity Physics Anti-Hallucination:
+      // If group is >= 3 people, but costPerNight is impossibly low (< numTravellers * 350)
+      // (e.g. ₹1,500 total for 8 people = ₹187/person — physically impossible for 8 adults to stay in 1 room for ₹1,500!)
+      const isImpossibleGroupCost = numTravellers >= 3 && costPerNight < numTravellers * 350;
 
       // Anti-hallucination check: if staying budget is low (<= 2000), but hotel name is a luxury/resort brand
       const isLuxuryBrand = /taj|oberoi|marriott|hyatt|leela|hilton|radisson|elgin|mayfair|palace|resort|spa|luxury|grand\s+hotel|5-star|five\s*star|boutique/i.test(hotelDetails.name);
-      if (maxNightlyBudget <= 2000 && isLuxuryBrand) {
-        // Replace with genuine verified budget property or transparent homestay notice
-        if (matchedBudgetHotel) {
-          hotelDetails.name = matchedBudgetHotel.name;
-          contact = matchedBudgetHotel.phone || null;
-          costPerNight = matchedBudgetHotel.approxRatePerNight;
-        } else {
-          hotelDetails.name = `Verified Budget Homestay / Backpacker Hostel in Central ${body.destination}`;
-          contact = null;
-          costPerNight = Math.min(costPerNight, maxNightlyBudget);
-        }
-      }
 
-      // If AI proposed an expensive hotel exceeding target stay budget by > 30%
-      if (costPerNight > maxNightlyBudget * 1.3) {
-        if (matchedBudgetHotel) {
-          hotelDetails.name = matchedBudgetHotel.name;
-          contact = matchedBudgetHotel.phone || null;
-          costPerNight = matchedBudgetHotel.approxRatePerNight;
-        } else {
-          hotelDetails.name = `Verified Budget Homestay / Backpacker Hostel in Central ${body.destination}`;
-          contact = null;
-          costPerNight = maxNightlyBudget;
-        }
-      }
+      if (isImpossibleGroupCost || (maxNightlyBudget <= 2000 && isLuxuryBrand)) {
+        // Enforce the realistic group accommodation
+        hotelDetails = {
+          name: optimalAccom.name,
+          contact: optimalAccom.phone,
+          roomType: optimalAccom.roomType,
+          roomCount: optimalAccom.roomCount,
+          ratePerUnit: optimalAccom.ratePerUnit,
+          costPerNight: optimalAccom.costPerNight,
+          breakdownNote: optimalAccom.breakdownNote
+        };
+      } else {
+        const doubleRoomsNeeded = Math.ceil(numTravellers / 2);
+        const roomCount = Number(hotelDetails.roomCount) || (hotelDetails.roomType?.toLowerCase().includes("dorm") ? numTravellers : doubleRoomsNeeded);
+        const ratePerUnit = Number(hotelDetails.ratePerUnit) || Math.round(costPerNight / (roomCount || 1));
+        const roomType = hotelDetails.roomType || (numTravellers <= 2 ? "1 Standard Double Room" : `${doubleRoomsNeeded} Standard Double Rooms (2 Guests/Room)`);
+        const breakdownNote = hotelDetails.breakdownNote || (numTravellers > 2
+          ? `${numTravellers} guests allocated across ${roomCount} units @ ₹${ratePerUnit.toLocaleString()}/unit = ₹${costPerNight.toLocaleString()}/night total.`
+          : `1 Room allocated for ${numTravellers} guest(s) @ ₹${costPerNight.toLocaleString()}/night.`);
 
-      hotelDetails = {
-        name: hotelDetails.name || `${body.destination} Hotel`,
-        contact: contact || null,
-        costPerNight
-      };
+        hotelDetails = {
+          name: hotelDetails.name || optimalAccom.name,
+          contact: contact || null,
+          roomType,
+          roomCount,
+          ratePerUnit,
+          costPerNight,
+          breakdownNote
+        };
+      }
     }
 
     return {
@@ -180,6 +189,53 @@ function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBu
       hotelDetails: isOvernight ? null : hotelDetails
     };
   });
+
+  // Fail-Safe: Round-trip return integrity (Traveller must NEVER be stranded at an intermediate hub like Howrah)
+  if (sanitizedDays.length > 0) {
+    const lastDay = sanitizedDays[sanitizedDays.length - 1];
+    if (lastDay.legs && lastDay.legs.length > 0) {
+      const lastLeg = lastDay.legs[lastDay.legs.length - 1];
+      const origClean = (body.origin || "").toLowerCase().trim();
+      const lastLegTo = (lastLeg.to || "").toLowerCase().trim();
+
+      // Check if last leg arrived back at origin
+      const reachedOrigin = lastLegTo.includes(origClean) || origClean.includes(lastLegTo);
+
+      if (!reachedOrigin) {
+        // Traveler was dropped off prematurely (e.g. at Howrah Junction / Kolkata / Raxaul)!
+        const routePlan = getVerifiedRoutePlan(body.origin, body.destination);
+        const numTrav = Math.max(1, Number(body.travellers) || 1);
+
+        if (routePlan?.returnLeg2 && routePlan.returnLeg2.length > 0) {
+          const connectingReturnTrain = routePlan.returnLeg2[0];
+          lastDay.legs.push({
+            from: connectingReturnTrain.from,
+            to: `${body.origin} (${connectingReturnTrain.to})`,
+            mode: `Connecting Train (${connectingReturnTrain.trainName} #${connectingReturnTrain.trainNumber})`,
+            distance_km: 435,
+            depart: connectingReturnTrain.departure.split(" ")[0] || "13:25",
+            duration_hours: 6.5,
+            arrive: connectingReturnTrain.arrival.split(" ")[0] || "19:55",
+            buffer_after_minutes: 45,
+            note: `${connectingReturnTrain.tip} Direct connection home to ${body.origin}. Indian Railways 24x7 Helpline: 139.`,
+            cost: Math.round(numTrav * (connectingReturnTrain.approxFarePerPerson["2S"] || connectingReturnTrain.approxFarePerPerson["SL"] || 745))
+          });
+        } else {
+          lastDay.legs.push({
+            from: lastLeg.to,
+            to: body.origin,
+            mode: `Return Transit to ${body.origin}`,
+            depart: "14:00",
+            duration_hours: 5.0,
+            arrive: "19:00",
+            buffer_after_minutes: 45,
+            note: `Final connecting leg bringing you safely back home to ${body.origin}.`,
+            cost: Math.round(numTrav * 600)
+          });
+        }
+      }
+    }
+  }
 
   plan.days = sanitizedDays;
   return plan;
@@ -192,62 +248,105 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
   const destination = body.destination || "Destination";
   const group = body.groupType || "Travelers";
   const pref = body.transportPref || "Train / Road";
+  const numTravellers = Math.max(1, Number(body.travellers) || 1);
 
   const estMainTransport = Math.max(500, Math.round(totalBudget * 0.25));
 
   const groundData = getVerifiedGroundData(destination) || getVerifiedGroundData(origin);
-  // Pick hotel that matches budget!
-  const matchedHotel = getVerifiedHotelForBudget(destination, maxNightlyBudget);
-  const fallbackHotelName = matchedHotel?.name || `Verified Budget Stay / Homestay Central ${destination}`;
-  const fallbackHotelCost = matchedHotel?.approxRatePerNight || maxNightlyBudget;
-  const fallbackHotelContact = matchedHotel?.phone || null;
+  const routePlan = getVerifiedRoutePlan(origin, destination);
+  const optimalAccom = getOptimalGroupAccommodation(destination, numTravellers, maxNightlyBudget, body.stayPreference);
+
+  const fallbackHotelDetails = {
+    name: optimalAccom.name,
+    contact: optimalAccom.phone,
+    roomType: optimalAccom.roomType,
+    roomCount: optimalAccom.roomCount,
+    ratePerUnit: optimalAccom.ratePerUnit,
+    costPerNight: optimalAccom.costPerNight,
+    breakdownNote: optimalAccom.breakdownNote
+  };
 
   const verifiedTaxi1 = groundData?.taxiServices?.[0];
   const verifiedTaxi2 = groundData?.taxiServices?.[1] || verifiedTaxi1;
 
   const days: any[] = [];
 
-  // Day 1: Origin -> Destination
+  // Day 1: Origin -> Destination (connecting or direct)
+  const day1Legs: any[] = [];
+  if (routePlan?.isConnecting && routePlan.outboundLeg1?.[0] && routePlan.outboundLeg2?.[0]) {
+    const l1 = routePlan.outboundLeg1[0];
+    const l2 = routePlan.outboundLeg2[0];
+    day1Legs.push({
+      from: origin,
+      to: routePlan.hubName || "Connecting Hub",
+      mode: `Train (${l1.trainName} #${l1.trainNumber})`,
+      depart: l1.departure.split(" ")[0] || "06:00",
+      duration_hours: 6.5,
+      arrive: l1.arrival.split(" ")[0] || "12:30",
+      buffer_after_minutes: 90,
+      note: `${l1.tip} IRCTC 24x7 Helpline: 139.`,
+      cost: Math.round(numTravellers * 750)
+    });
+    day1Legs.push({
+      from: routePlan.hubName || "Connecting Hub",
+      to: `${destination} Gateway / Station`,
+      mode: `Connecting Train (${l2.trainName} #${l2.trainNumber})`,
+      depart: l2.departure.split(" ")[0] || "15:50",
+      duration_hours: 14.5,
+      arrive: l2.arrival.split(" ")[0] || "08:30",
+      buffer_after_minutes: 60,
+      note: `${l2.tip} Overnight journey.`,
+      cost: Math.round(numTravellers * 1050)
+    });
+    day1Legs.push({
+      from: `${destination} Gateway / Station`,
+      to: fallbackHotelDetails.name,
+      mode: "Prepaid Taxi / Shared Sumo",
+      depart: "09:30",
+      duration_hours: 6.5,
+      arrive: "16:00",
+      buffer_after_minutes: 30,
+      note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : (verifiedTaxi1?.locationTip || "Official taxi counter."),
+      cost: 1200
+    });
+  } else {
+    day1Legs.push({
+      from: origin,
+      to: `${destination} Terminal / Junction`,
+      mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
+      depart: "08:00",
+      duration_hours: 4.5,
+      arrive: "12:30",
+      buffer_after_minutes: 60,
+      note: pref.includes("Train") ? "IRCTC National Railway Helpline: 139" : "Check transit schedule 24h prior.",
+      cost: estMainTransport
+    });
+    day1Legs.push({
+      from: `${destination} Terminal`,
+      to: fallbackHotelDetails.name,
+      mode: "Official Prepaid Taxi",
+      depart: "13:30",
+      duration_hours: 0.5,
+      arrive: "14:00",
+      buffer_after_minutes: 30,
+      note: verifiedTaxi1?.phone
+        ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}`
+        : (verifiedTaxi1?.locationTip || "Official Prepaid Taxi Booth at station exit."),
+      cost: 400
+    });
+  }
+
   days.push({
     day: 1,
     stay: `${destination} Central`,
-    legs: [
-      {
-        from: origin,
-        to: `${destination} Terminal / Junction`,
-        mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
-        depart: "08:00",
-        duration_hours: 4.5,
-        arrive: "12:30",
-        buffer_after_minutes: 60,
-        note: pref.includes("Train") ? "IRCTC National Railway Helpline: 139" : "Check airline schedule 24h prior.",
-        cost: estMainTransport
-      },
-      {
-        from: `${destination} Terminal`,
-        to: fallbackHotelName,
-        mode: "Official Prepaid Taxi",
-        depart: "13:30",
-        duration_hours: 0.5,
-        arrive: "14:00",
-        buffer_after_minutes: 30,
-        note: verifiedTaxi1?.phone
-          ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}`
-          : (verifiedTaxi1?.locationTip || "Official Prepaid Taxi Booth at station exit."),
-        cost: 400
-      }
-    ],
+    legs: day1Legs,
     activities: {
       morning: `Depart from ${origin} via selected transit.`,
       afternoon: `Arrive in ${destination}, check in at accommodation, freshen up and relax.`,
       evening: `Leisure walk around ${destination} city center or town square.`,
       food: `Authentic welcome meal at highly rated local cafe or diner.`
     },
-    hotelDetails: {
-      name: fallbackHotelName,
-      contact: fallbackHotelContact,
-      costPerNight: fallbackHotelCost
-    }
+    hotelDetails: fallbackHotelDetails
   });
 
   // Intermediate Days: Exploring destination
@@ -276,42 +375,77 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
         evening: `Sunset views, local handicraft market shopping, and cafe hopping.`,
         food: `Traditional regional cuisine and street food specialties.`
       },
-      hotelDetails: {
-        name: fallbackHotelName,
-        contact: fallbackHotelContact,
-        costPerNight: fallbackHotelCost
-      }
+      hotelDetails: fallbackHotelDetails
     });
   }
 
-  // Final Departure Day
+  // Final Departure Day (guaranteeing return all the way to origin)
+  const returnLegs: any[] = [];
+  if (routePlan?.isConnecting && routePlan.returnLeg1?.[0] && routePlan.returnLeg2?.[0]) {
+    const r1 = routePlan.returnLeg1[0];
+    const r2 = routePlan.returnLeg2[0];
+    returnLegs.push({
+      from: "Hotel Check-out",
+      to: `${destination} Border / Station`,
+      mode: "Local Cab / Shared Sumo",
+      depart: "07:00",
+      duration_hours: 6.5,
+      arrive: "13:30",
+      buffer_after_minutes: 60,
+      note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Scenic mountain return drive.",
+      cost: 1200
+    });
+    returnLegs.push({
+      from: `${destination} Border / Station`,
+      to: routePlan.hubName || "Connecting Hub",
+      mode: `Train (${r1.trainName} #${r1.trainNumber})`,
+      depart: r1.departure.split(" ")[0] || "10:00",
+      duration_hours: 14.0,
+      arrive: r1.arrival.split(" ")[0] || "04:00",
+      buffer_after_minutes: 90,
+      note: `Overnight return connection to ${routePlan.hubName}.`,
+      cost: Math.round(numTravellers * 1020)
+    });
+    returnLegs.push({
+      from: routePlan.hubName || "Connecting Hub",
+      to: origin,
+      mode: `Connecting Train (${r2.trainName} #${r2.trainNumber})`,
+      depart: r2.departure.split(" ")[0] || "13:25",
+      duration_hours: 6.5,
+      arrive: r2.arrival.split(" ")[0] || "19:55",
+      buffer_after_minutes: 30,
+      note: `Connecting train safely bringing you back home to ${origin}!`,
+      cost: Math.round(numTravellers * 745)
+    });
+  } else {
+    returnLegs.push({
+      from: "Hotel Check-out",
+      to: `${destination} Departure Station / Airport`,
+      mode: "Local Cab",
+      depart: "10:00",
+      duration_hours: 0.5,
+      arrive: "10:30",
+      buffer_after_minutes: 60,
+      note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Pre-book station transfer via hotel reception.",
+      cost: 400
+    });
+    returnLegs.push({
+      from: `${destination} Station / Airport`,
+      to: origin,
+      mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
+      depart: "12:00",
+      duration_hours: 4.5,
+      arrive: "16:30",
+      buffer_after_minutes: 60,
+      note: `Return journey to ${origin}.`,
+      cost: estMainTransport
+    });
+  }
+
   days.push({
     day: numNights + 1,
     stay: "Home / Journey Back",
-    legs: [
-      {
-        from: "Hotel Check-out",
-        to: `${destination} Departure Station / Airport`,
-        mode: "Local Cab",
-        depart: "10:00",
-        duration_hours: 0.5,
-        arrive: "10:30",
-        buffer_after_minutes: 60,
-        note: verifiedTaxi1?.phone ? `${verifiedTaxi1.name}: ${verifiedTaxi1.phone}` : "Pre-book station transfer via hotel reception.",
-        cost: 400
-      },
-      {
-        from: `${destination} Station / Airport`,
-        to: origin,
-        mode: pref.includes("Flight") ? "Flight (Economy)" : pref.includes("Train") ? `Train (${body.trainClass || "3A"})` : "Intercity AC Bus",
-        depart: "12:00",
-        duration_hours: 4.5,
-        arrive: "16:30",
-        buffer_after_minutes: 60,
-        note: `Return journey to ${origin}.`,
-        cost: estMainTransport
-      }
-    ],
+    legs: returnLegs,
     activities: {
       morning: `Souvenir shopping and morning breakfast before hotel check-out.`,
       afternoon: `Board return connection back towards ${origin}.`,
@@ -440,31 +574,60 @@ export async function POST(req: Request) {
 
     const groundData = getVerifiedGroundData(destination) || getVerifiedGroundData(origin);
     const verifiedTrains = getVerifiedTrainsForRoute(origin, destination);
+    const routePlan = getVerifiedRoutePlan(origin, destination);
 
-    // Compute realistic max nightly stay budget (support explicit stayBudget or 40% of total budget spread across nights)
     const numBudget = Number(budget) || 30000;
     const numNights = Math.max(1, Number(nights) || 1);
+    const numTravellers = Math.max(1, Number(travellers) || 1);
+    const doubleRoomsNeeded = Math.ceil(numTravellers / 2);
+
     const targetNightlyStayBudget = body.stayBudget && Number(body.stayBudget) > 0
       ? Number(body.stayBudget)
       : Math.max(500, Math.floor((numBudget * 0.40) / numNights));
 
+    const optimalAccom = getOptimalGroupAccommodation(
+      destination,
+      numTravellers,
+      targetNightlyStayBudget,
+      stayPreference
+    );
+
+    let trainContextString = "";
+    if (routePlan) {
+      if (routePlan.isConnecting) {
+        trainContextString = `VERIFIED TWO-WAY IRCTC CONNECTING TRAIN SCHEDULES (HUB: ${routePlan.hubName}):
+OUTBOUND TO DESTINATION:
+- Leg 1 (${origin} ➜ ${routePlan.hubName}):
+${routePlan.outboundLeg1?.map((t) => `  • Train #${t.trainNumber} ${t.trainName} (${t.from} dep ${t.departure} ➜ ${t.to} arr ${t.arrival}). Classes: ${t.availableClasses.join(", ")}. Tip: ${t.tip}`).join("\n")}
+- Leg 2 (${routePlan.hubName} ➜ Near ${destination}):
+${routePlan.outboundLeg2?.map((t) => `  • Train #${t.trainNumber} ${t.trainName} (${t.from} dep ${t.departure} ➜ ${t.to} arr ${t.arrival}). Classes: ${t.availableClasses.join(", ")}. Tip: ${t.tip}`).join("\n")}
+
+RETURN JOURNEY BACK HOME TO ${origin} (MANDATORY TO SCHEDULE BOTH RETURN LEGS ALL THE WAY TO ${origin}):
+- Return Leg 1 (Near ${destination} ➜ ${routePlan.hubName}):
+${routePlan.returnLeg1?.map((t) => `  • Train #${t.trainNumber} ${t.trainName} (${t.from} dep ${t.departure} ➜ ${t.to} arr ${t.arrival}). Classes: ${t.availableClasses.join(", ")}. Tip: ${t.tip}`).join("\n")}
+- Return Leg 2 (${routePlan.hubName} ➜ HOME ${origin}):
+${routePlan.returnLeg2?.map((t) => `  • Train #${t.trainNumber} ${t.trainName} (${t.from} dep ${t.departure} ➜ ${t.to} arr ${t.arrival}). Classes: ${t.availableClasses.join(", ")}. Tip: ${t.tip}`).join("\n")}
+
+MANDATORY ROUND-TRIP INSTRUCTION: The traveler's origin is "${origin}". On the final departure day, the return journey MUST NOT terminate at ${routePlan.hubName}. You MUST schedule Return Leg 2 bringing them all the way home to "${origin}".`;
+      } else {
+        trainContextString = `VERIFIED DIRECT IRCTC TRAIN SCHEDULES:
+Outbound to ${destination}:
+${routePlan.directOutbound.map((t) => `  • Train #${t.trainNumber} ${t.trainName} (${t.from} dep ${t.departure} ➜ ${t.to} arr ${t.arrival})`).join("\n")}
+Return to ${origin}:
+${routePlan.directReturn.map((t) => `  • Train #${t.trainNumber} ${t.trainName} (${t.from} dep ${t.departure} ➜ ${t.to} arr ${t.arrival})`).join("\n")}`;
+      }
+    }
+
     let groundContextString = "";
     if (groundData) {
-      const affordableHotels = groundData.hotels.filter(h => h.approxRatePerNight <= targetNightlyStayBudget * 1.3);
+      let hotelSection = `VERIFIED REAL PROPERTIES & GROUP ACCOMMODATION FOR ${numTravellers} GUESTS:
+- Optimal Configuration: ${optimalAccom.roomType} at ${optimalAccom.name} (~₹${optimalAccom.costPerNight}/night total). Contact: ${optimalAccom.phone || "Official front desk"}
+- Breakdown / Physics Note: ${optimalAccom.breakdownNote}
 
-      let hotelSection = "";
-      if (affordableHotels.length > 0) {
-        hotelSection = `Verified Real Hotels Matching Nightly Budget (≤ ₹${targetNightlyStayBudget}/night):
-${affordableHotels.map((h) => `- ${h.name}: approx ₹${h.approxRatePerNight}/night. Contact: ${h.phone || "Official front desk"} (${h.address || ""})`).join("\n")}`;
-      } else {
-        const lowestRate = Math.min(...groundData.hotels.map(h => h.approxRatePerNight));
-        hotelSection = `Note on Nightly Budget & Hotels:
-- No registered commercial hotels in ground database are under ₹${targetNightlyStayBudget}/night (lowest commercial property starts at ₹${lowestRate}/night).
-- DO NOT provide wrong information or claim higher-priced hotels cost ₹${targetNightlyStayBudget}.
-- Set hotel name to "Verified Budget Homestay / Backpacker Hostel in Central ${destination}", set costPerNight to ${targetNightlyStayBudget}, and set contact to null.`;
-      }
+Verified Real Hotels & Hostels in Database:
+${groundData.hotels.map((h) => `- ${h.name}: Double Room ~₹${h.approxRatePerNight}/night${h.dormBedRate ? `, Hostel Dorm Bed ~₹${h.dormBedRate}/bed` : ""}${h.quadRoomRate ? `, Quad Room (fits 4) ~₹${h.quadRoomRate}/room` : ""}. Phone: ${h.phone || "Official front desk"} (${h.bookingTip || ""})`).join("\n")}`;
 
-      groundContextString = `VERIFIED REAL-WORLD GROUND CONTACTS FOR THIS DESTINATION:
+      groundContextString = `VERIFIED REAL-WORLD GROUND CONTACTS & GROUP CAPACITIES:
 ${hotelSection}
 
 Verified Local Taxi Stands & Unions:
@@ -505,7 +668,11 @@ ${groundData.generalHelplines.map((gh) => `- ${gh.name}: ${gh.number}`).join("\n
       "hotelDetails": {
         "name": "string",
         "contact": "string or null (ONLY real verified phone number; if not known, MUST be null)",
-        "costPerNight": number
+        "roomType": "string (e.g. '${numTravellers} Bunk Beds in Shared Group Dorm' or '${doubleRoomsNeeded} Double Rooms')",
+        "roomCount": number,
+        "ratePerUnit": number,
+        "costPerNight": number,
+        "breakdownNote": "string (clear breakdown of room count and per-unit rate)"
       }
     }
   ]
@@ -525,41 +692,55 @@ Trip Details:
 - Special Notes: ${specialNotes}
 
 ${groundContextString}
-${verifiedTrains.length > 0 ? `VERIFIED IRCTC TRAIN ROUTE DATA:\n${JSON.stringify(verifiedTrains, null, 2)}` : ""}
+${trainContextString ? `${trainContextString}\n` : verifiedTrains.length > 0 ? `VERIFIED IRCTC TRAIN ROUTE DATA:\n${JSON.stringify(verifiedTrains, null, 2)}\n` : ""}
 
-CRITICAL STRICT RULES ON BUDGET ACCURACY, PHONE NUMBERS & ROAD TRANSIT REALISM:
-1. BUDGET ACCURACY FOR NIGHT STAYS:
-   - The selected accommodation MUST genuinely fit within or near the target nightly budget of ₹${targetNightlyStayBudget}/night.
-   - If target stay budget is under ₹1,500/night: Select authentic backpacker hostels (e.g. Zostel, goSTOPS, Hosteller dorm beds/private budget rooms), verified budget guesthouses, or homestays that truly cost under ₹1,500.
-   - NEVER fabricate artificially low prices for luxury hotels (e.g., NEVER claim a 4-star or 5-star hotel costs ₹1,500).
-2. ZERO DEMO PHONE NUMBERS:
+CRITICAL STRICT RULES ON ROUND-TRIP COMPLETION, ROOM CAPACITY, & ROAD TRANSIT REALISM:
+1. ROUND-TRIP RETURN TO "${origin}" (NEVER LEAVE TRAVELLERS STRANDED AT HUBS):
+   - The user departed from "${origin}". The return journey on the final day MUST bring them ALL THE WAY BACK TO "${origin}"!
+   - If using connecting trains (e.g. Nepal ➜ Raxaul ➜ Howrah ➜ Bhubaneswar):
+     • Return Leg 1: Raxaul (RXL) to Howrah Junction (HWH) via Mithila Express 13022.
+     • Return Leg 2: Howrah Junction (HWH) to "${origin}" (BBS) via Jan Shatabdi 12073 / Vande Bharat 22895 / Puri SF 12837.
+     • The very last transit leg MUST end at "${origin}". DO NOT terminate at Howrah!
+2. REALISTIC GROUP ROOM CAPACITY & BUDGET PHYSICS FOR ${numTravellers} GUESTS:
+   - Standard hotel rooms strictly permit a MAXIMUM OF 2 ADULTS.
+   - 8 adults CANNOT legally or physically stay in 1 standard hotel room for ₹1,500 total!
+   - For ${numTravellers} travellers:
+     • Option A (Backpacker Hostels / Dorms - Cheapest Option): Book ${numTravellers} Dorm Beds in a shared dorm (e.g. Alobar1000 Backpacker Hostel, WanderThirst, Zostel). Dorm beds cost ~₹450-₹650 per bed. Total = ${numTravellers} * ~₹500 = ~₹${numTravellers * 500}/night.
+     • Option B (Standard Double Rooms): Book ${doubleRoomsNeeded} Double Rooms (2 adults/room). At ₹1,200 to ₹1,600/room = ~₹${doubleRoomsNeeded * 1400}/night total.
+   - In "hotelDetails":
+     • "name": Authentic hostel or hotel name.
+     • "roomType": e.g. "${numTravellers} Bunk Beds in Shared Group Dorm" OR "${doubleRoomsNeeded} Standard Double Rooms (2 Guests/Room)".
+     • "roomCount": ${numTravellers} (dorm beds) or ${doubleRoomsNeeded} (double rooms).
+     • "ratePerUnit": Rate per bed (e.g. ₹500) or rate per room (e.g. ₹1,400).
+     • "costPerNight": Total group nightly stay cost for all ${numTravellers} guests.
+     • "breakdownNote": Realistic explanation of room sizing.
+3. ZERO DEMO PHONE NUMBERS:
    - NEVER provide dummy, demo, placeholder, or fake numbers (such as +91-9876543210, +91-987654321X, 1234567890, etc.).
    - ONLY provide a phone number if it is a real, authentic, verified telephone number of a real hotel or registered taxi union.
    - If not known with 100% certainty, "contact" MUST be null.
-3. ALL COSTS MUST BE GROUP TOTALS FOR ALL ${travellers} TRAVELLERS (NOT PER-PERSON):
+4. ALL COSTS MUST BE GROUP TOTALS FOR ALL ${travellers} TRAVELLERS (NOT PER-PERSON):
    - The total budget of ₹${budget} is the TOTAL budget for ALL ${travellers} travellers combined.
-   - Every "cost" for transit/legs (e.g., trains, buses, flights, shared jeeps, private cabs) MUST be the TOTAL combined cost for ALL ${travellers} passengers. (For example, if 1 train ticket is ₹1,000 and there are ${travellers} travellers, leg cost must be ₹${1000 * Number(travellers)}, NOT ₹1,000. If a cab costs ₹2,500, that covers the entire group).
-   - "costPerNight" in hotelDetails is the TOTAL nightly room cost for the entire group (${travellers} travellers), NOT divided or split per person.
-4. ROAD TRAVEL DISTANCE, SPEED & TIMELINE REALISM (STRICT PHYSICS — NO TELEPORTING):
+   - Every "cost" for transit/legs (e.g., trains, buses, flights, shared jeeps, private cabs) MUST be the TOTAL combined cost for ALL ${travellers} passengers.
+   - "costPerNight" in hotelDetails is the TOTAL nightly room cost for the entire group (${travellers} travellers).
+5. ROAD TRAVEL DISTANCE, SPEED & TIMELINE REALISM (STRICT PHYSICS — NO TELEPORTING):
    - REAL-WORLD ROAD SPEED LIMITS BASED ON TERRAIN:
-     • Hilly & Mountainous Roads (e.g., Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand, Western Ghats):
-       Average driving speed is STRICTLY 20 to 35 km/h due to winding hairpin bends, single lanes, gradients, and road work.
+     • Hilly & Mountainous Roads (Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand):
+       Average driving speed is STRICTLY 20 to 35 km/h due to winding hairpin bends and road conditions.
        NEVER schedule impossible speeds like 200 km in 2 hours!
        - Raxaul / Birgunj ➜ Kathmandu (~145 km): Takes 6 to 8 hours by road.
        - Kathmandu ➜ Pokhara (~200 km): Takes 6 to 8 hours by road.
        - Siliguri / NJP ➜ Gangtok / Darjeeling (~70 to 115 km): Takes 3.5 to 5 hours by road.
        - Delhi ➜ Manali (~530 km): Takes 12 to 14 hours by road.
-     • Plain National / State Highways: Average speed is 45 to 60 km/h (e.g., 200 km takes 3.5 to 4.5 hours).
-     • Expressways (4-lane/6-lane): Average speed is 75 to 85 km/h.
+     • Plain Highways: Average speed is 45 to 60 km/h.
+     • Expressways: Average speed is 75 to 85 km/h.
    - TIME-DISTANCE COHERENCE:
-     • Every road leg MUST state a realistic "distance_km".
-     • Calculate "duration_hours" = Math.round((distance_km / terrain_speed) * 10) / 10.
-     • "arrive" MUST equal "depart" + "duration_hours" (e.g., Depart 08:30 + 6h = Arrive 14:30).
+     • "duration_hours" = Math.round((distance_km / terrain_speed) * 10) / 10.
+     • "arrive" MUST equal "depart" + "duration_hours".
    - CHRONOLOGICAL & PHYSICAL LOGIC:
-     • No Teleporting: Travellers cannot be in one town in the morning and 200 km away in the afternoon without the full multi-hour journey between them.
-     • Post-Travel Buffer & Rest: If road travel duration exceeds 5 hours, the afternoon/evening of that day MUST be reserved for hotel check-in, freshening up, and relaxed local walking. NEVER schedule strenuous full-day treks immediately following a 7-hour mountain drive!
-     • Border Crossings: Include a 1.5 to 2.5 hour buffer for immigration, customs, and vehicle permit processing at land borders (e.g. Raxaul/Birgunj, Kakarbhitta, Sunauli).
-5. Return ONLY valid JSON in the exact schema provided.
+     • No Teleporting.
+     • If road travel duration exceeds 5 hours, the afternoon/evening of that day MUST be reserved for hotel check-in and relaxed local walking.
+     • Border Crossings: Include a 1.5 to 2.5 hour buffer for immigration at land borders (e.g. Raxaul/Birgunj).
+6. Return ONLY valid JSON in the exact schema provided.
 
 SCHEMA:
 ${schemaStr}`;
@@ -638,10 +819,13 @@ TRAVEL GUIDE REVIEW CHECKLIST:
 3. BORDER & TRANSIT BUFFERS:
    - Land border crossings (Raxaul/Birgunj, Kakarbhitta, Sunauli) need a comfortable 1.5 to 2.5 hour buffer for immigration paperwork.
    - Train/Flight stations need a 45 to 60 minute arrival window.
-4. HOTEL BUDGET & ACCURATE CONTACTS:
+4. HOTEL BUDGET, ACCURATE CONTACTS & ROOM SIZING:
    - NEVER provide dummy phone numbers (like 9876543210). "contact" must be null unless verified authentic.
-   - Hotel room cost must fit comfortably within ₹${targetNightlyStayBudget}/night.
-5. USER-FRIENDLY, WARM DESCRIPTIONS:
+   - Standard hotel rooms strictly permit max 2 adults. Verify room sizing for ${numTravellers} guests: either ${numTravellers} dorm beds in a backpacker hostel OR ${doubleRoomsNeeded} double rooms, with realistic group pricing.
+5. ROUND-TRIP RETURN ALL THE WAY TO "${origin}":
+   - Ensure the trip brings travelers safely all the way back to "${origin}".
+   - If connecting via Howrah, verify the return journey includes both Return Leg 1 (Destination ➜ Howrah) AND Return Leg 2 (Howrah ➜ "${origin}"). Travelers must never be stranded at Howrah.
+6. USER-FRIENDLY, WARM DESCRIPTIONS:
    - Phrase all feedback warmly, like a friendly local guide giving advice to friends. Avoid dry, technical, or harsh bureaucratic language.
 
 Return ONLY a valid JSON object matching this schema:
@@ -761,7 +945,6 @@ Return ONLY a valid JSON object matching this schema:
     });
 
     const totalEstimatedCost = totalTransportCost + totalHotelCost;
-    const numTravellers = Math.max(1, Number(body.travellers) || 1);
     const costPerPerson = Math.round(totalEstimatedCost / numTravellers);
 
     return NextResponse.json({

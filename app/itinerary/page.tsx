@@ -1185,29 +1185,47 @@ export default function ItineraryPage() {
                               <h5 className="text-sm font-bold text-emerald-400 flex items-center gap-2 print:text-black">
                                 <Hotel className="h-4 w-4" /> Accommodation & Night Stay
                               </h5>
-                              {financialSummary?.targetNightlyStayBudget && day.hotelDetails.costPerNight <= financialSummary.targetNightlyStayBudget * 1.25 ? (
-                                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">
-                                  ✓ Fits Budget (≤ ₹{financialSummary.targetNightlyStayBudget.toLocaleString()}/night)
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="flex justify-between items-center text-sm print:text-black">
-                              <span className="text-white font-semibold print:text-black">{day.hotelDetails.name}</span>
-                              <div className="text-right">
-                                <span className="text-emerald-300 print:text-black font-semibold">₹{day.hotelDetails.costPerNight} / night</span>
-                                {form.travellers > 1 && (
-                                  <span className="block text-[10px] text-slate-400 font-normal">Room total for {form.travellers}</span>
+                              <div className="flex items-center gap-2">
+                                {day.hotelDetails.roomType && (
+                                  <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-medium">
+                                    {day.hotelDetails.roomType}
+                                  </span>
                                 )}
+                                {financialSummary?.targetNightlyStayBudget && day.hotelDetails.costPerNight <= financialSummary.targetNightlyStayBudget * 1.25 ? (
+                                  <span className="text-[10px] bg-emerald-500/10 text-emerald-300/80 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                                    ✓ Within Budget
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-start text-sm print:text-black gap-2">
+                              <div>
+                                <span className="text-white font-semibold print:text-black text-base">{day.hotelDetails.name}</span>
+                                {day.hotelDetails.breakdownNote && (
+                                  <p className="text-xs text-slate-300 mt-1 print:text-gray-700 leading-relaxed">
+                                    {day.hotelDetails.breakdownNote}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-emerald-300 print:text-black font-bold text-base">₹{Number(day.hotelDetails.costPerNight || 0).toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ night</span></span>
+                                {day.hotelDetails.roomCount && day.hotelDetails.ratePerUnit ? (
+                                  <span className="block text-[11px] text-slate-400 font-normal">
+                                    {day.hotelDetails.roomCount} units × ₹{Number(day.hotelDetails.ratePerUnit).toLocaleString()}
+                                  </span>
+                                ) : form.travellers > 1 ? (
+                                  <span className="block text-[10px] text-slate-400 font-normal">Room total for {form.travellers} guests</span>
+                                ) : null}
                               </div>
                             </div>
                             {day.hotelDetails.contact && !isDemoPhoneNumber(day.hotelDetails.contact) ? (
-                              <p className="text-slate-300 text-xs mt-2 print:text-gray-700 flex items-center gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
+                              <p className="text-slate-300 text-xs mt-2.5 print:text-gray-700 flex items-center gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
                                 <Phone className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                                 <span>Verified Reception / Desk: <strong className="text-white font-mono">{day.hotelDetails.contact}</strong></span>
                               </p>
                             ) : (
-                              <p className="text-slate-500 text-xs mt-1.5 print:text-gray-600">
-                                Reservation via official hotel front desk or verified online booking portal
+                              <p className="text-slate-500 text-xs mt-2 print:text-gray-600">
+                                Reservation via official hostel/hotel front desk or verified travel booking portal
                               </p>
                             )}
                           </div>

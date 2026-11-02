@@ -17,10 +17,13 @@ export interface RouteMapping {
   originKeys: string[];
   destinationKeys: string[];
   directTrains: VerifiedTrainRoute[];
+  directReturnTrains?: VerifiedTrainRoute[];
   connectingRoutes?: {
     hubName: string;
     leg1: VerifiedTrainRoute[];
     leg2: VerifiedTrainRoute[];
+    returnLeg1?: VerifiedTrainRoute[];
+    returnLeg2?: VerifiedTrainRoute[];
   }[];
 }
 
@@ -145,6 +148,58 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
             approxFarePerPerson: { CC: 1565, EC: 2825 },
             tip: "Morning high-speed service to NJP."
           }
+        ],
+        returnLeg1: [
+          {
+            trainNumber: "12042",
+            trainName: "New Jalpaiguri - Howrah Shatabdi Express",
+            from: "New Jalpaiguri (NJP)",
+            to: "Howrah Junction (HWH)",
+            departure: "05:30 AM",
+            arrival: "01:40 PM",
+            operatingDays: "Daily except Sun",
+            availableClasses: ["CC", "EC"],
+            approxFarePerPerson: { CC: 1160, EC: 2100 },
+            tip: "Fast daytime service to Howrah."
+          },
+          {
+            trainNumber: "12378",
+            trainName: "Padatik Express",
+            from: "New Jalpaiguri (NJP)",
+            to: "Sealdah (SDAH / Kolkata)",
+            departure: "08:40 PM",
+            arrival: "06:45 AM (Next Day)",
+            operatingDays: "Daily",
+            availableClasses: ["SL", "3A", "2A", "1A"],
+            approxFarePerPerson: { SL: 360, "3A": 960, "2A": 1370 },
+            tip: "Comfortable overnight return train."
+          }
+        ],
+        returnLeg2: [
+          {
+            trainNumber: "12073",
+            trainName: "Howrah - Bhubaneswar Jan Shatabdi Express",
+            from: "Howrah Junction (HWH)",
+            to: "Bhubaneswar (BBS)",
+            departure: "01:25 PM",
+            arrival: "08:00 PM",
+            operatingDays: "Daily except Sun",
+            availableClasses: ["2S", "CC"],
+            approxFarePerPerson: { "2S": 220, CC: 745 },
+            tip: "Direct daytime return connection to Bhubaneswar."
+          },
+          {
+            trainNumber: "12837",
+            trainName: "Howrah - Puri SF Express",
+            from: "Howrah Junction (HWH)",
+            to: "Bhubaneswar (BBS)",
+            departure: "10:35 PM",
+            arrival: "05:10 AM (Next Day)",
+            operatingDays: "Daily",
+            availableClasses: ["SL", "3A", "2A", "1A"],
+            approxFarePerPerson: { SL: 295, "3A": 780, "2A": 1100 },
+            tip: "Overnight superfast connecting train back to BBS."
+          }
         ]
       }
     ]
@@ -209,6 +264,70 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
             approxFarePerPerson: { SL: 380, "3A": 1020, "2A": 1450 },
             tip: "Weekly alternative to Raxaul."
           }
+        ],
+        returnLeg1: [
+          {
+            trainNumber: "13022",
+            trainName: "Mithila Express",
+            from: "Raxaul Junction (RXL)",
+            to: "Howrah Junction (HWH)",
+            departure: "10:00 AM (Day 1)",
+            arrival: "04:00 AM (Day 2)",
+            operatingDays: "Daily",
+            availableClasses: ["SL", "3A", "2A"],
+            approxFarePerPerson: { SL: 380, "3A": 1020, "2A": 1450 },
+            tip: "Direct train from Nepal Border back to Howrah."
+          },
+          {
+            trainNumber: "15272",
+            trainName: "Raxaul - Howrah Weekly Express",
+            from: "Raxaul Junction (RXL)",
+            to: "Howrah Junction (HWH)",
+            departure: "01:20 PM",
+            arrival: "04:05 AM (Next Day)",
+            operatingDays: "Tuesdays",
+            availableClasses: ["SL", "3A", "2A"],
+            approxFarePerPerson: { SL: 380, "3A": 1020, "2A": 1450 },
+            tip: "Weekly return service to Howrah."
+          }
+        ],
+        returnLeg2: [
+          {
+            trainNumber: "12073",
+            trainName: "Howrah - Bhubaneswar Jan Shatabdi Express",
+            from: "Howrah Junction (HWH)",
+            to: "Bhubaneswar (BBS)",
+            departure: "01:25 PM",
+            arrival: "08:00 PM",
+            operatingDays: "Daily except Sun",
+            availableClasses: ["2S", "CC"],
+            approxFarePerPerson: { "2S": 220, CC: 745 },
+            tip: "Direct connecting train back home to Bhubaneswar (BBS)."
+          },
+          {
+            trainNumber: "22895",
+            trainName: "Howrah - Puri Vande Bharat Express",
+            from: "Howrah Junction (HWH)",
+            to: "Bhubaneswar (BBS)",
+            departure: "06:10 AM",
+            arrival: "12:20 PM",
+            operatingDays: "Daily except Thu",
+            availableClasses: ["CC", "EC"],
+            approxFarePerPerson: { CC: 1265, EC: 2420 },
+            tip: "Fast early morning connection to Bhubaneswar."
+          },
+          {
+            trainNumber: "12837",
+            trainName: "Howrah - Puri SF Express",
+            from: "Howrah Junction (HWH)",
+            to: "Bhubaneswar (BBS)",
+            departure: "10:35 PM",
+            arrival: "05:10 AM (Next Day)",
+            operatingDays: "Daily",
+            availableClasses: ["SL", "3A", "2A", "1A"],
+            approxFarePerPerson: { SL: 295, "3A": 780, "2A": 1100 },
+            tip: "Overnight connecting express to Bhubaneswar."
+          }
         ]
       }
     ]
@@ -243,11 +362,84 @@ export const VERIFIED_IRCTC_ROUTES: RouteMapping[] = [
         approxFarePerPerson: { SL: 680, "3A": 1790, "2A": 2580 },
         tip: "Reliable daily express to Delhi."
       }
+    ],
+    directReturnTrains: [
+      {
+        trainNumber: "22812",
+        trainName: "New Delhi - Bhubaneswar Rajdhani Express",
+        from: "New Delhi (NDLS)",
+        to: "Bhubaneswar (BBS)",
+        departure: "05:00 PM (Day 1)",
+        arrival: "04:15 PM (Day 2)",
+        operatingDays: "Mon, Fri",
+        availableClasses: ["3A", "2A", "1A"],
+        approxFarePerPerson: { "3A": 2890, "2A": 4050, "1A": 5080 },
+        tip: "Fastest return premium Rajdhani express back to Bhubaneswar."
+      },
+      {
+        trainNumber: "12802",
+        trainName: "Purushottam Express",
+        from: "New Delhi (NDLS)",
+        to: "Bhubaneswar (BBS)",
+        departure: "10:40 PM (Day 1)",
+        arrival: "03:30 AM (Day 3)",
+        operatingDays: "Daily",
+        availableClasses: ["SL", "3A", "2A", "1A"],
+        approxFarePerPerson: { SL: 680, "3A": 1790, "2A": 2580 },
+        tip: "Daily overnight return service from Delhi to Bhubaneswar."
+      }
     ]
   }
 ];
 
-/** Lookup function to get verified trains for any origin-destination pair */
+export interface VerifiedRoutePlan {
+  isConnecting: boolean;
+  hubName?: string;
+  directOutbound: VerifiedTrainRoute[];
+  directReturn: VerifiedTrainRoute[];
+  outboundLeg1?: VerifiedTrainRoute[];
+  outboundLeg2?: VerifiedTrainRoute[];
+  returnLeg1?: VerifiedTrainRoute[];
+  returnLeg2?: VerifiedTrainRoute[];
+}
+
+/** Structured route lookup returning both outbound and return connecting legs */
+export function getVerifiedRoutePlan(origin: string, destination: string): VerifiedRoutePlan | null {
+  const oClean = origin.toLowerCase().trim();
+  const dClean = destination.toLowerCase().trim();
+
+  for (const route of VERIFIED_IRCTC_ROUTES) {
+    const matchOrigin = route.originKeys.some((k) => oClean.includes(k) || k.includes(oClean));
+    const matchDest = route.destinationKeys.some((k) => dClean.includes(k) || k.includes(dClean));
+
+    if (matchOrigin && matchDest) {
+      if (route.directTrains.length > 0) {
+        return {
+          isConnecting: false,
+          directOutbound: route.directTrains,
+          directReturn: route.directReturnTrains || []
+        };
+      }
+      if (route.connectingRoutes && route.connectingRoutes.length > 0) {
+        const conn = route.connectingRoutes[0];
+        return {
+          isConnecting: true,
+          hubName: conn.hubName,
+          directOutbound: [],
+          directReturn: [],
+          outboundLeg1: conn.leg1,
+          outboundLeg2: conn.leg2,
+          returnLeg1: conn.returnLeg1 || [],
+          returnLeg2: conn.returnLeg2 || []
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Lookup function to get verified trains for any origin-destination pair (both outbound & return) */
 export function getVerifiedTrainsForRoute(origin: string, destination: string): VerifiedTrainRoute[] {
   const oClean = origin.toLowerCase().trim();
   const dClean = destination.toLowerCase().trim();
@@ -258,11 +450,16 @@ export function getVerifiedTrainsForRoute(origin: string, destination: string): 
 
     if (matchOrigin && matchDest) {
       if (route.directTrains.length > 0) {
-        return route.directTrains;
+        return [...route.directTrains, ...(route.directReturnTrains || [])];
       }
       if (route.connectingRoutes && route.connectingRoutes.length > 0) {
         const conn = route.connectingRoutes[0];
-        return [conn.leg1[0], conn.leg2[0]];
+        return [
+          ...conn.leg1,
+          ...conn.leg2,
+          ...(conn.returnLeg1 || []),
+          ...(conn.returnLeg2 || [])
+        ];
       }
     }
   }
