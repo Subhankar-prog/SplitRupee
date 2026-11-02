@@ -14,7 +14,9 @@ import {
   Utensils,
   ChevronDown,
   X,
-  MessageSquare
+  MessageSquare,
+  Check,
+  CheckCircle2
 } from "lucide-react";
 
 export interface ChatMessage {
@@ -22,6 +24,13 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  proposedModification?: {
+    dayNumber: number;
+    summary: string;
+    changes: string[];
+    updatedDay: any;
+  } | null;
+  isApplied?: boolean;
 }
 
 interface TravelCopilotChatProps {
@@ -43,6 +52,7 @@ interface TravelCopilotChatProps {
   formData?: any;
   isOpen?: boolean;
   onClose?: () => void;
+  onApplyPlanUpdate?: (updatedPlan: any) => void;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -72,7 +82,8 @@ export default function TravelCopilotChat({
   flightClass,
   formData,
   isOpen = true,
-  onClose
+  onClose,
+  onApplyPlanUpdate
 }: TravelCopilotChatProps) {
   const activeStartDate = startDate || formData?.startDate;
   const activeEndDate = endDate || formData?.endDate;
@@ -162,7 +173,9 @@ export default function TravelCopilotChat({
           id: "ast-" + Date.now(),
           role: "assistant",
           content: data.reply,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          proposedModification: data.proposedModification || null,
+          isApplied: false
         };
         setMessages((prev) => [...prev, assistantMsg]);
       } else {
@@ -179,6 +192,31 @@ export default function TravelCopilotChat({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApproveModification = (msgId: string, mod: any) => {
+    if (!currentPlan || !mod?.updatedDay) return;
+
+    const targetDay = Number(mod.dayNumber);
+    const updatedDays = currentPlan.days.map((d: any) => {
+      if (Number(d.day) === targetDay) {
+        return mod.updatedDay;
+      }
+      return d;
+    });
+
+    const newPlan = {
+      ...currentPlan,
+      days: updatedDays
+    };
+
+    if (onApplyPlanUpdate) {
+      onApplyPlanUpdate(newPlan);
+    }
+
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, isApplied: true } : m))
+    );
   };
 
   return (
@@ -273,6 +311,46 @@ export default function TravelCopilotChat({
               <div className="travel-copilot-message-text whitespace-pre-wrap leading-relaxed">
                 {msg.content}
               </div>
+
+              {/* Customer Approval Card for proposed modification */}
+              {msg.proposedModification && (
+                <div className="mt-3 p-3.5 bg-emerald-950/70 border border-emerald-500/40 rounded-2xl shadow-lg">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                    <Sparkles className="h-3.5 w-3.5" /> Proposed Adjustment (Your Approval Required)
+                  </div>
+                  <div className="text-white text-sm font-semibold mt-1">
+                    {msg.proposedModification.summary}
+                  </div>
+                  {Array.isArray(msg.proposedModification.changes) && msg.proposedModification.changes.length > 0 && (
+                    <ul className="text-xs text-slate-300 space-y-1 mt-2">
+                      {msg.proposedModification.changes.map((c: string, cIdx: number) => (
+                        <li key={cIdx} className="flex items-start gap-1.5">
+                          <span className="text-emerald-400 font-bold">•</span>
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                    {!msg.isApplied ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleApproveModification(msg.id, msg.proposedModification)}
+                          className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md shadow-emerald-500/20"
+                        >
+                          <Check className="h-3.5 w-3.5" /> Approve & Update Itinerary
+                        </button>
+                        <span className="text-[11px] text-slate-400">Click to apply to your plan</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-semibold">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <span>Approved! Itinerary has been updated.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div
                 className={`travel-copilot-message-timestamp mt-1.5 text-[10px] text-right ${
                   msg.role === "user" ? "text-slate-900/70 font-semibold" : "text-slate-400"

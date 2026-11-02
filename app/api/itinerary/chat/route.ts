@@ -134,10 +134,42 @@ CRITICAL TONE & DESIGNATION RULES:
 7. STRICT HOTEL BUDGET RULE: Respect their nightly budget limit of ₹${activeStayBudget}/night. If under ₹1500, recommend authentic hostels/guesthouses (Zostel, goSTOPS, local homestays). Never claim luxury 4-star/5-star hotels cost ₹1500.
 8. GENERAL CONVERSATION: If asked general knowledge, greetings, science, or casual questions, answer directly, fluidly, intelligently, and politely in clean GitHub markdown.
 9. REALISTIC, RELAXED TRAVEL TIMES: Always base travel estimates on realistic terrain speeds: in mountainous regions (Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand), average driving speed is strictly 25-35 km/h (e.g. Raxaul to Kathmandu is ~145 km and takes 6-8 hours; Kathmandu to Pokhara is ~200 km and takes 6-8 hours). Explain gently that winding mountain roads need daylight and careful pacing so they don't get tired or car-sick. Plain highways average 45-60 km/h.
-10. CUSTOMIZING PLANS GENTLY:
-   - When travelers ask to modify or adjust days (e.g. "Can we add Pokhara?", "Can we do trekking on Day 1?"):
-     • Help them warmly and thoughtfully. If an idea would cause severe travel fatigue, missing trains, or driving on risky dark mountain roads at night, kindly explain why and suggest a much nicer, relaxed alternative.
-     • If practical, give a clean, clear breakdown of the updated day so they can travel with total peace of mind.`;
+10. CUSTOMIZING PLANS WITH EXPLICIT CUSTOMER APPROVAL:
+   - When travelers ask to modify, adjust, swap, or change any day (e.g. "Can we change Day 2 departure to 9 AM?", "Change hotel on Day 3", "Add a sunrise viewpoint on Day 2", "Swap Day 2 and 3"):
+     • Evaluate the request warmly as their Travel Guide.
+     • Explain the changes nicely in your reply.
+     • If you are proposing an actual day update, append a JSON block at the very end of your response inside \`\`\`json:proposed_modification ... \`\`\` so the customer can review and click approve!
+     Format:
+     \`\`\`json:proposed_modification
+     {
+       "dayNumber": 2,
+       "summary": "Brief 1-line description of the change",
+       "changes": [
+         "Change 1 details",
+         "Change 2 details"
+       ],
+       "updatedDay": {
+         "day": 2,
+         "stay": "string",
+         "legs": [
+           {
+             "from": "string",
+             "to": "string",
+             "mode": "string",
+             "distance_km": 145,
+             "depart": "HH:MM",
+             "duration_hours": 6.5,
+             "arrive": "HH:MM",
+             "buffer_after_minutes": 30,
+             "note": "string",
+             "cost": 1200
+           }
+         ],
+         "activities": { "morning": "string", "afternoon": "string", "evening": "string", "food": "string" },
+         "hotelDetails": { "name": "string", "contact": null, "costPerNight": 1200 }
+       }
+     }
+     \`\`\``;
 
     // 4. Direct Google Gemini REST API Integration
     const apiKey = (process.env.GEMINI_API_KEY || "").trim();
@@ -330,10 +362,25 @@ Answering your query regarding **"${userQuery}"**:
       }
     }
 
+    let proposedModification: any = null;
+    if (replyText) {
+      const modMatch = replyText.match(/```(?:json:proposed_modification|json)?\s*(\{[\s\S]*?"updatedDay"[\s\S]*?\})\s*```/);
+      if (modMatch && modMatch[1]) {
+        try {
+          proposedModification = JSON.parse(modMatch[1]);
+          replyText = replyText.replace(modMatch[0], "").trim();
+        } catch (e) {
+          console.warn("Failed to parse proposedModification JSON:", e);
+        }
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       reply: replyText,
-      isLiveAI
+      isLiveAI,
+      proposedModification,
+      auditReview: currentPlan?.auditReview
     });
   } catch (err: any) {
     console.error("[POST /api/itinerary/chat]", err);
