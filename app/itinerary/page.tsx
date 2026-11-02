@@ -225,7 +225,7 @@ export default function ItineraryPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setError(data.error || "Failed to generate itinerary blueprint");
+        setError(data.error || "Failed to create your travel plan");
       } else {
         setPendingPlan(data.plan);
         if (data.financialSummary) {
@@ -746,10 +746,10 @@ export default function ItineraryPage() {
 
                 <div className="text-center max-w-xl space-y-2.5">
                   <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    Smart Travel Blueprint Studio
+                    Smart Travel Planner & Guide
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
-                    Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Elite Itinerary</strong> to create a verified day-by-day travel plan.
+                    Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
                   </p>
                 </div>
 
@@ -811,7 +811,7 @@ export default function ItineraryPage() {
                     <button
                       onClick={handleDownloadPDF}
                       className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
-                      title="Download Theme-Based Trip Blueprint PDF"
+                      title="Download Your Travel Plan PDF"
                     >
                       <Download className="h-4 w-4 stroke-[2.5]" /> Download PDF
                     </button>
@@ -870,7 +870,7 @@ export default function ItineraryPage() {
                   </div>
                 )}
 
-                {/* AI Reality Auditor & Practicality Shield */}
+                {/* Trip Comfort & Friendly Guide Check */}
                 {result?.auditReview && (
                   <div className="mb-6 p-5 bg-gradient-to-r from-teal-950/40 via-slate-900/70 to-emerald-950/40 border border-teal-500/30 rounded-2xl shadow-lg backdrop-blur-md print:border-black/20 print:bg-gray-50">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
@@ -880,29 +880,29 @@ export default function ItineraryPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-white text-base">AI Reality Auditor: Verified & Practical</h4>
+                            <h4 className="font-bold text-white text-base">Your Trip Comfort & Safety Check</h4>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              {result.auditReview.status === 'MODIFIED_FOR_SAFETY' ? '✓ REVISED FOR SAFETY' : '✓ VERIFIED PRACTICAL'}
+                              {result.auditReview.status === 'MODIFIED_FOR_SAFETY' ? '✓ Adjusted for Comfort' : '✓ Verified & Relaxed'}
                             </span>
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">
-                            Two-pass reality inspection passed • Road speed physics, buffer windows & fatigue verified
+                            Double-checked by your travel guide • Realistic travel times, plenty of rest, and zero rush
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 self-start sm:self-auto">
-                        <span className="text-xs text-slate-400">Auditor Score:</span>
+                        <span className="text-xs text-slate-400">Comfort Score:</span>
                         <span className="text-base font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-xl">
-                          {result.auditReview.auditScore || 98}/100
+                          {result.auditReview.auditScore || 98}%
                         </span>
                       </div>
                     </div>
 
-                    {/* Reality checks bullet points */}
+                    {/* Comfort checks bullet points */}
                     {result.auditReview.realityChecks?.length > 0 && (
                       <div className="mt-3.5 space-y-2">
                         <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                          Verified Travel Realities:
+                          Why this plan is easy & relaxing:
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {result.auditReview.realityChecks.map((check: string, idx: number) => (
@@ -915,12 +915,12 @@ export default function ItineraryPage() {
                       </div>
                     )}
 
-                    {/* Warnings if any */}
+                    {/* Friendly tips if any */}
                     {result.auditReview.warnings?.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-white/5 flex items-start gap-2 text-xs text-amber-300/90 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
                         <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-amber-300">Auditor Advisory: </span>
+                          <span className="font-semibold text-amber-300">Helpful Travel Tip: </span>
                           {result.auditReview.warnings.join(" • ")}
                         </div>
                       </div>

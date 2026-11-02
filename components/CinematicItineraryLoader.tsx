@@ -68,10 +68,10 @@ const STAGES = [
   {
     minPct: 90,
     maxPct: 100,
-    title: "Master Blueprint Synthesis",
+    title: "Personal Travel Plan Ready",
     subtitle: "Packaging group expense breakdown, travel tips & packing equipment",
     icon: Sparkles,
-    tip: "Finalizing your elite travel blueprint with 100% verified ground intelligence."
+    tip: "Finalizing your personalized travel plan with comfortable timings and verified stays."
   }
 ];
 
@@ -174,7 +174,7 @@ export default function CinematicItineraryLoader({
             </div>
             <div>
               <div className="text-[10px] tracking-[0.25em] uppercase text-emerald-400 font-bold">
-                SPLITRUPEE EXPEDITION ENGINE
+                SPLITRUPEE TRAVEL PLANNER
               </div>
               <div className="text-sm font-semibold text-slate-200">
                 Autonomous Real-Time Travel Agency & Local Guide
@@ -230,7 +230,7 @@ export default function CinematicItineraryLoader({
               </span>
             </div>
             <div className="text-xs uppercase tracking-[0.2em] text-emerald-400/90 font-semibold mt-1">
-              {progress >= 100 ? "Expedition Blueprint Completed" : "Compiling Real-Time Ground Intelligence"}
+              {progress >= 100 ? "Travel Plan Ready" : "Checking Real-World Routes & Stays"}
             </div>
           </div>
 

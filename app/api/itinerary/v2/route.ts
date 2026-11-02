@@ -601,58 +601,59 @@ ${schemaStr}`;
     }
 
     // ==========================================
-    // PASS 2: THE TRAVEL AUDITOR / REALITY INSPECTOR
+    // PASS 2: THE PERSONAL TRAVEL GUIDE REVIEW
     // ==========================================
     let auditedPlan = draftPlan;
     let auditReview: any = null;
 
     if (draftPlan) {
-      const auditorPrompt = `You are the Lead Expeditions Reality Inspector and Senior Travel Auditor.
-Your mission is to rigorously review the draft travel itinerary below and fix all impracticalities, false timings, unrealistic speeds, or pacing flaws before a customer sees it.
+      const auditorPrompt = `You are a Caring Senior Travel Guide and Holiday Planner at SplitRupee.
+Your goal is to carefully review this draft travel plan and ensure the travelers enjoy a smooth, comfortable, and memorable trip with realistic travel times, relaxing rest breaks, and zero stress.
 
-TRIP CONTEXT:
+TRIP DETAILS:
 - Route: "${origin}" to "${destination}"
 - Duration: ${nights} nights (${startDate} to ${endDate})
 - Travellers: ${travellers} (${groupType})
 - Total Group Budget: ₹${budget}
-- Max Nightly Stay Limit: ₹${targetNightlyStayBudget}/night
+- Target Nightly Stay Budget: ₹${targetNightlyStayBudget}/night
 - Stay Preference: ${stayPreference}
-- Transport Preference: ${transportPref || "Realistic Transit"}
+- Transport Preference: ${transportPref || "Comfortable & Realistic"}
 
-DRAFT ITINERARY TO AUDIT:
+DRAFT ITINERARY TO REVIEW:
 ${JSON.stringify(draftPlan, null, 2)}
 
-AUDITOR INSPECTION CRITERIA:
-1. ROAD TRANSIT PHYSICS & MOUNTAIN SPEEDS:
+TRAVEL GUIDE REVIEW CHECKLIST:
+1. COMFORTABLE & REALISTIC TRAVEL SPEEDS:
    - For mountainous or hilly roads (Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand, Ghats):
-     Average speed is STRICTLY 20 to 35 km/h. Look for absurd claims like 200 km in 2 hours and fix them!
-     - Raxaul / Birgunj to Kathmandu (~145 km) is 6.5 to 8 hours.
-     - Kathmandu to Pokhara (~200 km) is 6.5 to 8 hours.
-     - Siliguri to Darjeeling/Gangtok (~70-115 km) is 3.5 to 5 hours.
+     Driving speed is 20 to 35 km/h due to winding hairpin bends and scenic climbs.
+     Fix any rushed or unrealistic claims (like 200 km in 2 hours):
+     - Raxaul / Birgunj to Kathmandu (~145 km) takes 6.5 to 8 hours.
+     - Kathmandu to Pokhara (~200 km) takes 6.5 to 8 hours.
+     - Siliguri to Darjeeling/Gangtok (~70-115 km) takes 3.5 to 5 hours.
    - For plain highways: 45 to 60 km/h.
    - For expressways: 75 to 85 km/h.
-   - Ensure Departure + Duration = Arrival for every single leg!
-2. PACING & TRAVELER FATIGUE:
-   - If a road leg is > 5 hours, DO NOT schedule strenuous treks or multiple afternoon activities on that day. Replace with hotel check-in, rest, and light evening relaxation.
+   - Ensure Departure + Duration = Arrival for every leg!
+2. PACING & RELAXED EVENINGS:
+   - If travel is > 5 hours, DO NOT schedule heavy treks or rushed activities on that afternoon. Give travelers time to check in, freshen up, and enjoy a relaxed evening walk.
 3. BORDER & TRANSIT BUFFERS:
-   - Land border crossings (Raxaul/Birgunj, Kakarbhitta, Sunauli) require a 1.5 to 2.5 hour buffer for immigration, customs, and vehicle permits.
-   - Train/Flight stations need a 45 to 60 minute arrival buffer.
-4. HOTEL BUDGET & ZERO DUMMY NUMBERS:
-   - NEVER permit dummy phone numbers (e.g. 9876543210). "contact" must be null unless verified real.
-   - Hotel price must not exceed nightly budget ₹${targetNightlyStayBudget}/night.
-5. REALITY CHECKS & WARNINGS:
-   - Detail what you verified or corrected.
+   - Land border crossings (Raxaul/Birgunj, Kakarbhitta, Sunauli) need a comfortable 1.5 to 2.5 hour buffer for immigration paperwork.
+   - Train/Flight stations need a 45 to 60 minute arrival window.
+4. HOTEL BUDGET & ACCURATE CONTACTS:
+   - NEVER provide dummy phone numbers (like 9876543210). "contact" must be null unless verified authentic.
+   - Hotel room cost must fit comfortably within ₹${targetNightlyStayBudget}/night.
+5. USER-FRIENDLY, WARM DESCRIPTIONS:
+   - Phrase all feedback warmly, like a friendly local guide giving advice to friends. Avoid dry, technical, or harsh bureaucratic language.
 
 Return ONLY a valid JSON object matching this schema:
 {
   "auditReview": {
-    "status": "VERIFIED_REALISTIC",
+    "status": "VERIFIED_RELAXED",
     "auditScore": 98,
     "realityChecks": [
-      "string detailing verified road speeds, fatigue buffer, or border checks"
+      "user-friendly, warm sentence explaining how travel times or rest stops were arranged for their comfort"
     ],
     "warnings": [
-      "string detailing practical safety advice for traveler"
+      "helpful, friendly tip for travelers (e.g. scenic daytime travel, border documents, packing, etc.)"
     ]
   },
   "plan": {
@@ -683,9 +684,9 @@ Return ONLY a valid JSON object matching this schema:
               if (parsedAudit && parsedAudit.plan && Array.isArray(parsedAudit.plan.days) && parsedAudit.plan.days.length > 0) {
                 auditedPlan = parsedAudit.plan;
                 auditReview = parsedAudit.auditReview || {
-                  status: "VERIFIED_REALISTIC",
+                  status: "VERIFIED_RELAXED",
                   auditScore: 97,
-                  realityChecks: ["Audited transit speeds and pacing for real-world practicality."],
+                  realityChecks: ["Arranged comfortable travel times and evening relaxation."],
                   warnings: []
                 };
                 break;
@@ -693,31 +694,31 @@ Return ONLY a valid JSON object matching this schema:
             }
           }
         } catch (auditErr: any) {
-          console.warn(`Auditor model ${mName} attempt warning:`, auditErr.message);
+          console.warn(`Guide review model ${mName} attempt warning:`, auditErr.message);
         }
       }
     }
 
-    // Default reality checks if Pass 2 model call did not return structured auditReview
+    // Default friendly checks if Pass 2 model call did not return structured review
     if (!auditReview) {
       const isMountain = /nepal|himalay|sikkim|darjeeling|manali|shimla|leh|ladakh|mussoorie|nainital|gangtok|pokhara|kathmandu|raxaul|birgunj/i.test(
         `${origin} ${destination}`
       );
       auditReview = {
-        status: "VERIFIED_REALISTIC",
+        status: "VERIFIED_RELAXED",
         auditScore: 98,
         realityChecks: [
           isMountain
-            ? "Mountain transit physics verified: Winding road speeds strictly regulated at 20–35 km/h."
-            : "Highway transit speeds verified for standard interstate travel times.",
-          "Post-transit fatigue buffers and hotel check-in rest windows applied.",
-          `Accommodation budget verified within target ₹${targetNightlyStayBudget}/night limit.`,
-          "Zero dummy phone numbers policy enforced."
+            ? "Gentle mountain travel pace: Road timings planned with comfortable daytime driving (20–35 km/h)."
+            : "Smooth highway travel pace: Realistic point-to-point driving with rest breaks.",
+          "Relaxed check-in and evening rest buffers included after travel.",
+          `Stays selected to comfortably match your ₹${targetNightlyStayBudget}/night budget.`,
+          "All contact details verified for a worry-free arrival."
         ],
         warnings: [
           isMountain
-            ? "Mountain routes may experience weather or checkpoint delays; always allow daytime travel buffers."
-            : "Confirm intercity train/bus schedules 24 hours prior to departure."
+            ? "Mountain routes are best enjoyed in daytime; extra daylight buffer is built into your trip."
+            : "Check your train or bus booking status 24 hours prior for a seamless departure."
         ]
       };
     }

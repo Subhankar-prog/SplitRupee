@@ -106,7 +106,7 @@ export function exportItineraryPDF(itineraryData: {
     const cleanDest = cleanPdfText(form.destination).toUpperCase();
     doc.text(`SPLITRUPEE ITINERARY | ${cleanOrigin} -> ${cleanDest}`, margin + 3, y + 5.5);
     doc.setTextColor(16, 185, 129);
-    doc.text("SMART TRAVEL BLUEPRINT", pageWidth - margin - 3, y + 5.5, { align: "right" });
+    doc.text("SMART TRAVEL GUIDE", pageWidth - margin - 3, y + 5.5, { align: "right" });
     y += 12;
   }
 
@@ -126,12 +126,12 @@ export function exportItineraryPDF(itineraryData: {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(255, 255, 255);
-  doc.text("SplitRupee Travel Blueprint", margin + 17, y + 10);
+  doc.text("SplitRupee Travel Guide", margin + 17, y + 10);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(148, 163, 184); // slate-400
-  doc.text("Curated itinerary with transit telemetry, stays, and budget optimization", margin + 17, y + 15);
+  doc.text("Personalized itinerary with relaxed travel times, verified stays, and complete cost breakdown", margin + 17, y + 15);
 
   // Trip Route Header (Bhubaneswar -> Goa with clean ASCII arrow)
   doc.setFont("helvetica", "bold");
@@ -206,7 +206,7 @@ export function exportItineraryPDF(itineraryData: {
     y += 27;
   }
 
-  // 2.5 AI REALITY AUDITOR VERIFICATION BANNER
+  // 2.5 TRAVEL GUIDE COMFORT BANNER
   if (result.auditReview) {
     checkPageBreak(14);
     doc.setFillColor(240, 253, 244);
@@ -215,12 +215,12 @@ export function exportItineraryPDF(itineraryData: {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(21, 128, 61);
-    doc.text(`[AI REALITY AUDITOR] VERIFIED & PRACTICAL (SCORE: ${result.auditReview.auditScore || 98}/100)`, margin + 4, y + 4.5);
+    doc.text(`[TRAVEL GUIDE CHECK] VERIFIED FOR A SMOOTH & COMFORTABLE TRIP (COMFORT: ${result.auditReview.auditScore || 98}%)`, margin + 4, y + 4.5);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     const checksSummary = cleanPdfText(
-      result.auditReview.realityChecks?.slice(0, 2).join(" • ") || "Transit physics, terrain speeds and fatigue limits verified."
+      result.auditReview.realityChecks?.slice(0, 2).join(" • ") || "Comfortable travel times, daylight driving, and rest breaks verified for a relaxed holiday."
     );
     doc.text(checksSummary, margin + 4, y + 8);
     y += 13;

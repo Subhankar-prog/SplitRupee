@@ -57,7 +57,7 @@ const STAGES = [
   },
   {
     pct: 100,
-    title: "Master Blueprint Compilation",
+    title: "Your Travel Plan is Ready",
     desc: "Finalizing day-by-day breakdown and per-person financial allocation...",
     icon: ShieldCheck
   }
