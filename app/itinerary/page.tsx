@@ -1,12 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import TravelCopilotChat from "@/components/TravelCopilotChat";
+import TravelCopilotChat, { ChatMessage } from "@/components/TravelCopilotChat";
 import MovieTrailerItineraryLoader from "@/components/MovieTrailerItineraryLoader";
 import ThemeSelect from "@/components/ThemeSelect";
 import { isDemoPhoneNumber } from "@/lib/localGroundData";
 import { exportItineraryPDF } from "@/lib/pdfExport";
-import { downloadCalendarICS } from "@/lib/calendarExport";
+import {
+  downloadCalendarICS,
+  downloadSingleDayICS,
+  getSingleDayGoogleCalendarUrl,
+  getSingleDayWhatsAppShareText,
+  CalendarAttendee
+} from "@/lib/calendarExport";
+import { useUser } from "@/lib/userContext";
 import {
   Loader2,
   ArrowRight,
@@ -35,11 +42,21 @@ import {
   Share2,
   Copy,
   Check,
-  X
+  X,
+  Bookmark,
+  BookmarkCheck,
+  Send,
+  FolderOpen,
+  Crown,
+  Lock,
+  Plus,
+  Trash2,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ItineraryPage() {
+  const { currentUser } = useUser();
   const [loading, setLoading] = useState(false);
   const [apiReady, setApiReady] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<any>(null);
@@ -50,6 +67,31 @@ export default function ItineraryPage() {
   const [activeTab, setActiveTab] = useState("itinerary");
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [copiedSituation, setCopiedSituation] = useState(false);
+
+  // Copilot chat state for saving & restoring
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // Persistence & Saved Itinerary state
+  const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
+  const [isSavedTripsModalOpen, setIsSavedTripsModalOpen] = useState(false);
+  const [savedTripsList, setSavedTripsList] = useState<any[]>([]);
+  const [isLoadingSavedTrips, setIsLoadingSavedTrips] = useState(false);
+
+  // Forwarding to Travel Group (Admin-Only) state
+  const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
+  const [userGroups, setUserGroups] = useState<any[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [isForwarding, setIsForwarding] = useState(false);
+  const [forwardFeedback, setForwardFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [linkedGroup, setLinkedGroup] = useState<any | null>(null);
+
+  // Day-wise Calendar Dispatch state
+  const [activeDayCalendar, setActiveDayCalendar] = useState<{ dayNumber: number; day: any } | null>(null);
+  const [selectedMemberEmails, setSelectedMemberEmails] = useState<string[]>([]);
+  const [dayCalendarToast, setDayCalendarToast] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     origin: "",
@@ -311,6 +353,278 @@ export default function ItineraryPage() {
       budgetDifference: targetBudget - totalEst,
       budgetStatus: totalEst <= targetBudget ? "UNDER_BUDGET" : "OVER_BUDGET"
     }));
+  };
+
+  // 1. Save Itinerary and its Chat Session
+  const handleSaveItinerary = async () => {
+    if (!result || !form.origin || !form.destination) return;
+    setIsSaving(true);
+    setSaveToast(null);
+
+    try {
+      const res = await fetch("/api/itinerary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: savedItineraryId || undefined,
+          userId: currentUser?.id || null,
+          groupId: linkedGroup?.id || null,
+          title: `Trip: ${form.origin} ➔ ${form.destination} (${form.nights}N / ${Number(form.nights) + 1}D)`,
+          origin: form.origin,
+          destination: form.destination,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          days: Number(form.nights) + 1,
+          groupSize: Number(form.travellers) || 1,
+          totalBudget: Number(form.budget) || 0,
+          preferences: {
+            stayBudget: form.stayBudget,
+            stayPreference: form.stayPreference,
+            groupType: form.groupType,
+            trainClass: form.trainClass,
+            busClass: form.busClass,
+            flightClass: form.flightClass,
+            transport: {
+              train: form.transportTrain,
+              bus: form.transportBus,
+              flight: form.transportFlight,
+              road: form.transportRoad
+            }
+          },
+          planData: result,
+          chatSession: chatMessages
+        })
+      });
+
+      const json = await res.json();
+      if (json.ok && json.itinerary?.id) {
+        setSavedItineraryId(json.itinerary.id);
+        setSaveToast("✓ Itinerary & Copilot Chat saved successfully!");
+        setTimeout(() => setSaveToast(null), 3000);
+      } else {
+        setSaveToast(`Error: ${json.error || "Could not save itinerary"}`);
+      }
+    } catch (e: any) {
+      setSaveToast(`Error: ${e.message || "Failed to save"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 2. Open Saved Trips Drawer / Modal
+  const handleOpenSavedTrips = async () => {
+    setIsSavedTripsModalOpen(true);
+    setIsLoadingSavedTrips(true);
+    try {
+      const url = currentUser?.id ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}` : "/api/itinerary";
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok && Array.isArray(json.itineraries)) {
+        setSavedTripsList(json.itineraries);
+      }
+    } catch (err) {
+      console.warn("Failed to load saved trips:", err);
+    } finally {
+      setIsLoadingSavedTrips(false);
+    }
+  };
+
+  // Load a Saved Itinerary + restore Chat Session
+  const handleLoadSavedItinerary = (it: any) => {
+    if (!it || !it.planData) return;
+    setSavedItineraryId(it.id);
+    setForm((prev) => ({
+      ...prev,
+      origin: it.origin || prev.origin,
+      destination: it.destination || prev.destination,
+      startDate: it.startDate || prev.startDate,
+      endDate: it.endDate || prev.endDate,
+      nights: Math.max(1, (it.days || 2) - 1),
+      travellers: it.groupSize || prev.travellers,
+      budget: it.totalBudget || prev.budget
+    }));
+    setResult(it.planData);
+    if (Array.isArray(it.chatSession) && it.chatSession.length > 0) {
+      setChatMessages(it.chatSession);
+    }
+    if (it.group) {
+      setLinkedGroup(it.group);
+    }
+    setIsSavedTripsModalOpen(false);
+    setSaveToast(`Loaded: ${it.title}`);
+    setTimeout(() => setSaveToast(null), 3000);
+  };
+
+  // Delete a Saved Itinerary
+  const handleDeleteSavedItinerary = async (itId: string) => {
+    if (!confirm("Are you sure you want to delete this saved itinerary?")) return;
+    try {
+      const url = currentUser?.id
+        ? `/api/itinerary?id=${encodeURIComponent(itId)}&userId=${encodeURIComponent(currentUser.id)}`
+        : `/api/itinerary?id=${encodeURIComponent(itId)}`;
+      const res = await fetch(url, { method: "DELETE" });
+      const json = await res.json();
+      if (json.ok) {
+        setSavedTripsList((prev) => prev.filter((item) => item.id !== itId));
+        if (savedItineraryId === itId) {
+          setSavedItineraryId(null);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not delete itinerary:", err);
+    }
+  };
+
+  // 3. Open Forward to Travel Group Modal (Admin-Only feature)
+  const handleOpenForwardModal = async () => {
+    setIsForwardModalOpen(true);
+    setIsLoadingGroups(true);
+    setForwardFeedback(null);
+    try {
+      const url = currentUser?.id ? `/api/groups?userId=${encodeURIComponent(currentUser.id)}` : "/api/groups";
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok && Array.isArray(json.groups)) {
+        setUserGroups(json.groups);
+        // Pre-select group where current user is ADMIN
+        const adminGroup = json.groups.find((g: any) => {
+          const userMember = g.members?.find((m: any) => m.id === currentUser?.id);
+          return userMember?.role === "ADMIN" || g.creatorId === currentUser?.id;
+        });
+        if (adminGroup) {
+          setSelectedGroupId(adminGroup.id);
+        } else if (json.groups.length > 0) {
+          setSelectedGroupId(json.groups[0].id);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load groups:", e);
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  };
+
+  // Confirm Forward to Group (enforces Admin check)
+  const handleConfirmForward = async () => {
+    if (!selectedGroupId || !result) return;
+    setIsForwarding(true);
+    setForwardFeedback(null);
+
+    try {
+      const res = await fetch("/api/itinerary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: savedItineraryId || undefined,
+          userId: currentUser?.id,
+          title: `Trip: ${form.origin} ➔ ${form.destination}`,
+          origin: form.origin,
+          destination: form.destination,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          days: Number(form.nights) + 1,
+          groupSize: Number(form.travellers) || 1,
+          totalBudget: Number(form.budget) || 0,
+          planData: result,
+          chatSession: chatMessages,
+          forwardToGroupId: selectedGroupId
+        })
+      });
+
+      const json = await res.json();
+      if (json.ok) {
+        const targetG = userGroups.find((g) => g.id === selectedGroupId);
+        setLinkedGroup(targetG || { id: selectedGroupId, name: "Travel Group" });
+        setSavedItineraryId(json.itinerary?.id || savedItineraryId);
+        setForwardFeedback({
+          ok: true,
+          text: `✓ Successfully forwarded itinerary & Copilot chat to ${targetG?.name || "Travel Group"}! Group members can now access the plan.`
+        });
+        setTimeout(() => {
+          setIsForwardModalOpen(false);
+          setForwardFeedback(null);
+        }, 2200);
+      } else {
+        setForwardFeedback({
+          ok: false,
+          text: json.message || json.error || "Only group admins can forward itineraries into travel groups."
+        });
+      }
+    } catch (err: any) {
+      setForwardFeedback({
+        ok: false,
+        text: err.message || "Failed to forward itinerary."
+      });
+    } finally {
+      setIsForwarding(false);
+    }
+  };
+
+  // 4. Day-wise Calendar Action Handlers (Day by Day, Not All Days)
+  const handleOpenDayCalendar = (day: any) => {
+    setActiveDayCalendar({ dayNumber: day.day, day });
+    // Pre-select group member emails if available
+    const members = linkedGroup?.members || [];
+    const emails = members.map((m: any) => m.email).filter(Boolean);
+    setSelectedMemberEmails(emails);
+  };
+
+  const handleDayGoogleCalendar = () => {
+    if (!activeDayCalendar || !result?.days || !form.origin || !form.destination) return;
+    const url = getSingleDayGoogleCalendarUrl(
+      {
+        origin: form.origin,
+        destination: form.destination,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        travellers: form.travellers,
+        days: result.days
+      },
+      activeDayCalendar.dayNumber,
+      selectedMemberEmails
+    );
+    window.open(url, "_blank");
+    setDayCalendarToast(`✓ Opened Google Calendar for Day ${activeDayCalendar.dayNumber} with member invites!`);
+    setTimeout(() => setDayCalendarToast(null), 3000);
+  };
+
+  const handleDayDownloadICS = () => {
+    if (!activeDayCalendar || !result?.days || !form.origin || !form.destination) return;
+    const attendees: CalendarAttendee[] = selectedMemberEmails.map((email) => ({
+      name: email.split("@")[0],
+      email
+    }));
+    downloadSingleDayICS(
+      {
+        origin: form.origin,
+        destination: form.destination,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        travellers: form.travellers,
+        days: result.days
+      },
+      activeDayCalendar.dayNumber,
+      attendees
+    );
+    setDayCalendarToast(`✓ Downloaded Day ${activeDayCalendar.dayNumber} .ICS event!`);
+    setTimeout(() => setDayCalendarToast(null), 3000);
+  };
+
+  const handleDayWhatsAppShare = () => {
+    if (!activeDayCalendar || !result?.days || !form.origin || !form.destination) return;
+    const text = getSingleDayWhatsAppShareText(
+      {
+        origin: form.origin,
+        destination: form.destination,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        travellers: form.travellers,
+        days: result.days
+      },
+      activeDayCalendar.dayNumber
+    );
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   };
 
   const getLegIcon = (mode: string = "") => {
@@ -855,32 +1169,76 @@ export default function ItineraryPage() {
                     </h3>
                     <p className="text-xs text-slate-400 mt-1">
                       {form.nights} Nights ({form.startDate} to {form.endDate}) • {form.travellers} Travellers ({form.groupType})
+                      {linkedGroup && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-[11px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-medium">
+                          <Crown className="h-3 w-3 text-amber-400" /> Linked to {linkedGroup.name}
+                        </span>
+                      )}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* View Saved Trips */}
+                    <button
+                      onClick={handleOpenSavedTrips}
+                      className="flex items-center gap-1.5 bg-slate-850 hover:bg-slate-800 border border-white/10 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                      title="Open Saved Itineraries & Past Chat Sessions"
+                    >
+                      <FolderOpen className="h-4 w-4 text-emerald-400" />
+                      <span>Saved Trips</span>
+                    </button>
+
+                    {/* Save Itinerary & Chat Session */}
+                    <button
+                      onClick={handleSaveItinerary}
+                      disabled={isSaving}
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm"
+                      title="Save this Itinerary & Copilot Chat Session"
+                    >
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
+                      <span>{savedItineraryId ? "Update Saved Trip" : "Save Trip & Chat"}</span>
+                    </button>
+
+                    {/* Forward to Travel Group (Admin-Only) */}
+                    <button
+                      onClick={handleOpenForwardModal}
+                      className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm"
+                      title="Forward to Travel Group (Admin-Only Feature)"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span>Forward to Group</span>
+                    </button>
+
+                    {/* Copilot Chat */}
                     <button
                       onClick={() => setIsCopilotOpen(true)}
-                      className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                      className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                      title="Open Travel Companion Copilot Chat"
                     >
-                      <MessageSquare className="h-4 w-4" /> Copilot
+                      <MessageSquare className="h-4 w-4" />
+                      <span>Copilot</span>
                     </button>
-                    <button
-                      onClick={handleAddToCalendar}
-                      className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700/90 border border-white/10 hover:border-emerald-500/40 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-md"
-                      title="Add All Days & Transit Reminders to Mobile Calendar (iOS / Android / Google)"
-                    >
-                      <Calendar className="h-4 w-4 text-emerald-400" />
-                      <span>Add to Calendar</span>
-                    </button>
+
+                    {/* PDF Export */}
                     <button
                       onClick={handleDownloadPDF}
-                      className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
+                      className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
                       title="Download Your Travel Plan PDF"
                     >
-                      <Download className="h-4 w-4 stroke-[2.5]" /> Download PDF
+                      <Download className="h-4 w-4 stroke-[2.5]" />
+                      <span>PDF</span>
                     </button>
                   </div>
                 </div>
+
+                {/* Save Toast Notification */}
+                {saveToast && (
+                  <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs sm:text-sm font-medium flex items-center justify-between shadow-lg">
+                    <span>{saveToast}</span>
+                    <button onClick={() => setSaveToast(null)} className="text-emerald-400 hover:text-white">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
 
                 {/* UPFRONT LIVE ROUTE & TRAVEL SITUATION BULLETIN */}
                 {result && (
@@ -1116,11 +1474,25 @@ export default function ItineraryPage() {
                   <div className="space-y-8 flex-1 overflow-auto pr-4 print:overflow-visible">
                     {result.days?.map((day: any, i: number) => (
                       <div key={i} className="bg-slate-950/50 rounded-2xl p-6 border border-white/5 print:bg-gray-100 print:text-black print:break-inside-avoid">
-                        <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/5 print:border-black/10">
-                          <h4 className="text-xl font-bold text-emerald-400 print:text-black">Day {day.day}</h4>
-                          <span className="text-sm px-3 py-1 bg-emerald-500/10 text-emerald-300 rounded-full print:bg-transparent print:border print:border-black">
-                            Stay: {day.stay}
-                          </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-4 border-b border-white/5 print:border-black/10">
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-xl font-bold text-emerald-400 print:text-black">Day {day.day}</h4>
+                            <span className="text-sm px-3 py-1 bg-emerald-500/10 text-emerald-300 rounded-full print:bg-transparent print:border print:border-black">
+                              Stay: {day.stay}
+                            </span>
+                          </div>
+
+                          {/* Day-by-Day Calendar Dispatch Button */}
+                          <div className="print:hidden">
+                            <button
+                              onClick={() => handleOpenDayCalendar(day)}
+                              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-300 hover:text-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm"
+                              title={`Add Day ${day.day} Schedule to Calendar & Dispatch to Group Members`}
+                            >
+                              <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>Add Day {day.day} to Calendar</span>
+                            </button>
+                          </div>
                         </div>
 
                         {/* Legs */}
@@ -1286,7 +1658,351 @@ export default function ItineraryPage() {
                 flightClass={form.flightClass}
                 onApplyPlanUpdate={handlePlanUpdate}
                 onClose={() => setIsCopilotOpen(false)}
+                initialMessages={chatMessages}
+                onMessagesChange={(msgs) => setChatMessages(msgs)}
               />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 1. Saved Trips Modal */}
+      <AnimatePresence>
+        {isSavedTripsModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <FolderOpen className="h-5 w-5 text-emerald-400" />
+                  <h3 className="text-lg font-bold text-white">Saved Travel Itineraries & Chats</h3>
+                </div>
+                <button
+                  onClick={() => setIsSavedTripsModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto py-4 space-y-3">
+                {isLoadingSavedTrips ? (
+                  <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+                    <span>Loading your saved itineraries...</span>
+                  </div>
+                ) : savedTripsList.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400">
+                    <p className="text-sm">No saved itineraries found yet.</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Generate a trip and click <strong className="text-emerald-400">Save Trip & Chat</strong> to persist it here.
+                    </p>
+                  </div>
+                ) : (
+                  savedTripsList.map((it) => (
+                    <div
+                      key={it.id}
+                      className="p-4 rounded-xl bg-slate-950/70 border border-white/5 hover:border-emerald-500/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-white text-base">{it.title}</h4>
+                          {it.group && (
+                            <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-medium">
+                              Group: {it.group.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {it.origin} ➔ {it.destination} • {it.days} Days • {it.groupSize} Travellers • ₹{Number(it.totalBudget).toLocaleString()} Budget
+                        </p>
+                        {it.chatSession?.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 mt-2 font-mono">
+                            <MessageSquare className="h-3 w-3" /> {it.chatSession.length} chat messages saved
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleLoadSavedItinerary(it)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-sm"
+                        >
+                          Open & Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSavedItinerary(it.id)}
+                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                          title="Delete saved itinerary"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Forward to Travel Group Modal */}
+      <AnimatePresence>
+        {isForwardModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <Send className="h-5 w-5 text-teal-400" />
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Forward to Travel Group</h3>
+                    <p className="text-xs text-slate-400">Attach itinerary & live Copilot chat to a group</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsForwardModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Admin Privileges Notice */}
+              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-xs text-amber-300">
+                <Crown className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Admin Privilege:</strong> Only group administrators can forward itineraries, manage member schedules, and dispatch day calendar events.
+                </span>
+              </div>
+
+              <div className="my-4 space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                {isLoadingGroups ? (
+                  <div className="py-8 text-center text-slate-400 flex flex-col items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-teal-400" />
+                    <span>Loading your groups...</span>
+                  </div>
+                ) : userGroups.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs">
+                    No groups found for your account. Please create or join a group first.
+                  </div>
+                ) : (
+                  userGroups.map((g) => {
+                    const userMember = g.members?.find((m: any) => m.id === currentUser?.id);
+                    const isAdmin = userMember?.role === "ADMIN" || g.creatorId === currentUser?.id;
+                    const isSelected = selectedGroupId === g.id;
+
+                    return (
+                      <div
+                        key={g.id}
+                        onClick={() => {
+                          if (isAdmin) setSelectedGroupId(g.id);
+                        }}
+                        className={`p-3.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                          !isAdmin
+                            ? "opacity-60 bg-slate-950/30 border-white/5 cursor-not-allowed"
+                            : isSelected
+                            ? "bg-teal-500/15 border-teal-500/50 shadow-sm"
+                            : "bg-slate-950/60 border-white/5 hover:border-teal-500/30"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-white text-sm">{g.name}</span>
+                            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono">
+                              {g.type}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {g.members?.length || 0} members • Currency: {g.currency}
+                          </p>
+                        </div>
+                        <div>
+                          {isAdmin ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-semibold">
+                              <Crown className="h-3 w-3 text-amber-400" /> Admin
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-400 border border-white/10 px-2.5 py-1 rounded-full">
+                              <Lock className="h-3 w-3" /> Member Only
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {forwardFeedback && (
+                <div
+                  className={`mb-4 p-3 rounded-xl text-xs font-medium ${
+                    forwardFeedback.ok
+                      ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300"
+                      : "bg-rose-500/20 border border-rose-500/30 text-rose-300"
+                  }`}
+                >
+                  {forwardFeedback.text}
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setIsForwardModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmForward}
+                  disabled={!selectedGroupId || isForwarding}
+                  className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-sm"
+                >
+                  {isForwarding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <span>Forward Itinerary & Chat</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Day-by-Day Calendar Dispatch Modal */}
+      <AnimatePresence>
+        {activeDayCalendar && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="h-5 w-5 text-emerald-400" />
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      Add Day {activeDayCalendar.dayNumber} to Calendar
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Stay: {activeDayCalendar.day.stay || form.destination}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveDayCalendar(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Day Details Preview */}
+              <div className="my-4 p-3.5 bg-slate-950/70 border border-white/5 rounded-xl space-y-2 text-xs">
+                <div className="text-slate-300">
+                  <strong className="text-emerald-400">Transit:</strong>{" "}
+                  {activeDayCalendar.day.legs?.length
+                    ? activeDayCalendar.day.legs.map((l: any) => `${l.from} ➔ ${l.to} (${l.mode})`).join(" • ")
+                    : "Local exploration & relaxation"}
+                </div>
+                {activeDayCalendar.day.hotelDetails && (
+                  <div className="text-slate-300">
+                    <strong className="text-emerald-400">Stay:</strong> {activeDayCalendar.day.hotelDetails.name}
+                    {activeDayCalendar.day.hotelDetails.roomType && ` (${activeDayCalendar.day.hotelDetails.roomType})`}
+                  </div>
+                )}
+              </div>
+
+              {/* Group Member Invite Selection (Admin Feature) */}
+              <div className="mb-4 p-3.5 bg-slate-950/40 border border-white/5 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+                    <Users className="h-3.5 w-3.5 text-teal-400" />
+                    <span>Invite Group Members (Admin Dispatch)</span>
+                  </div>
+                  <span className="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full font-mono">
+                    Admin Privilege
+                  </span>
+                </div>
+
+                {linkedGroup?.members?.length > 0 ? (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {linkedGroup.members.map((m: any) => {
+                      const isChecked = selectedMemberEmails.includes(m.email);
+                      return (
+                        <label
+                          key={m.id || m.email}
+                          className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 cursor-pointer text-xs text-slate-300"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedMemberEmails((prev) => [...prev, m.email]);
+                              } else {
+                                setSelectedMemberEmails((prev) => prev.filter((em) => em !== m.email));
+                              }
+                            }}
+                            className="rounded bg-slate-800 border-white/20 text-emerald-500 focus:ring-0"
+                          />
+                          <span className="font-medium text-white">{m.name}</span>
+                          <span className="text-slate-500 font-mono text-[10px]">{m.email}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Trip is currently personal. You can add Day {activeDayCalendar.dayNumber} to your calendar, or forward this trip to a Travel Group to automatically invite all members!
+                  </p>
+                )}
+              </div>
+
+              {dayCalendarToast && (
+                <div className="mb-4 p-2.5 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-medium">
+                  {dayCalendarToast}
+                </div>
+              )}
+
+              {/* Action Buttons for Day X */}
+              <div className="space-y-2 pt-2 border-t border-white/10">
+                <button
+                  onClick={handleDayGoogleCalendar}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2.5 px-4 rounded-xl transition shadow-sm"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>
+                    Add Day {activeDayCalendar.dayNumber} to Google Calendar{" "}
+                    {selectedMemberEmails.length > 0 ? `(${selectedMemberEmails.length} Members Invited)` : ""}
+                  </span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleDayDownloadICS}
+                    className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs py-2 px-3 rounded-xl border border-white/10 transition"
+                  >
+                    <Download className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Download .ICS (Apple/Outlook)</span>
+                  </button>
+                  <button
+                    onClick={handleDayWhatsAppShare}
+                    className="flex items-center justify-center gap-2 bg-teal-600/90 hover:bg-teal-500 text-white font-semibold text-xs py-2 px-3 rounded-xl transition shadow-sm"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    <span>Share to WhatsApp</span>
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

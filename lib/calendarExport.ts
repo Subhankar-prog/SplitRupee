@@ -177,3 +177,217 @@ export function getGoogleCalendarUrl(trip: CalendarTripData): string {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&location=${location}`;
 }
 
+export interface CalendarAttendee {
+  name: string;
+  email: string;
+}
+
+/**
+ * Generates an iCalendar (.ics) string for a SPECIFIC single day of the trip.
+ */
+export function generateSingleDayICSContent(
+  trip: CalendarTripData,
+  dayNumber: number,
+  attendees?: CalendarAttendee[]
+): string {
+  const day = trip.days.find((d) => d.day === dayNumber) || trip.days[dayNumber - 1];
+  if (!day) return "";
+
+  const baseStart = new Date(trip.startDate || new Date().toISOString().split("T")[0]);
+  const dayIndex = Math.max(0, day.day - 1);
+  const dayDate = new Date(baseStart);
+  dayDate.setDate(baseStart.getDate() + dayIndex);
+
+  const nowStr = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+  const firstLeg = day.legs?.[0];
+  const lastLeg = day.legs?.[day.legs.length - 1];
+
+  const departTime = firstLeg?.depart || "09:00";
+  const arriveTime = lastLeg?.arrive || "18:00";
+
+  const dtStart = formatDateToICS(dayDate, departTime);
+  const dtEnd = formatDateToICS(dayDate, arriveTime);
+
+  const title = `Day ${day.day}: ${day.stay || trip.destination} - SplitRupee Trip`;
+
+  let descLines: string[] = [];
+  descLines.push(`📅 TRIP SCHEDULE - DAY ${day.day}`);
+  descLines.push(`From: ${trip.origin} ➜ To: ${trip.destination}`);
+  descLines.push("");
+
+  if (day.legs && day.legs.length > 0) {
+    descLines.push("🚗 TRANSIT & TRAVEL LEGS:");
+    day.legs.forEach((l) => {
+      descLines.push(`• ${l.from} -> ${l.to} via ${l.mode} (${l.depart || "--:--"} to ${l.arrive || "--:--"})`);
+      if (l.note) descLines.push(`  Note: ${l.note}`);
+    });
+    descLines.push("");
+  }
+
+  if (day.activities) {
+    descLines.push("📍 ACTIVITIES & SIGHTSEEING:");
+    if (day.activities.morning) descLines.push(`• Morning: ${day.activities.morning}`);
+    if (day.activities.afternoon) descLines.push(`• Afternoon: ${day.activities.afternoon}`);
+    if (day.activities.evening) descLines.push(`• Evening: ${day.activities.evening}`);
+    if (day.activities.food) descLines.push(`• Food: ${day.activities.food}`);
+    descLines.push("");
+  }
+
+  if (day.hotelDetails) {
+    descLines.push("🏨 NIGHT STAY & ACCOMMODATION:");
+    descLines.push(`• ${day.hotelDetails.name} (approx ₹${day.hotelDetails.costPerNight || 0}/night)`);
+    if (day.hotelDetails.contact) descLines.push(`  Verified Contact: ${day.hotelDetails.contact}`);
+  }
+
+  const description = escapeICS(descLines.join("\n"));
+  const location = escapeICS(day.stay || trip.destination);
+  const uid = `splitrupee-trip-day-${day.day}-${dayDate.getTime()}@splitrupee.vercel.app`;
+
+  let ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//SplitRupee//Smart Travel Guide//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:Day ${day.day} - ${escapeICS(trip.destination)}`,
+    "X-WR-TIMEZONE:Asia/Kolkata",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${nowStr}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${escapeICS(title)}`,
+    `DESCRIPTION:${description}`,
+    `LOCATION:${location}`,
+    "STATUS:CONFIRMED"
+  ];
+
+  if (attendees && attendees.length > 0) {
+    attendees.forEach((a) => {
+      if (a.email && a.email.includes("@")) {
+        ics.push(`ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;CN=${escapeICS(a.name || a.email)}:mailto:${a.email}`);
+      }
+    });
+  }
+
+  ics.push(
+    "BEGIN:VALARM",
+    "TRIGGER:-PT2H",
+    "ACTION:DISPLAY",
+    `DESCRIPTION:Reminder: Travel schedule for ${escapeICS(title)}`,
+    "END:VALARM",
+    "END:VEVENT",
+    "END:VCALENDAR"
+  );
+
+  return ics.join("\r\n");
+}
+
+/**
+ * Downloads a single day's .ics file to the device.
+ */
+export function downloadSingleDayICS(
+  trip: CalendarTripData,
+  dayNumber: number,
+  attendees?: CalendarAttendee[]
+) {
+  const content = generateSingleDayICSContent(trip, dayNumber, attendees);
+  if (!content) return;
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const cleanDest = (trip.destination || "Trip").replace(/[^a-zA-Z0-9]/g, "_");
+  link.href = url;
+  link.setAttribute("download", `SplitRupee_${cleanDest}_Day_${dayNumber}.ics`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Generates a Google Calendar web template URL for a single day, pre-populating attendees.
+ */
+export function getSingleDayGoogleCalendarUrl(
+  trip: CalendarTripData,
+  dayNumber: number,
+  attendeeEmails?: string[]
+): string {
+  const day = trip.days.find((d) => d.day === dayNumber) || trip.days[dayNumber - 1];
+  if (!day) return "";
+
+  const baseStart = new Date(trip.startDate || new Date().toISOString().split("T")[0]);
+  const dayIndex = Math.max(0, day.day - 1);
+  const dayDate = new Date(baseStart);
+  dayDate.setDate(baseStart.getDate() + dayIndex);
+
+  const firstLeg = day.legs?.[0];
+  const lastLeg = day.legs?.[day.legs.length - 1];
+
+  const departTime = firstLeg?.depart || "09:00";
+  const arriveTime = lastLeg?.arrive || "18:00";
+
+  const startStr = formatDateToICS(dayDate, departTime);
+  const endStr = formatDateToICS(dayDate, arriveTime);
+
+  const title = encodeURIComponent(`Day ${day.day}: ${day.stay || trip.destination} - SplitRupee Trip`);
+
+  let desc = `Trip: ${trip.origin} -> ${trip.destination}\nDay ${day.day} Schedule:`;
+  if (day.legs && day.legs.length > 0) {
+    desc += `\nTransit: ${day.legs.map((l) => `${l.from} -> ${l.to} (${l.mode})`).join(", ")}`;
+  }
+  if (day.activities?.morning) desc += `\nMorning: ${day.activities.morning}`;
+  if (day.activities?.afternoon) desc += `\nAfternoon: ${day.activities.afternoon}`;
+  if (day.activities?.evening) desc += `\nEvening: ${day.activities.evening}`;
+  if (day.hotelDetails?.name) desc += `\nStay: ${day.hotelDetails.name} (${day.hotelDetails.contact || "front desk"})`;
+
+  const details = encodeURIComponent(desc);
+  const location = encodeURIComponent(day.stay || trip.destination);
+
+  let url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&location=${location}`;
+
+  if (attendeeEmails && attendeeEmails.length > 0) {
+    const validEmails = attendeeEmails.filter((e) => e && e.includes("@"));
+    if (validEmails.length > 0) {
+      url += `&add=${encodeURIComponent(validEmails.join(","))}`;
+    }
+  }
+
+  return url;
+}
+
+/**
+ * Generates WhatsApp share text for Day X schedule
+ */
+export function getSingleDayWhatsAppShareText(trip: CalendarTripData, dayNumber: number): string {
+  const day = trip.days.find((d) => d.day === dayNumber) || trip.days[dayNumber - 1];
+  if (!day) return "";
+
+  const baseStart = new Date(trip.startDate || new Date().toISOString().split("T")[0]);
+  const dayIndex = Math.max(0, day.day - 1);
+  const dayDate = new Date(baseStart);
+  dayDate.setDate(baseStart.getDate() + dayIndex);
+  const dateStr = dayDate.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+
+  let text = `🗓️ *Day ${day.day} Schedule (${dateStr}) - ${trip.destination} Trip*\n`;
+  if (day.legs && day.legs.length > 0) {
+    text += `\n🚗 *Transit:*`;
+    day.legs.forEach((l) => {
+      text += `\n• ${l.from} ➜ ${l.to} via ${l.mode} (${l.depart || "--:--"} - ${l.arrive || "--:--"})`;
+    });
+  }
+  if (day.activities) {
+    text += `\n\n📍 *Sightseeing:*`;
+    if (day.activities.morning) text += `\n• Morning: ${day.activities.morning}`;
+    if (day.activities.afternoon) text += `\n• Afternoon: ${day.activities.afternoon}`;
+    if (day.activities.evening) text += `\n• Evening: ${day.activities.evening}`;
+  }
+  if (day.hotelDetails) {
+    text += `\n\n🏨 *Night Stay:* ${day.hotelDetails.name}`;
+    if (day.hotelDetails.contact) text += ` (📞 ${day.hotelDetails.contact})`;
+  }
+  text += `\n\n✨ _Planned with SplitRupee Travel Guide_`;
+  return text;
+}
+

@@ -45,7 +45,7 @@ export async function GET(req: Request) {
           inviteCode: g.inviteCode || g.id.slice(0, 8),
           createdAt: g.createdAt.toISOString(),
           updatedAt: g.updatedAt.toISOString(),
-          members: g.members.map((m) => m.user),
+          members: g.members.map((m) => ({ ...m.user, role: m.role || "MEMBER" })),
           _count: g._count,
         })),
       },

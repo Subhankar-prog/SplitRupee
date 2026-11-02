@@ -53,6 +53,8 @@ interface TravelCopilotChatProps {
   isOpen?: boolean;
   onClose?: () => void;
   onApplyPlanUpdate?: (updatedPlan: any) => void;
+  initialMessages?: ChatMessage[];
+  onMessagesChange?: (messages: ChatMessage[]) => void;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -83,27 +85,46 @@ export default function TravelCopilotChat({
   formData,
   isOpen = true,
   onClose,
-  onApplyPlanUpdate
+  onApplyPlanUpdate,
+  initialMessages,
+  onMessagesChange
 }: TravelCopilotChatProps) {
   const activeStartDate = startDate || formData?.startDate;
   const activeEndDate = endDate || formData?.endDate;
   const activeNights = nights || formData?.nights;
   const auditReview = currentPlan?.auditReview;
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: `👋 Hello! I'm your **SplitRupee Travel Guide & Companion**. I have all the details of your trip from **${origin}** to **${destination}**${
-        activeStartDate ? ` (${activeStartDate}${activeEndDate ? ` to ${activeEndDate}` : ""}${activeNights ? ` • ${activeNights} Nights` : ""})` : ""
-      }.${
-        auditReview
-          ? `\n\n💚 **Trip Comfort Check:** Your plan has been double-checked for a smooth, relaxed pace (Comfort Score: **${auditReview.auditScore || 98}%**)—ensuring realistic travel times on mountain roads, no exhausting rush, and verified friendly stays.`
-          : ""
-      }\n\nFeel free to ask me anything—whether you want to tweak a day, check train routes, or find great local food!`,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      return initialMessages;
     }
-  ]);
+    return [
+      {
+        id: "welcome",
+        role: "assistant",
+        content: `👋 Hello! I'm your **SplitRupee Travel Guide & Companion**. I have all the details of your trip from **${origin}** to **${destination}**${
+          activeStartDate ? ` (${activeStartDate}${activeEndDate ? ` to ${activeEndDate}` : ""}${activeNights ? ` • ${activeNights} Nights` : ""})` : ""
+        }.${
+          auditReview
+            ? `\n\n💚 **Trip Comfort Check:** Your plan has been double-checked for a smooth, relaxed pace (Comfort Score: **${auditReview.auditScore || 98}%**)—ensuring realistic travel times on mountain roads, no exhausting rush, and verified friendly stays.`
+            : ""
+        }\n\nFeel free to ask me anything—whether you want to tweak a day, check train routes, or find great local food!`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      }
+    ];
+  });
+
+  // Keep parent notified of chat changes so it can be saved with the itinerary
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
+
+  // If initialMessages updates from outside (e.g. loaded saved trip), reflect it
+  useEffect(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages]);
 
   const [inputQuery, setInputQuery] = useState("");
   const [loading, setLoading] = useState(false);
