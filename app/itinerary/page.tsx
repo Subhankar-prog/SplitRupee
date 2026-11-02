@@ -621,7 +621,8 @@ export default function ItineraryPage() {
         travellers: form.travellers,
         days: result.days
       },
-      activeDayCalendar.dayNumber
+      activeDayCalendar.dayNumber,
+      savedItineraryId
     );
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
@@ -1974,32 +1975,32 @@ export default function ItineraryPage() {
               )}
 
               {/* Action Buttons for Day X */}
-              <div className="space-y-2 pt-2 border-t border-white/10">
+              <div className="space-y-2.5 pt-2 border-t border-white/10">
                 <button
-                  onClick={handleDayGoogleCalendar}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2.5 px-4 rounded-xl transition shadow-sm"
+                  onClick={handleDayWhatsAppShare}
+                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20ba5a] text-slate-950 font-bold text-xs py-2.5 px-4 rounded-xl transition shadow-md"
+                  title="Share Day schedule to WhatsApp Group with 1-Tap Calendar Add link"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  <span>
-                    Add Day {activeDayCalendar.dayNumber} to Google Calendar{" "}
-                    {selectedMemberEmails.length > 0 ? `(${selectedMemberEmails.length} Members Invited)` : ""}
-                  </span>
+                  <Share2 className="h-4 w-4" />
+                  <span>Send to WhatsApp Group (1-Tap Member Calendar Invite)</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={handleDayDownloadICS}
-                    className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs py-2 px-3 rounded-xl border border-white/10 transition"
+                    onClick={handleDayGoogleCalendar}
+                    className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs py-2 px-3 rounded-xl border border-white/10 transition"
+                    title="Open in Google Calendar with Member Invites"
                   >
-                    <Download className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>Download .ICS (Apple/Outlook)</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Google Calendar</span>
                   </button>
                   <button
-                    onClick={handleDayWhatsAppShare}
-                    className="flex items-center justify-center gap-2 bg-teal-600/90 hover:bg-teal-500 text-white font-semibold text-xs py-2 px-3 rounded-xl transition shadow-sm"
+                    onClick={handleDayDownloadICS}
+                    className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs py-2 px-3 rounded-xl border border-white/10 transition"
+                    title="Download Apple / Outlook .ICS event file"
                   >
-                    <Share2 className="h-3.5 w-3.5" />
-                    <span>Share to WhatsApp</span>
+                    <Download className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Download .ICS</span>
                   </button>
                 </div>
               </div>

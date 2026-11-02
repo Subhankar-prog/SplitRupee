@@ -32,6 +32,10 @@ export interface CalendarTripData {
       name: string;
       contact?: string | null;
       costPerNight?: number;
+      roomType?: string;
+      roomCount?: number;
+      ratePerUnit?: number;
+      breakdownNote?: string;
     } | null;
   }>;
 }
@@ -358,9 +362,13 @@ export function getSingleDayGoogleCalendarUrl(
 }
 
 /**
- * Generates WhatsApp share text for Day X schedule
+ * Generates WhatsApp share text for Day X schedule with 1-Tap Calendar Add link
  */
-export function getSingleDayWhatsAppShareText(trip: CalendarTripData, dayNumber: number): string {
+export function getSingleDayWhatsAppShareText(
+  trip: CalendarTripData,
+  dayNumber: number,
+  itineraryId?: string | null
+): string {
   const day = trip.days.find((d) => d.day === dayNumber) || trip.days[dayNumber - 1];
   if (!day) return "";
 
@@ -370,24 +378,32 @@ export function getSingleDayWhatsAppShareText(trip: CalendarTripData, dayNumber:
   dayDate.setDate(baseStart.getDate() + dayIndex);
   const dateStr = dayDate.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 
+  const gCalUrl = getSingleDayGoogleCalendarUrl(trip, dayNumber);
+
   let text = `🗓️ *Day ${day.day} Schedule (${dateStr}) - ${trip.destination} Trip*\n`;
   if (day.legs && day.legs.length > 0) {
-    text += `\n🚗 *Transit:*`;
+    text += `\n🚗 *Transit & Travel:*`;
     day.legs.forEach((l) => {
-      text += `\n• ${l.from} ➜ ${l.to} via ${l.mode} (${l.depart || "--:--"} - ${l.arrive || "--:--"})`;
+      text += `\n• ${l.from} ➔ ${l.to} via ${l.mode} (${l.depart || "--:--"} - ${l.arrive || "--:--"})`;
+      if (l.note) text += ` (${l.note})`;
     });
   }
   if (day.activities) {
-    text += `\n\n📍 *Sightseeing:*`;
+    text += `\n\n📍 *Sightseeing & Activities:*`;
     if (day.activities.morning) text += `\n• Morning: ${day.activities.morning}`;
     if (day.activities.afternoon) text += `\n• Afternoon: ${day.activities.afternoon}`;
     if (day.activities.evening) text += `\n• Evening: ${day.activities.evening}`;
   }
   if (day.hotelDetails) {
     text += `\n\n🏨 *Night Stay:* ${day.hotelDetails.name}`;
+    if (day.hotelDetails.roomType) text += ` [${day.hotelDetails.roomType}]`;
     if (day.hotelDetails.contact) text += ` (📞 ${day.hotelDetails.contact})`;
   }
-  text += `\n\n✨ _Planned with SplitRupee Travel Guide_`;
+
+  text += `\n\n📲 *1-Tap Add to Your Phone Calendar:*`;
+  text += `\n👉 ${gCalUrl}`;
+
+  text += `\n\n✨ _Dispatched by Travel Group Admin via SplitRupee_`;
   return text;
 }
 
