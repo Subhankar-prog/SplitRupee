@@ -49,3 +49,4 @@ export async function searchLiveWeb(query: string, maxResults: number = 4): Prom
     return [];
   }
 }
+

@@ -36,7 +36,10 @@ export async function GET(req: Request) {
     if (groupId) {
       where.groupId = groupId;
     } else if (userId) {
-      where.userId = userId;
+      where.OR = [
+        { userId },
+        { userId: null }
+      ];
     }
 
     const itineraries = await prisma.itinerary.findMany({
@@ -56,10 +59,16 @@ export async function GET(req: Request) {
       ok: true,
       itineraries: itineraries.map((it) => {
         let parsedPlan: any = null;
+        let parsedPrefs: any = null;
         try {
           parsedPlan = typeof it.planData === "string" ? JSON.parse(it.planData) : it.planData;
         } catch {
           parsedPlan = null;
+        }
+        try {
+          parsedPrefs = typeof it.preferences === "string" ? JSON.parse(it.preferences) : it.preferences;
+        } catch {
+          parsedPrefs = null;
         }
         return {
           id: it.id,
@@ -73,6 +82,7 @@ export async function GET(req: Request) {
           days: it.days,
           groupSize: it.groupSize,
           totalBudget: it.totalBudget,
+          preferences: parsedPrefs,
           group: it.group,
           user: it.user,
           createdAt: it.createdAt.toISOString(),

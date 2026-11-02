@@ -401,6 +401,18 @@ export default function ItineraryPage() {
         setSavedItineraryId(json.itinerary.id);
         setSaveToast("✓ Itinerary & Copilot Chat saved successfully!");
         setTimeout(() => setSaveToast(null), 3000);
+
+        if (json.itinerary) {
+          setSavedTripsList((prev) => {
+            const filtered = prev.filter((item) => item.id !== json.itinerary.id);
+            return [json.itinerary, ...filtered];
+          });
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("splitrupee_last_saved_itinerary", JSON.stringify(json.itinerary));
+            } catch {}
+          }
+        }
       } else {
         setSaveToast(`Error: ${json.error || "Could not save itinerary"}`);
       }
@@ -430,9 +442,24 @@ export default function ItineraryPage() {
   };
 
   // Load a Saved Itinerary + restore Chat Session
-  const handleLoadSavedItinerary = (it: any) => {
+  const handleLoadSavedItinerary = (it: any, showToast = true) => {
     if (!it || !it.planData) return;
     setSavedItineraryId(it.id);
+
+    let parsedPlan = it.planData;
+    if (typeof parsedPlan === "string") {
+      try {
+        parsedPlan = JSON.parse(parsedPlan);
+      } catch {}
+    }
+
+    let prefs = it.preferences;
+    if (typeof prefs === "string") {
+      try {
+        prefs = JSON.parse(prefs);
+      } catch {}
+    }
+
     setForm((prev) => ({
       ...prev,
       origin: it.origin || prev.origin,
@@ -441,18 +468,60 @@ export default function ItineraryPage() {
       endDate: it.endDate || prev.endDate,
       nights: Math.max(1, (it.days || 2) - 1),
       travellers: it.groupSize || prev.travellers,
-      budget: it.totalBudget || prev.budget
+      budget: it.totalBudget || prev.budget,
+      stayBudget: prefs?.stayBudget || prev.stayBudget,
+      stayPreference: prefs?.stayPreference || prev.stayPreference,
+      groupType: prefs?.groupType || prev.groupType,
+      trainClass: prefs?.trainClass || prev.trainClass,
+      busClass: prefs?.busClass || prev.busClass,
+      flightClass: prefs?.flightClass || prev.flightClass,
+      transportTrain: prefs?.transport?.train ?? prev.transportTrain,
+      transportBus: prefs?.transport?.bus ?? prev.transportBus,
+      transportFlight: prefs?.transport?.flight ?? prev.transportFlight,
+      transportRoad: prefs?.transport?.road ?? prev.transportRoad,
+      interests: prefs?.interests || prev.interests,
+      pace: prefs?.pace || prev.pace,
+      specialNotes: prefs?.specialNotes || prev.specialNotes
     }));
-    setResult(it.planData);
-    if (Array.isArray(it.chatSession) && it.chatSession.length > 0) {
-      setChatMessages(it.chatSession);
+
+    setResult(parsedPlan);
+
+    const savedChats = it.chatSession || parsedPlan?.chatSession || [];
+    if (Array.isArray(savedChats)) {
+      setChatMessages(savedChats);
     }
+
     if (it.group) {
       setLinkedGroup(it.group);
+    } else {
+      setLinkedGroup(null);
     }
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("splitrupee_last_saved_itinerary", JSON.stringify(it));
+      } catch {}
+    }
+
     setIsSavedTripsModalOpen(false);
-    setSaveToast(`Loaded: ${it.title}`);
-    setTimeout(() => setSaveToast(null), 3000);
+    if (showToast) {
+      setSaveToast(`✓ Loaded: ${it.title || `${it.origin} ➔ ${it.destination}`}`);
+      setTimeout(() => setSaveToast(null), 3000);
+    }
+  };
+
+  // Reset/Clear active plan to start a fresh itinerary
+  const handleResetToNewPlan = () => {
+    setResult(null);
+    setSavedItineraryId(null);
+    setChatMessages([]);
+    setLinkedGroup(null);
+    setSaveToast(null);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("splitrupee_last_saved_itinerary");
+      } catch {}
+    }
   };
 
   // Delete a Saved Itinerary
@@ -467,13 +536,68 @@ export default function ItineraryPage() {
       if (json.ok) {
         setSavedTripsList((prev) => prev.filter((item) => item.id !== itId));
         if (savedItineraryId === itId) {
-          setSavedItineraryId(null);
+          handleResetToNewPlan();
         }
       }
     } catch (err) {
       console.warn("Could not delete itinerary:", err);
     }
   };
+
+  // Auto-fetch saved itineraries on mount and auto-load saved trip so it shows immediately
+  useEffect(() => {
+    let isCancelled = false;
+
+    // Check cached itinerary in localStorage for zero-latency instant rendering
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("splitrupee_last_saved_itinerary");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.planData && !result) {
+            handleLoadSavedItinerary(parsed, false);
+          }
+        }
+      } catch {}
+    }
+
+    const fetchInitialSavedTrips = async () => {
+      setIsLoadingSavedTrips(true);
+      try {
+        const url = currentUser?.id
+          ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}`
+          : "/api/itinerary";
+        const res = await fetch(url);
+        const json = await res.json();
+        if (!isCancelled && json.ok && Array.isArray(json.itineraries)) {
+          setSavedTripsList(json.itineraries);
+
+          // If no plan is active in view, automatically load the most recent saved itinerary!
+          if (!result && json.itineraries.length > 0) {
+            const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+            const requestedId = urlParams ? urlParams.get("id") : null;
+            const target = requestedId
+              ? json.itineraries.find((it: any) => it.id === requestedId) || json.itineraries[0]
+              : json.itineraries[0];
+
+            if (target && target.planData) {
+              handleLoadSavedItinerary(target, false);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not auto-fetch saved itineraries on mount:", err);
+      } finally {
+        if (!isCancelled) setIsLoadingSavedTrips(false);
+      }
+    };
+
+    fetchInitialSavedTrips();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentUser?.id]);
 
   // 3. Open Forward to Travel Group Modal (Admin-Only feature)
   const handleOpenForwardModal = async () => {
@@ -677,19 +801,50 @@ export default function ItineraryPage() {
             </p>
           </div>
 
-          {result && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Always visible Saved Trips button */}
             <button
-              onClick={() => setIsCopilotOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold transition backdrop-blur-md shadow-lg shadow-emerald-500/10 w-fit"
+              type="button"
+              onClick={handleOpenSavedTrips}
+              className="flex items-center gap-2 bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-400 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition backdrop-blur-md shadow-sm w-fit"
+              title="Open Saved Itineraries & Past Chat Sessions"
             >
-              <MessageSquare className="h-4 w-4 text-emerald-400" />
-              <span>Ask AI Copilot</span>
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+              <FolderOpen className="h-4 w-4 text-emerald-400" />
+              <span>Saved Trips</span>
+              {savedTripsList.length > 0 && (
+                <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold">
+                  {savedTripsList.length}
+                </span>
+              )}
             </button>
-          )}
+
+            {result && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleResetToNewPlan}
+                  className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                  title="Clear current view and plan a new itinerary"
+                >
+                  <Plus className="h-3.5 w-3.5 text-teal-400" />
+                  <span>Plan New</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCopilotOpen(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition backdrop-blur-md shadow-lg shadow-emerald-500/10 w-fit"
+                >
+                  <MessageSquare className="h-4 w-4 text-emerald-400" />
+                  <span>Ask AI Copilot</span>
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="itinerary-content-container flex flex-col gap-8">
@@ -1107,54 +1262,160 @@ export default function ItineraryPage() {
           {/* Results Column (Full Width directly below on the bottom) */}
           <div className="itinerary-results-canvas-card w-full relative z-10 bg-slate-900/60 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl min-h-[500px] flex flex-col shadow-2xl shadow-black/50 print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
             {!result && !loading && (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm py-16 px-4 print:hidden">
-                <div className="relative mb-6">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-full blur-xl opacity-70 animate-pulse"></div>
-                  <div className="relative p-5 bg-slate-950/80 rounded-2xl border border-emerald-500/30 shadow-xl shadow-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                    <Compass className="h-10 w-10" />
-                  </div>
-                </div>
+              <div className="flex-1 flex flex-col py-6 px-2 sm:px-4 print:hidden">
+                {savedTripsList.length > 0 ? (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <FolderOpen className="h-5 w-5 text-emerald-400" />
+                          <h3 className="text-xl font-bold text-white">Your Saved Itineraries</h3>
+                          <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-bold">
+                            {savedTripsList.length} saved
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Click any saved trip below to open, inspect schedules, or forward to your group.
+                        </p>
+                      </div>
 
-                <div className="text-center max-w-xl space-y-2.5">
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    Smart Travel Planner & Guide
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
-                    Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
-                  </p>
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const formConsole = document.querySelector(".itinerary-form-console-card");
+                          formConsole?.scrollIntoView({ behavior: "smooth" });
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition w-fit"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Plan a Brand New Trip</span>
+                      </button>
+                    </div>
 
-                {/* Feature highlight cards */}
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-4xl w-full text-left">
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-cyan-500/30 transition shadow-sm">
-                    <Train className="h-5 w-5 text-cyan-500 dark:text-cyan-400 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Verified Rail & Transit</div>
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches & cab rates.</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {savedTripsList.map((it) => (
+                        <div
+                          key={it.id}
+                          className="p-5 rounded-2xl bg-slate-950/80 border border-white/10 hover:border-emerald-500/40 transition flex flex-col justify-between shadow-xl shadow-black/40 group hover:shadow-emerald-500/10"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="font-bold text-white text-base group-hover:text-emerald-300 transition line-clamp-1">
+                                {it.title || `${it.origin} ➔ ${it.destination}`}
+                              </h4>
+                              {it.group && (
+                                <span className="shrink-0 text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-medium">
+                                  {it.group.name}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                              <span>{it.origin}</span>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                              <span>{it.destination}</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px] bg-white/[0.03] p-2.5 rounded-xl border border-white/5">
+                              <div>
+                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Trip Duration</span>
+                                <span className="font-medium text-slate-200">{it.days} Days ({Math.max(1, it.days - 1)}N)</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Travellers</span>
+                                <span className="font-medium text-slate-200">{it.groupSize} Guests</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Total Budget</span>
+                                <span className="font-medium text-emerald-400">₹{Number(it.totalBudget).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Travel Dates</span>
+                                <span className="font-medium text-slate-200 truncate block">{it.startDate}</span>
+                              </div>
+                            </div>
+
+                            {it.chatSession && it.chatSession.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-[11px] text-cyan-400 font-mono">
+                                <MessageSquare className="h-3.5 w-3.5" />
+                                <span>{it.chatSession.length} Copilot chat messages saved</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-4 border-t border-white/5 mt-4">
+                            <button
+                              type="button"
+                              onClick={() => handleLoadSavedItinerary(it, true)}
+                              className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              <span>Open & View Plan</span>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSavedItinerary(it.id)}
+                              className="p-2.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition border border-white/5"
+                              title="Delete this saved itinerary"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-emerald-500/30 transition shadow-sm">
-                    <Wallet className="h-5 w-5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Real Budget Allocation</div>
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Stay limits, daily food allowances & per-person splits.</div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm py-16 px-4">
+                    <div className="relative mb-6">
+                      <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-full blur-xl opacity-70 animate-pulse"></div>
+                      <div className="relative p-5 bg-slate-950/80 rounded-2xl border border-emerald-500/30 shadow-xl shadow-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                        <Compass className="h-10 w-10" />
+                      </div>
+                    </div>
+
+                    <div className="text-center max-w-xl space-y-2.5">
+                      <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                        Smart Travel Planner & Guide
+                      </h3>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
+                        Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
+                      </p>
+                    </div>
+
+                    {/* Feature highlight cards */}
+                    <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-4xl w-full text-left">
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-cyan-500/30 transition shadow-sm">
+                        <Train className="h-5 w-5 text-cyan-500 dark:text-cyan-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Verified Rail & Transit</div>
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches & cab rates.</div>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-emerald-500/30 transition shadow-sm">
+                        <Wallet className="h-5 w-5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Real Budget Allocation</div>
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Stay limits, daily food allowances & per-person splits.</div>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-teal-500/30 transition shadow-sm">
+                        <MapPin className="h-5 w-5 text-teal-500 dark:text-teal-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Hour-by-Hour Schedules</div>
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Scenic viewpoints, monuments & local cuisine spots.</div>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-amber-500/30 transition shadow-sm">
+                        <Users className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Group Customization</div>
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-teal-500/30 transition shadow-sm">
-                    <MapPin className="h-5 w-5 text-teal-500 dark:text-teal-400 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Hour-by-Hour Schedules</div>
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Scenic viewpoints, monuments & local cuisine spots.</div>
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-amber-500/30 transition shadow-sm">
-                    <Users className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Group Customization</div>
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 

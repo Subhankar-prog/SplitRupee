@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import {
   Sparkles,
@@ -31,8 +32,26 @@ import {
 import { formatINR } from "@/lib/money";
 
 export default function LandingPage() {
-  const { currentUser } = useUser();
+  const { currentUser, isLoading } = useUser();
+  const router = useRouter();
   const [activeCategoryTab, setActiveCategoryTab] = useState<"trips" | "flats" | "couples" | "parties">("trips");
+
+  // When a logged-in user visits the landing page "/", navigate straight to their Dashboard
+  useEffect(() => {
+    if (!isLoading && currentUser) {
+      router.replace("/dashboard");
+    }
+  }, [currentUser, isLoading, router]);
+
+  // If already logged in, show seamless loading indicator and transition immediately
+  if (!isLoading && currentUser) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4 print:hidden">
+        <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <p className="text-sm font-medium text-slate-400">Opening Dashboard...</p>
+      </div>
+    );
+  }
 
   const categoryHeadlines = {
     trips: { label: "Trips & Vacations 🌴", desc: "Keep track of Goa villas, car rentals, food, and fuel without awkward chats." },
