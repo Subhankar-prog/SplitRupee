@@ -694,11 +694,11 @@ export default function ItineraryPage() {
 
         <div className="itinerary-content-container flex flex-col gap-8">
           {/* Top Horizontal Input Console */}
-          <div className="itinerary-form-console-card relative z-10 w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:hidden">
+          <div className="itinerary-form-console-card relative z-20 w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:hidden">
             <form onSubmit={handleGenerate} className="itinerary-generator-form space-y-6">
 
               {/* Row 1: Core Routing, Dates (Start & End), Duration (Days & Nights), Travellers, Group */}
-              <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-20">
+              <div className="itinerary-core-routing-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-40">
                 {/* 1. Origin */}
                 <div className="origin-field origin-container">
                   <div className="h-7 flex items-center mb-1.5">
@@ -820,7 +820,7 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 2: Budgeting (Total Budget, Stay Budget/Night, Stay Preference, Trip Pace) */}
-              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-10">
+              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-30">
                 {/* Total Budget */}
                 <div className="total-group-budget-field total-group-budget-container">
                   <div className="h-7 flex items-center justify-between mb-1.5">
@@ -906,15 +906,15 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 3: Transit Modes & Detailed Classes (Train with 2S/SL/3A/etc., Bus Coach Options, Flight, Cab) */}
-              <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-white/5 space-y-3">
+              <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-white/5 space-y-3 relative z-20">
                 <div className="transit-mode-coach-preferences-heading text-xs font-semibold text-slate-300 flex items-center gap-2">
                   <Train className="h-4 w-4 text-emerald-400" />
                   <span>Transit Mode & Coach Preferences:</span>
                 </div>
 
-                <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-0">
+                <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-20">
                   {/* Train */}
-                  <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
+                  <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-40 focus-within:z-50">
                     <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input
                         type="checkbox"
@@ -951,7 +951,7 @@ export default function ItineraryPage() {
                   </div>
 
                   {/* Bus / Coach */}
-                  <div className="transit-bus-card bus-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
+                  <div className="transit-bus-card bus-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-30 focus-within:z-50">
                     <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input
                         type="checkbox"
@@ -985,7 +985,7 @@ export default function ItineraryPage() {
                   </div>
 
                   {/* Flight */}
-                  <div className="transit-flight-card flight-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm">
+                  <div className="transit-flight-card flight-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-20 focus-within:z-50">
                     <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1016,7 +1016,7 @@ export default function ItineraryPage() {
                   </div>
 
                   {/* Cab / Road */}
-                  <div className="transit-cab-rental-card cab-rental-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between shadow-sm">
+                  <div className="transit-cab-rental-card cab-rental-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between shadow-sm relative z-10 focus-within:z-50">
                     <label className="transit-cab-rental-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1035,7 +1035,7 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 4: Interests & Remarks Customization */}
-              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-10">
+              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-0">
                 {/* Interests */}
                 <div className="interests-activities-field interests-activities-container lg:col-span-5">
                   <div className="h-7 flex items-center mb-1.5">
