@@ -108,6 +108,33 @@ describe("destinationGroundEngine", () => {
       expect(parsed.find((s) => s.location === "Pangong Tso")?.items.length).toBe(2);
       expect(parsed.find((s) => s.location === "Khardung La")?.items.length).toBe(2);
     });
+
+    it("guarantees full 27 equipments and 16 travel tips for Nepal even with sparse past DB items", () => {
+      const savedNepalPlan = {
+        destination: "Bhubaneswar to Nepal",
+        equipments: [
+          "Muktinath (3,710m): High-altitude thermal",
+          "Ghandruk (1,940m): Collapsible trekking poles",
+          "Marpha & Kali Gandaki (2,670m): Wind shell",
+          "Pokhara: Waterproof headlamp",
+          "Kathmandu: Modest temple attire"
+        ],
+        tips: [
+          "Muktinath: Bath timing",
+          "Ghandruk: Meal protocol"
+        ]
+      };
+
+      const gear = getDynamicPlaceSections("equipments", savedNepalPlan, "Nepal");
+      const totalGearCount = gear.reduce((sum, s) => sum + s.items.length, 0);
+      expect(gear.length).toBe(6);
+      expect(totalGearCount).toBe(27);
+
+      const tips = getDynamicPlaceSections("tips", savedNepalPlan, "Nepal");
+      const totalTipsCount = tips.reduce((sum, s) => sum + s.items.length, 0);
+      expect(tips.length).toBe(6);
+      expect(totalTipsCount).toBe(16);
+    });
   });
 });
 

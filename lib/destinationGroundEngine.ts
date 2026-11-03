@@ -223,59 +223,12 @@ export function getDynamicPlaceSections(
   result: any,
   formDestination: string = ""
 ): PlaceSection[] {
-  const dest = (formDestination || result?.destination || "").toLowerCase();
+  const daysText = Array.isArray(result?.days)
+    ? result.days.map((d: any) => `${d.stay || ""} ${d.legs?.map((l: any) => `${l.from || ""} ${l.to || ""}`).join(" ") || ""}`).join(" ")
+    : "";
+  const dest = `${formDestination} ${result?.destination || ""} ${daysText}`.toLowerCase();
 
-  // 1. If AI generated structured placeGear or placeTips, use them immediately
-  if (type === "equipments" && Array.isArray(result?.placeGear) && result.placeGear.length > 0) {
-    return result.placeGear;
-  }
-  if (type === "tips" && Array.isArray(result?.placeTips) && result.placeTips.length > 0) {
-    return result.placeTips;
-  }
-
-  // 2. Parse from result.equipments or result.tips if items are location-prefixed (e.g. "[Location]: Item - Reason")
-  const rawList: string[] = type === "equipments" ? result?.equipments : result?.tips;
-  if (Array.isArray(rawList) && rawList.length >= 3) {
-    const groupedMap = new Map<string, PlaceItem[]>();
-    let hasLocationPrefix = false;
-
-    rawList.forEach((str) => {
-      if (typeof str !== "string") return;
-      // Match pattern like "[Location Name]: Item Name - Reason" or "Location Name: Item Name - Reason"
-      const bracketMatch = str.match(/^\[([^\]]+)\]\s*:\s*(.+)$/);
-      const colonMatch = !bracketMatch ? str.match(/^([A-Za-z0-9\s,&'-]{3,35}):\s*(.+)$/) : null;
-
-      const loc = bracketMatch ? bracketMatch[1].trim() : colonMatch ? colonMatch[1].trim() : null;
-      const body = bracketMatch ? bracketMatch[2].trim() : colonMatch ? colonMatch[2].trim() : null;
-
-      if (loc && body) {
-        hasLocationPrefix = true;
-        // Split item name and description by '-' or '—'
-        const parts = body.split(/\s+[-—]\s+/);
-        const name = parts[0].trim();
-        const desc = parts.slice(1).join(" — ").trim() || (type === "equipments" ? "Essential for this leg of the itinerary." : "Recommended guidance for your group.");
-
-        if (!groupedMap.has(loc)) groupedMap.set(loc, []);
-        groupedMap.get(loc)!.push({ name, desc });
-      }
-    });
-
-    if (hasLocationPrefix && groupedMap.size >= 2) {
-      const parsedSections: PlaceSection[] = [];
-      groupedMap.forEach((items, location) => {
-        const isAltitude = /(high|mountain|pass|peak|m|altitude)/i.test(location);
-        parsedSections.push({
-          location,
-          tag: type === "equipments" ? "Location-Specific Gear" : "Local Field Advice",
-          altitude: isAltitude ? "High Elevation" : "Scenic Transit",
-          items
-        });
-      });
-      return parsedSections;
-    }
-  }
-
-  // 3. High-Quality Curated Presets for Recognized Destinations
+  // 1. High-Quality Curated Presets for Recognized Destinations (Always provides full 21+ gear and 16+ tips)
   // A. NEPAL ROUTE
   if (/nepal|kathmandu|pokhara|mustang|muktinath|annapurna|ghandruk/i.test(dest)) {
     if (type === "equipments") {
@@ -288,8 +241,9 @@ export function getDynamicPlaceSections(
             { name: "High-Altitude Thermal Innerwear (Top + Bottom)", desc: "Merino wool or synthetic thermal base layers for sub-freezing morning chills (0°C to 5°C)." },
             { name: "Quick-Dry Microfiber Towel & Dry Clothes Change", desc: "Essential immediately after taking the holy dip under the 108 icy waterspouts (Muktidhara) and two Kunda pools." },
             { name: "Down Jacket or Heavy Wind Shell", desc: "To put on immediately post-dip while offering prayers inside the inner sanctum to prevent hypothermia." },
-            { name: "Warm Woollen Beanie & Fleece Gloves", desc: "Protects head and hands against biting trans-Himalayan crosswinds." },
-            { name: "Diamox (Acetazolamide 250mg) & ORS Packets", desc: "Basic altitude acclimatization and hydration aid for ascending above 3,500m." }
+            { name: "Warm Woollen Beanie, Ear Muffs & Fleece Gloves", desc: "Protects head, ears, and hands against biting trans-Himalayan crosswinds." },
+            { name: "Slip-On Rubber Footwear & Extra Dry Woollen Socks", desc: "Easy to slip on/off with wet feet around the cold stone temple courtyards." },
+            { name: "Diamox (Acetazolamide 250mg) & Electrolyte Packets (ORS)", desc: "Basic altitude acclimatization and hydration aid for ascending above 3,500m." }
           ]
         },
         {
@@ -298,7 +252,7 @@ export function getDynamicPlaceSections(
           tag: "Gurung Stone Steps & High Vistas",
           items: [
             { name: "Collapsible Trekking Poles (Pair)", desc: "Critical knee support for ascending and descending 2,000+ uneven stone steps in the Gurung village." },
-            { name: "Insulated Thermos Flask (750ml–1L)", desc: "To carry hot boiled water in village homestays (tap water is freezing and untreated)." },
+            { name: "Insulated Stainless Steel Thermos Flask (750ml–1L)", desc: "To carry hot boiled water in village homestays (tap water is freezing and untreated)." },
             { name: "High-Capacity Power Bank (20,000mAh)", desc: "Traditional homestays rely on shared solar/hydro power points with limited charging sockets." },
             { name: "Sturdy Grip Ankle-Support Walking Shoes", desc: "Prevents slips on steep wet flagstone village pathways." },
             { name: "Nepali Rupee (NPR) Physical Cash", desc: "Traditional village lodges, tea stalls, and the Gurung Museum do NOT have UPI or card POS machines." }
@@ -410,6 +364,56 @@ export function getDynamicPlaceSections(
           ]
         }
       ];
+    }
+  }
+
+  // 2. Structured AI data (if rich with >= 12 items)
+  if (type === "equipments" && Array.isArray(result?.placeGear) && result.placeGear.length > 0) {
+    const totalCount = result.placeGear.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0);
+    if (totalCount >= 12) return result.placeGear;
+  }
+  if (type === "tips" && Array.isArray(result?.placeTips) && result.placeTips.length > 0) {
+    const totalCount = result.placeTips.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0);
+    if (totalCount >= 10) return result.placeTips;
+  }
+
+  // 3. Parse from result.equipments or result.tips if items are location-prefixed
+  const rawList: string[] = type === "equipments" ? result?.equipments : result?.tips;
+  if (Array.isArray(rawList) && rawList.length >= 3) {
+    const groupedMap = new Map<string, PlaceItem[]>();
+    let hasLocationPrefix = false;
+
+    rawList.forEach((str) => {
+      if (typeof str !== "string") return;
+      const bracketMatch = str.match(/^\[([^\]]+)\]\s*:\s*(.+)$/);
+      const colonMatch = !bracketMatch ? str.match(/^([A-Za-z0-9\s,&'-]{3,35}):\s*(.+)$/) : null;
+
+      const loc = bracketMatch ? bracketMatch[1].trim() : colonMatch ? colonMatch[1].trim() : null;
+      const body = bracketMatch ? bracketMatch[2].trim() : colonMatch ? colonMatch[2].trim() : null;
+
+      if (loc && body) {
+        hasLocationPrefix = true;
+        const parts = body.split(/\s+[-—]\s+/);
+        const name = parts[0].trim();
+        const desc = parts.slice(1).join(" — ").trim() || (type === "equipments" ? "Essential for this leg of the itinerary." : "Recommended guidance for your group.");
+
+        if (!groupedMap.has(loc)) groupedMap.set(loc, []);
+        groupedMap.get(loc)!.push({ name, desc });
+      }
+    });
+
+    if (hasLocationPrefix && groupedMap.size >= 2) {
+      const parsedSections: PlaceSection[] = [];
+      groupedMap.forEach((items, location) => {
+        const isAltitude = /(high|mountain|pass|peak|m|altitude)/i.test(location);
+        parsedSections.push({
+          location,
+          tag: type === "equipments" ? "Location-Specific Gear" : "Local Field Advice",
+          altitude: isAltitude ? "High Elevation" : "Scenic Transit",
+          items
+        });
+      });
+      return parsedSections;
     }
   }
 
