@@ -369,7 +369,7 @@ export default function LandingPage() {
                 Get even more with PRO
               </h2>
               <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                Unlock instant AI receipt scanning, category spending graphs, 100+ live forex currency conversions, Excel ledgers, and priority support for just ₹49/month.
+                Unlock instant smart receipt scanning, category spending graphs, 100+ live forex currency conversions, Excel ledgers, and priority support for just ₹49/month.
               </p>
 
               <div className="flex flex-wrap gap-3 pt-2">
@@ -395,7 +395,7 @@ export default function LandingPage() {
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
                 <div className="flex items-center gap-2">
                   <Camera className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">AI Receipt OCR Scan</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">Smart Receipt Scanner</span>
                 </div>
                 <span className="text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
                   Instant
@@ -442,17 +442,17 @@ export default function LandingPage() {
           {[
             { name: "Add groups & friends", pro: false },
             { name: "1-Click UPI deep linking", pro: false },
-            { name: "Simplify debts algorithm", pro: false },
+            { name: "Smart debt simplification", pro: false },
             { name: "Equal & exact splits", pro: false },
             { name: "Percentage splits", pro: false },
             { name: "WhatsApp shareable links", pro: false },
             { name: "Dynamic QR code settle", pro: false },
-            { name: "Full audit task feed", pro: false },
+            { name: "Full activity history feed", pro: false },
             { name: "Soft delete & recovery", pro: false },
             { name: "Ghost member linking", pro: false },
-            { name: "Real-time SSE sync", pro: false },
+            { name: "Real-time live sync", pro: false },
             { name: "Unlimited expenses", pro: false },
-            { name: "Bill & Receipt OCR", pro: true },
+            { name: "Smart Bill & Receipt Scanner", pro: true },
             { name: "Spending trend charts", pro: true },
             { name: "100+ Currency conversion", pro: true },
             { name: "Excel / CSV ledger export", pro: true },

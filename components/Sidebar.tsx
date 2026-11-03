@@ -139,7 +139,7 @@ export default function Sidebar({
     { label: "Your Groups", href: "/groups", icon: Users, badge: groups.length > 0 ? groups.length : undefined },
     { label: "All Expenses", href: "/expenses", icon: Receipt },
     { label: "Recent Activity", href: "/activity", icon: Activity },
-    { label: "AI Itinerary", href: "/itinerary", icon: Plane },
+    { label: "Travel Planner", href: "/itinerary", icon: Plane },
   ];
 
   return (

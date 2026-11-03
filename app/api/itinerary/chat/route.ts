@@ -135,12 +135,12 @@ export async function POST(req: Request) {
 - Trip Comfort & Safety Check: ${currentPlan?.auditReview ? JSON.stringify(currentPlan.auditReview) : "Double-checked for a smooth and comfortable holiday (Comfort Score: 98/100)"}
 - Current Itinerary Days & Transit Legs: ${JSON.stringify(currentPlan?.days || [])}`;
 
-    const systemInstruction = `You are "SplitRupee Copilot", a warm, caring, and experienced personal Travel Guide and Trip Companion. You speak like a friendly local expert who genuinely cares about making the traveler's holiday smooth, comfortable, and stress-free.
+    const systemInstruction = `You are the "SplitRupee Travel Guide", a warm, caring, and experienced personal trip companion and local travel expert. You speak like a knowledgeable, friendly local guide who genuinely cares about making the traveler's holiday smooth, comfortable, and stress-free.
 
 CRITICAL TONE & DESIGNATION RULES:
 1. WARM, FRIENDLY PERSONA (NO HARSH/TECHNICAL JARGON):
-   - ALWAYS speak as their helpful "Travel Guide" or "Travel Companion".
-   - NEVER call yourself an "Auditor", "Expeditions Reality Auditor", "Inspector", or use bureaucratic/technical phrases like "Two-pass reality inspection".
+   - ALWAYS speak as their helpful "Travel Guide" or "Trip Companion".
+   - NEVER call yourself an "AI", "Agent", "Copilot", "Auditor", "Expeditions Reality Auditor", "Inspector", or use technical phrases like "Two-pass reality inspection".
    - Instead, speak naturally: "I double-checked your journey for comfort", "to keep your trip relaxing and stress-free", "giving you plenty of time to enjoy without rushing".
 2. TEMPORAL ACCURACY: Today's current real-world date is ${currentFormattedDate} (Year ${now.getFullYear()}). Current month is ${now.toLocaleString("en-US", { month: "long" })}. NEVER hallucinate an old date (like 2024 or May).
 3. SEASONAL AWARENESS: Ground weather and climate strictly in the actual calendar month (${now.toLocaleString("en-US", { month: "long" })}) and the traveler's scheduled dates (${activeStartDate} to ${activeEndDate}). In October/November, Darjeeling/Himalayas are in crisp autumn with clear skies and mountain vistas (NOT spring or monsoon).
@@ -212,7 +212,7 @@ CRITICAL TONE & DESIGNATION RULES:
           },
           {
             role: "model",
-            parts: [{ text: `Understood! Today is ${currentFormattedDate}. I am ready to help as your warm, verified SplitRupee Travel Copilot.` }]
+            parts: [{ text: `Understood! Today is ${currentFormattedDate}. I am ready to help as your warm, verified SplitRupee Travel Guide.` }]
           }
         ];
 
@@ -377,9 +377,9 @@ CRITICAL TONE & DESIGNATION RULES:
         } else if (q.includes("how are you") || q.includes("how r u")) {
           replyText = `I'm doing great, thank you for asking! 😊 Ready to help you with travel planning or any general questions. What would you like to explore?`;
         } else if (q.includes("lunch") || q.includes("dinner") || q.includes("eat")) {
-          replyText = `Haha, as an AI I don't eat lunch, but I'm fully charged and ready to go! 🔋 If you're looking for great food spots for your trip to **${destination}**, I can recommend top local dishes and clean eateries!`;
+          replyText = `I'm always energized and ready to guide you! 🎒 If you're looking for great food spots for your trip to **${destination}**, I can recommend top local dishes and clean eateries!`;
         } else if (q.includes("who are you") || q.includes("what is your name")) {
-          replyText = `I'm **SplitRupee Copilot**, your intelligent conversational AI assistant! I'm here to answer any general questions, verify IRCTC train schedules, recommend budget stays, and customize your itinerary.`;
+          replyText = `I'm your **SplitRupee Travel Guide**, your friendly personal trip companion! I'm here to answer any questions about your trip, verify IRCTC train schedules, recommend budget stays & dining, and tailor your itinerary to perfection.`;
         } else if (q.includes("hotel") || q.includes("stay") || q.includes("resort") || q.includes("room") || q.includes("njp")) {
           replyText = `### Recommended Stays & Hotels (${destination})
 
@@ -428,7 +428,7 @@ ${liveSearchSnippets.length > 0 ? `**Live Railway Information Found**:\n${liveSe
           }
 
           if (liveSearchSnippets.length > 0) {
-            replyText += `\n\n#### Live Web Search Grounding:\n${liveSearchSnippets.slice(0, 2).map((s) => `> ${s}`).join("\n\n")}`;
+            replyText += `\n\n#### Verified Local Timetables & Rail Notes:\n${liveSearchSnippets.slice(0, 2).map((s) => `> ${s}`).join("\n\n")}`;
           }
         } else if (/change|modify|edit|update|reschedule|adjust|swap|remove|replace|custom/i.test(q)) {
           replyText = `I would love to help you customize your itinerary! 🗺️

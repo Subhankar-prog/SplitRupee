@@ -575,7 +575,7 @@ export default function ItineraryPage() {
       } catch {}
     }
 
-    setSaveToast("✓ Itinerary updated from Copilot! All days & costs refreshed.");
+    setSaveToast("✓ Itinerary updated! All days & costs refreshed.");
     setTimeout(() => setSaveToast(null), 4000);
   };
 
@@ -623,7 +623,7 @@ export default function ItineraryPage() {
       const json = await res.json();
       if (json.ok && json.itinerary?.id) {
         setSavedItineraryId(json.itinerary.id);
-        setSaveToast("✓ Itinerary & Copilot Chat saved successfully!");
+        setSaveToast("✓ Itinerary & Travel Guide notes saved successfully!");
         setTimeout(() => setSaveToast(null), 3000);
 
         if (json.itinerary) {
@@ -881,7 +881,7 @@ export default function ItineraryPage() {
         setSavedItineraryId(json.itinerary?.id || savedItineraryId);
         setForwardFeedback({
           ok: true,
-          text: `✓ Successfully forwarded itinerary & Copilot chat to ${targetG?.name || "Travel Group"}! Group members can now access the plan.`
+          text: `✓ Successfully forwarded itinerary & travel guide notes to ${targetG?.name || "Travel Group"}! Group members can now access the plan.`
         });
         setTimeout(() => {
           setIsForwardModalOpen(false);
@@ -1013,10 +1013,10 @@ export default function ItineraryPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
               <Plane className="h-6 w-6 text-emerald-400" />
-              <span>AI Travel Itinerary Studio</span>
+              <span>Travel Planner & Guide</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Precision travel planning grounded with verified transit, real budgets, and local guidance
+              Handcrafted travel planning with verified transit, real budgets, and local guidance
             </p>
           </div>
 
@@ -1026,7 +1026,7 @@ export default function ItineraryPage() {
               type="button"
               onClick={handleOpenSavedTrips}
               className="flex items-center gap-2 bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-400 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition backdrop-blur-md shadow-sm w-fit"
-              title="Open Saved Itineraries & Past Chat Sessions"
+              title="Open Saved Itineraries & Guide Notes"
             >
               <FolderOpen className="h-4 w-4 text-emerald-400" />
               <span>Saved Trips</span>
@@ -1055,7 +1055,7 @@ export default function ItineraryPage() {
                   className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition backdrop-blur-md shadow-lg shadow-emerald-500/10 w-fit"
                 >
                   <MessageSquare className="h-4 w-4 text-emerald-400" />
-                  <span>Ask AI Copilot</span>
+                  <span>Chat with Travel Guide</span>
                   <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -1461,7 +1461,7 @@ export default function ItineraryPage() {
                   className="generate-elite-itinerary-button w-full sm:w-auto min-w-[260px] flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-8 rounded-xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 text-sm tracking-wide shrink-0"
                 >
                   <Sparkles className="h-4 w-4" />
-                  <span>Generate Elite Itinerary</span>
+                  <span>Plan My Trip</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
@@ -1557,7 +1557,7 @@ export default function ItineraryPage() {
                             {it.chatSession && it.chatSession.length > 0 && (
                               <div className="flex items-center gap-1.5 text-[11px] text-cyan-400 font-mono">
                                 <MessageSquare className="h-3.5 w-3.5" />
-                                <span>{it.chatSession.length} Copilot chat messages saved</span>
+                                <span>{it.chatSession.length} guide notes saved</span>
                               </div>
                             )}
                           </div>
@@ -1598,7 +1598,7 @@ export default function ItineraryPage() {
                         Smart Travel Planner & Guide
                       </h3>
                       <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
-                        Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
+                        Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Plan My Trip</strong> to create a verified, comfortable day-by-day travel plan.
                       </p>
                     </div>
 
@@ -1662,21 +1662,21 @@ export default function ItineraryPage() {
                     <button
                       onClick={handleOpenSavedTrips}
                       className="flex items-center gap-1.5 bg-slate-850 hover:bg-slate-800 border border-white/10 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
-                      title="Open Saved Itineraries & Past Chat Sessions"
+                      title="Open Saved Itineraries & Guide Notes"
                     >
                       <FolderOpen className="h-4 w-4 text-emerald-400" />
                       <span>Saved Trips</span>
                     </button>
 
-                    {/* Save Itinerary & Chat Session */}
+                    {/* Save Itinerary & Travel Notes */}
                     <button
                       onClick={handleSaveItinerary}
                       disabled={isSaving}
                       className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm"
-                      title="Save this Itinerary & Copilot Chat Session"
+                      title="Save this Itinerary & Travel Guide Notes"
                     >
                       {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
-                      <span>{savedItineraryId ? "Update Saved Trip" : "Save Trip & Chat"}</span>
+                      <span>{savedItineraryId ? "Update Saved Trip" : "Save Trip & Notes"}</span>
                     </button>
 
                     {/* Forward to Travel Group (Admin-Only) */}
@@ -1689,14 +1689,14 @@ export default function ItineraryPage() {
                       <span>Forward to Group</span>
                     </button>
 
-                    {/* Copilot Chat */}
+                    {/* Travel Guide Chat */}
                     <button
                       onClick={() => setIsCopilotOpen(true)}
                       className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
-                      title="Open Travel Companion Copilot Chat"
+                      title="Chat with Personal Travel Guide"
                     >
                       <MessageSquare className="h-4 w-4" />
-                      <span>Copilot</span>
+                      <span>Travel Guide</span>
                     </button>
 
                     {/* PDF Export */}
@@ -2336,7 +2336,7 @@ export default function ItineraryPage() {
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
                   <FolderOpen className="h-5 w-5 text-emerald-400" />
-                  <h3 className="text-lg font-bold text-white">Saved Travel Itineraries & Chats</h3>
+                  <h3 className="text-lg font-bold text-white">Saved Travel Itineraries & Guide Notes</h3>
                 </div>
                 <button
                   onClick={() => setIsSavedTripsModalOpen(false)}
@@ -2356,7 +2356,7 @@ export default function ItineraryPage() {
                   <div className="py-12 text-center text-slate-400">
                     <p className="text-sm">No saved itineraries found yet.</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Generate a trip and click <strong className="text-emerald-400">Save Trip & Chat</strong> to persist it here.
+                      Plan a trip and click <strong className="text-emerald-400">Save Trip & Notes</strong> to keep it here.
                     </p>
                   </div>
                 ) : (
@@ -2422,7 +2422,7 @@ export default function ItineraryPage() {
                   <Send className="h-5 w-5 text-teal-400" />
                   <div>
                     <h3 className="text-lg font-bold text-white">Forward to Travel Group</h3>
-                    <p className="text-xs text-slate-400">Attach itinerary & live Copilot chat to a group</p>
+                    <p className="text-xs text-slate-400">Share itinerary and travel guide advice with your group</p>
                   </div>
                 </div>
                 <button

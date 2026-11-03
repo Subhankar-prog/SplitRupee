@@ -212,7 +212,7 @@ export default function TravelCopilotChat({
       const errorMsg: ChatMessage = {
         id: "err-" + Date.now(),
         role: "assistant",
-        content: `⚠️ Sorry, I ran into an error connecting to the AI engine. Please try again in a moment.`,
+        content: `⚠️ Sorry, I ran into a temporary error reaching your travel guide. Please try again in a moment.`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -311,13 +311,13 @@ export default function TravelCopilotChat({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="travel-copilot-title font-bold text-white text-base">SplitRupee Copilot</h3>
+              <h3 className="travel-copilot-title font-bold text-white text-base">Personal Travel Guide</h3>
               <span className="travel-copilot-badge rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                Live AI Grounded
+                Verified Local Guide
               </span>
             </div>
             <p className="travel-copilot-subtitle text-xs text-slate-400">
-              Trip context: <span className="text-white font-medium">{origin} → {destination}</span>
+              Trip route: <span className="text-white font-medium">{origin} → {destination}</span>
             </p>
           </div>
         </div>
@@ -329,7 +329,7 @@ export default function TravelCopilotChat({
               onClick={onSavePlan}
               disabled={isSaving}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-semibold transition disabled:opacity-50 cursor-pointer shadow-sm"
-              title="Save updated itinerary & AI conversation"
+              title="Save updated itinerary & travel notes"
             >
               {isSaving ? (
                 <>
@@ -339,7 +339,7 @@ export default function TravelCopilotChat({
               ) : (
                 <>
                   <Bookmark className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Save Trip & Chat</span>
+                  <span className="hidden sm:inline">Save Trip & Notes</span>
                   <span className="sm:hidden">Save</span>
                 </>
               )}
@@ -419,7 +419,7 @@ export default function TravelCopilotChat({
               {msg.proposedModification && (
                 <div className="mt-3 p-3.5 bg-emerald-950/70 border border-emerald-500/40 rounded-2xl shadow-lg">
                   <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-                    <Sparkles className="h-3.5 w-3.5" /> Proposed Adjustment (Your Approval Required)
+                    <Sparkles className="h-3.5 w-3.5" /> Suggested Itinerary Update (Review & Apply)
                   </div>
                   <div className="text-white text-sm font-semibold mt-1">
                     {msg.proposedModification.summary}
@@ -442,14 +442,14 @@ export default function TravelCopilotChat({
                           onClick={() => handleApproveModification(msg.id, msg.proposedModification)}
                           className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md shadow-emerald-500/20 cursor-pointer"
                         >
-                          <Check className="h-3.5 w-3.5" /> Approve & Update Itinerary
+                          <Check className="h-3.5 w-3.5" /> Update My Itinerary
                         </button>
-                        <span className="text-[11px] text-slate-400">Click to apply to your plan</span>
+                        <span className="text-[11px] text-slate-400">Click to apply this update</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-semibold">
                         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                        <span>Approved! Itinerary has been updated.</span>
+                        <span>Updated! Your itinerary has been refreshed.</span>
                       </div>
                     )}
                   </div>
@@ -479,7 +479,7 @@ export default function TravelCopilotChat({
             </div>
             <div className="travel-copilot-loading-bubble rounded-2xl rounded-tl-none bg-slate-800/80 border border-white/10 p-4 backdrop-blur-md flex items-center gap-2 text-slate-400 text-sm">
               <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-              <span>Analyzing live travel grounding data...</span>
+              <span>Checking verified routes, trains & local stays...</span>
             </div>
           </div>
         )}
@@ -500,7 +500,7 @@ export default function TravelCopilotChat({
             type="text"
             value={inputQuery}
             onChange={(e) => setInputQuery(e.target.value)}
-            placeholder={`Ask AI anything about your trip from ${origin} to ${destination}...`}
+            placeholder={`Ask anything about your trip from ${origin} to ${destination}...`}
             disabled={loading}
             className="travel-copilot-input flex-1 rounded-2xl bg-slate-900 border border-white/10 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none disabled:opacity-50"
           />

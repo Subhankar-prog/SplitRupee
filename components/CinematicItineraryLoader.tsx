@@ -44,10 +44,10 @@ const STAGES = [
   {
     minPct: 22,
     maxPct: 45,
-    title: "Ground Truth Intelligence",
+    title: "Local Fare & Transit Verification",
     subtitle: "Scanning local prepaid taxi booths, taxi syndicates & regional unions",
     icon: Car,
-    tip: "Grounding local transfer rates to prevent tourist overcharging."
+    tip: "Verifying fair local taxi rates to avoid tourist overcharging."
   },
   {
     minPct: 45,
@@ -340,11 +340,11 @@ export default function CinematicItineraryLoader({
           <div className="flex items-center gap-2 mb-2 sm:mb-0">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
             <span className="text-slate-300 font-medium">
-              Synchronizing with Verified Ground Databases & IRCTC Railway Nodes
+              Confirming Authentic Train Timetables & Regional Routes
             </span>
           </div>
           <div className="text-[11px] text-slate-400">
-            Zero Hallucinated Numbers • Transparent Group Pricing • Full Screen Studio
+            Verified Regional Timings • Fair Group Pricing • Comfortable Pacing
           </div>
         </div>
       </motion.div>

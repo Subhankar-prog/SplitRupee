@@ -26,7 +26,7 @@ export default function ProPage() {
   const proFeatures = [
     {
       icon: Camera,
-      title: "AI Receipt & Bill OCR Scanner",
+      title: "Smart Receipt & Bill Scanner",
       desc: "Snap a photo of restaurant bills, grocery invoices, or flight tickets. SplitRupee automatically extracts items, tax, and totals.",
     },
     {
@@ -71,7 +71,7 @@ export default function ProPage() {
           </span>
         </h1>
         <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-          AI receipt scanning, rich spending charts, forex currency conversion, and unlimited expense exports for you and your friends.
+          Smart receipt scanning, rich spending charts, forex currency conversion, and unlimited expense exports for you and your friends.
         </p>
 
         {/* Billing Toggle */}
@@ -145,7 +145,7 @@ export default function ProPage() {
 
         <div className="space-y-2.5 pt-4 text-left border-t border-amber-500/20 dark:border-white/10 text-xs text-slate-800 dark:text-slate-300 font-medium">
           {[
-            "AI Camera Receipt & Invoice OCR",
+            "Smart Camera Receipt & Bill Scanner",
             "Category Spending Charts & Graphs",
             "100+ Currency Live Conversion",
             "Export to Excel & PDF Ledgers",

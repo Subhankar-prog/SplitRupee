@@ -51,7 +51,7 @@ export default function ActivityPage() {
     return (
       <SplitRupeeLoader
         fullScreen={false}
-        text="Recent Activity & Audit Log"
+        text="Recent Activity & History"
         subtext="Loading real-time expense and settlement history..."
       />
     );
@@ -64,10 +64,10 @@ export default function ActivityPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
             <Activity className="h-6 w-6 text-emerald-400" />
-            Recent Activity & Audit Log
+            Recent Activity & History
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time audit trail of all expense creations, edits, deletions, and settlements across your groups
+            Real-time record of all expense creations, edits, deletions, and settlements across your groups
           </p>
         </div>
 

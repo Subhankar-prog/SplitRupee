@@ -1013,7 +1013,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition flex items-center gap-2"
             >
               <Plane className="h-4 w-4 text-emerald-400" />
-              <span>AI Travel Itinerary</span>
+              <span>Travel Planner & Guide</span>
             </Link>
             {!currentUser?.isPro && (
               <Link

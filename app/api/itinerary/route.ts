@@ -274,7 +274,7 @@ export async function POST(req: Request) {
             userId,
             action: "EXPENSE_CREATED",
             entityTitle: `Travel Itinerary Forwarded: ${origin} ➜ ${destination}`,
-            details: `Admin forwarded trip itinerary (${days} Days) with verified transit, stays, and Copilot travel guide notes.`
+            details: `Admin forwarded trip itinerary (${days} Days) with verified transit, stays, and personal travel guide notes.`
           }
         });
       } catch (logErr) {
@@ -309,8 +309,8 @@ export async function POST(req: Request) {
         planData: completePlanData,
         chatSession: completePlanData.chatSession || [],
         message: forwardToGroupId
-          ? "Itinerary and Copilot chat successfully forwarded to your travel group!"
-          : "Itinerary and chat session saved successfully!"
+          ? "Itinerary and travel guide notes successfully forwarded to your travel group!"
+          : "Itinerary and travel guide notes saved successfully!"
       }
     });
   } catch (err: any) {
