@@ -1001,10 +1001,10 @@ export default function ItineraryPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
               <Plane className="h-6 w-6 text-emerald-400" />
-              <span>Travel Planner & Guide</span>
+              <span>Travel Itinerary Planner</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Handcrafted travel planning with verified transit, real budgets, and local guidance
+              Handcrafted travel itineraries with verified transit, real budgets, and local guidance
             </p>
           </div>
 
@@ -1017,7 +1017,7 @@ export default function ItineraryPage() {
               title="Open Saved Itineraries & Guide Notes"
             >
               <FolderOpen className="h-4 w-4 text-emerald-400" />
-              <span>Saved Trips</span>
+              <span>Saved Itineraries</span>
               {savedTripsList.length > 0 && (
                 <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold">
                   {savedTripsList.length}
@@ -1449,7 +1449,7 @@ export default function ItineraryPage() {
                   className="generate-elite-itinerary-button w-full sm:w-auto min-w-[260px] flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-8 rounded-xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 text-sm tracking-wide shrink-0"
                 >
                   <Sparkles className="h-4 w-4" />
-                  <span>Plan My Trip</span>
+                  <span>Generate Itinerary</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
@@ -1583,10 +1583,10 @@ export default function ItineraryPage() {
 
                     <div className="text-center max-w-xl space-y-2.5">
                       <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        Smart Travel Planner & Guide
+                        Smart Travel Itinerary Planner
                       </h3>
                       <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
-                        Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Plan My Trip</strong> to create a verified, comfortable day-by-day travel plan.
+                        Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
                       </p>
                     </div>
 
@@ -1653,10 +1653,10 @@ export default function ItineraryPage() {
                       title="Open Saved Itineraries & Guide Notes"
                     >
                       <FolderOpen className="h-4 w-4 text-emerald-400" />
-                      <span>Saved Trips</span>
+                      <span>Saved Itineraries</span>
                     </button>
 
-                    {/* Save Itinerary & Travel Notes */}
+                    {/* Save Itinerary */}
                     <button
                       onClick={handleSaveItinerary}
                       disabled={isSaving}
@@ -1664,7 +1664,7 @@ export default function ItineraryPage() {
                       title="Save this Itinerary & Travel Guide Notes"
                     >
                       {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
-                      <span>{savedItineraryId ? "Update Saved Trip" : "Save Trip & Notes"}</span>
+                      <span>{savedItineraryId ? "Update Saved Itinerary" : "Save Itinerary"}</span>
                     </button>
 
                     {/* Forward to Travel Group (Admin-Only) */}
@@ -1691,7 +1691,7 @@ export default function ItineraryPage() {
                     <button
                       onClick={handleDownloadPDF}
                       className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
-                      title="Download Your Travel Plan PDF"
+                      title="Download Itinerary PDF"
                     >
                       <Download className="h-4 w-4 stroke-[2.5]" />
                       <span>PDF</span>
@@ -2368,7 +2368,7 @@ export default function ItineraryPage() {
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
                   <FolderOpen className="h-5 w-5 text-emerald-400" />
-                  <h3 className="text-lg font-bold text-white">Saved Travel Itineraries & Guide Notes</h3>
+                  <h3 className="text-lg font-bold text-white">Saved Travel Itineraries</h3>
                 </div>
                 <button
                   onClick={() => setIsSavedTripsModalOpen(false)}
@@ -2388,7 +2388,7 @@ export default function ItineraryPage() {
                   <div className="py-12 text-center text-slate-400">
                     <p className="text-sm">No saved itineraries found yet.</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Plan a trip and click <strong className="text-emerald-400">Save Trip & Notes</strong> to keep it here.
+                      Create an itinerary and click <strong className="text-emerald-400">Save Itinerary</strong> to keep it here.
                     </p>
                   </div>
                 ) : (

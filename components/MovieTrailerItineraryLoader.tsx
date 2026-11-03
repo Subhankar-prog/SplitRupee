@@ -57,8 +57,8 @@ const STAGES = [
   },
   {
     pct: 100,
-    title: "Your Travel Plan is Ready",
-    desc: "Finalizing day-by-day breakdown and per-person financial allocation...",
+    title: "Your Travel Itinerary is Ready",
+    desc: "Finalizing day-by-day itinerary breakdown and per-person financial allocation...",
     icon: ShieldCheck
   }
 ];

@@ -339,7 +339,7 @@ export default function TravelCopilotChat({
               ) : (
                 <>
                   <Bookmark className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Save Trip & Notes</span>
+                  <span className="hidden sm:inline">Save Itinerary</span>
                   <span className="sm:hidden">Save</span>
                 </>
               )}
@@ -442,7 +442,7 @@ export default function TravelCopilotChat({
                           onClick={() => handleApproveModification(msg.id, msg.proposedModification)}
                           className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md shadow-emerald-500/20 cursor-pointer"
                         >
-                          <Check className="h-3.5 w-3.5" /> Update My Itinerary
+                          <Check className="h-3.5 w-3.5" /> Apply to Itinerary
                         </button>
                         <span className="text-[11px] text-slate-400">Click to apply this update</span>
                       </div>

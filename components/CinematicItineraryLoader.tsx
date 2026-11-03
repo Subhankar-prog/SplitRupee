@@ -68,10 +68,10 @@ const STAGES = [
   {
     minPct: 90,
     maxPct: 100,
-    title: "Personal Travel Plan Ready",
-    subtitle: "Packaging group expense breakdown, travel tips & packing equipment",
+    title: "Your Travel Itinerary is Ready",
+    subtitle: "Packaging day-by-day itinerary breakdown, travel tips & packing equipment",
     icon: Sparkles,
-    tip: "Finalizing your personalized travel plan with comfortable timings and verified stays."
+    tip: "Finalizing your personalized travel itinerary with comfortable timings and verified stays."
   }
 ];
 
