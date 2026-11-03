@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import type { MemberDTO, ExpenseDTO, PaymentDTO } from "./types";
 import type { Transfer } from "./debt";
 import { roundFigure } from "./money";
+import { getDynamicPlaceSections, type PlaceSection } from "./destinationGroundEngine";
 
 /**
  * Cleans string of Unicode characters that break in standard jsPDF WinAnsi fonts.
@@ -438,9 +439,11 @@ export function exportItineraryPDF(itineraryData: {
     y += 3;
   });
 
-  // 4. EQUIPMENTS & PACKING GEAR CHECKLIST
-  const equipments = Array.isArray(result.equipments) ? result.equipments : [];
-  if (equipments.length > 0) {
+  // 4. EQUIPMENTS & PACKING GEAR CHECKLIST (100% UNWRAPPED & READABLE)
+  const placeEquipments: PlaceSection[] = getDynamicPlaceSections("equipments", result, form.destination);
+  const rawEquipments = Array.isArray(result.equipments) ? result.equipments : [];
+
+  if (placeEquipments.length > 0 || rawEquipments.length > 0) {
     checkPageBreak(30);
 
     doc.setFont("helvetica", "bold");
@@ -449,15 +452,66 @@ export function exportItineraryPDF(itineraryData: {
     doc.text("EQUIPMENTS & PACKING CHECKLIST", margin, y + 3);
     y += 6;
 
-    // Render packing checklist in 2-column or list format
-    const colWidth = (contentWidth - 4) / 2;
-    for (let i = 0; i < equipments.length; i += 2) {
-      checkPageBreak(9);
+    if (placeEquipments.length > 0) {
+      placeEquipments.forEach((sec) => {
+        checkPageBreak(25);
 
-      const item1 = equipments[i];
-      const item2 = i + 1 < equipments.length ? equipments[i + 1] : null;
+        // Location Section Header Banner
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(margin, y, contentWidth, 6, 1, 1, "FD");
 
-      const renderItem = (itemData: any, posX: number) => {
+        // Left emerald indicator
+        doc.setFillColor(16, 185, 129);
+        doc.rect(margin, y, 2, 6, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        doc.text(cleanPdfText(sec.location), margin + 4, y + 4.2);
+
+        const subTag = cleanPdfText(`${sec.altitude ? sec.altitude + " • " : ""}${sec.tag || ""}`);
+        if (subTag) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text(subTag, pageWidth - margin - 3, y + 4.2, { align: "right" });
+        }
+
+        y += 7.5;
+
+        // Render each item with complete, multi-line text (ZERO TRUNCATION)
+        sec.items.forEach((item) => {
+          const itemName = cleanPdfText(item.name);
+          const itemDesc = cleanPdfText(item.desc);
+          const fullText = itemDesc ? `${itemName} - ${itemDesc}` : itemName;
+
+          const lines = doc.splitTextToSize(fullText, contentWidth - 12);
+          const itemBoxH = Math.max(7, lines.length * 3.3 + 3.5);
+          checkPageBreak(itemBoxH + 1.5);
+
+          // Card Background
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(margin, y, contentWidth, itemBoxH, 1, 1, "FD");
+
+          // Checkbox square
+          doc.setDrawColor(16, 185, 129);
+          doc.rect(margin + 2.5, y + 2, 3.2, 3.2);
+
+          // Complete text content
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(51, 65, 85);
+          doc.text(lines, margin + 7.5, y + 4);
+
+          y += itemBoxH + 1.5;
+        });
+
+        y += 2;
+      });
+    } else {
+      rawEquipments.forEach((itemData: any) => {
         let text = "";
         if (typeof itemData === "string") {
           text = cleanPdfText(itemData);
@@ -469,35 +523,34 @@ export function exportItineraryPDF(itineraryData: {
         }
         if (!text) return;
 
+        const lines = doc.splitTextToSize(text, contentWidth - 12);
+        const itemBoxH = Math.max(7, lines.length * 3.3 + 3.5);
+        checkPageBreak(itemBoxH + 1.5);
+
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(posX, y, colWidth, 7.5, 1, 1, "FD");
+        doc.roundedRect(margin, y, contentWidth, itemBoxH, 1, 1, "FD");
 
-        // Checkbox square
         doc.setDrawColor(16, 185, 129);
-        doc.rect(posX + 2.5, y + 2, 3.5, 3.5);
+        doc.rect(margin + 2.5, y + 2, 3.2, 3.2);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(51, 65, 85);
-        const truncated = text.length > 38 ? text.slice(0, 36) + "..." : text;
-        doc.text(truncated, posX + 8, y + 4.8);
-      };
+        doc.text(lines, margin + 7.5, y + 4);
 
-      renderItem(item1, margin);
-      if (item2) {
-        renderItem(item2, margin + colWidth + 4);
-      }
-
-      y += 9;
+        y += itemBoxH + 1.5;
+      });
     }
 
     y += 4;
   }
 
-  // 5. SMART TRAVEL TIPS & ADVICE
-  const tips = Array.isArray(result.tips) ? result.tips : [];
-  if (tips.length > 0) {
+  // 5. SMART TRAVEL TIPS & ADVICE (100% UNWRAPPED & READABLE)
+  const placeTips: PlaceSection[] = getDynamicPlaceSections("tips", result, form.destination);
+  const rawTips = Array.isArray(result.tips) ? result.tips : [];
+
+  if (placeTips.length > 0 || rawTips.length > 0) {
     checkPageBreak(30);
 
     doc.setFont("helvetica", "bold");
@@ -506,47 +559,95 @@ export function exportItineraryPDF(itineraryData: {
     doc.text("SMART TRAVEL TIPS & ADVICE", margin, y + 3);
     y += 6;
 
-    tips.forEach((tip) => {
-      let formattedTip = "";
-      if (typeof tip === "string") {
-        formattedTip = cleanPdfText(tip);
-      } else if (tip && typeof tip === "object") {
-        const title = cleanPdfText(tip.title || "");
-        const desc = cleanPdfText(tip.description || tip.text || "");
-        if (title && desc) {
-          formattedTip = `${title}: ${desc}`;
-        } else {
-          formattedTip = title || desc;
+    if (placeTips.length > 0) {
+      placeTips.forEach((sec) => {
+        checkPageBreak(25);
+
+        // Location Section Header Banner
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(margin, y, contentWidth, 6, 1, 1, "FD");
+
+        // Left amber indicator
+        doc.setFillColor(245, 158, 11);
+        doc.rect(margin, y, 2, 6, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        doc.text(cleanPdfText(sec.location), margin + 4, y + 4.2);
+
+        const subTag = cleanPdfText(`${sec.altitude ? sec.altitude + " • " : ""}${sec.tag || ""}`);
+        if (subTag) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text(subTag, pageWidth - margin - 3, y + 4.2, { align: "right" });
         }
-      }
 
-      if (!formattedTip) return;
+        y += 7.5;
 
-      const tipLines = doc.splitTextToSize(formattedTip, contentWidth - 14);
-      const boxH = Math.max(8, tipLines.length * 3.6 + 4);
-      checkPageBreak(boxH + 2);
+        sec.items.forEach((item) => {
+          const tipTitle = cleanPdfText(item.name);
+          const tipDesc = cleanPdfText(item.desc);
+          const fullTip = tipDesc ? `${tipTitle}: ${tipDesc}` : tipTitle;
 
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(margin, y, contentWidth, boxH, 1, 1, "FD");
+          const lines = doc.splitTextToSize(fullTip, contentWidth - 12);
+          const boxH = Math.max(7, lines.length * 3.4 + 3.5);
+          checkPageBreak(boxH + 1.5);
 
-      // Left amber indicator bar
-      doc.setFillColor(245, 158, 11); // amber-500
-      doc.rect(margin, y, 1.5, boxH, "F");
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(margin, y, contentWidth, boxH, 1, 1, "FD");
 
-      // Clean dash bullet
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(245, 158, 11);
-      doc.text("-", margin + 3.5, y + 4.5);
+          // Left amber bar
+          doc.setFillColor(245, 158, 11);
+          doc.rect(margin, y, 1.5, boxH, "F");
 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(51, 65, 85);
-      doc.text(tipLines, margin + 7, y + 4.5);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(51, 65, 85);
+          doc.text(lines, margin + 6, y + 4);
 
-      y += boxH + 2;
-    });
+          y += boxH + 1.5;
+        });
+
+        y += 2;
+      });
+    } else {
+      rawTips.forEach((tip) => {
+        let formattedTip = "";
+        if (typeof tip === "string") {
+          formattedTip = cleanPdfText(tip);
+        } else if (tip && typeof tip === "object") {
+          const title = cleanPdfText(tip.title || "");
+          const desc = cleanPdfText(tip.description || tip.text || "");
+          formattedTip = title && desc ? `${title}: ${desc}` : title || desc;
+        }
+
+        if (!formattedTip) return;
+
+        const tipLines = doc.splitTextToSize(formattedTip, contentWidth - 12);
+        const boxH = Math.max(7, tipLines.length * 3.4 + 3.5);
+        checkPageBreak(boxH + 1.5);
+
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(margin, y, contentWidth, boxH, 1, 1, "FD");
+
+        doc.setFillColor(245, 158, 11);
+        doc.rect(margin, y, 1.5, boxH, "F");
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(tipLines, margin + 6, y + 4);
+
+        y += boxH + 1.5;
+      });
+    }
+
+    y += 4;
   }
 
   // FOOTER ON ALL PAGES
