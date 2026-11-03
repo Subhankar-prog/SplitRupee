@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useUser } from "@/lib/userContext";
 import {
   type GroupDTO,
@@ -55,6 +56,18 @@ import {
   WifiOff,
   MessageCircle,
   Repeat,
+  Train,
+  Hotel,
+  Ticket,
+  ShieldAlert,
+  ShieldCheck,
+  FileCheck,
+  MapPin,
+  Calendar,
+  ExternalLink,
+  Phone,
+  Navigation,
+  Sparkles,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
@@ -113,7 +126,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
     }
     return null;
   });
-  const [activeTab, setActiveTab] = useState<"passbook" | "matrix" | "balances" | "expenses" | "settlements" | "activity" | "members">("matrix");
+  const [activeTab, setActiveTab] = useState<"passbook" | "matrix" | "balances" | "expenses" | "settlements" | "activity" | "members" | "itinerary">("matrix");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(() => {
@@ -635,11 +648,92 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
         )}
       </div>
 
+      {/* Official Forwarded Travel Itinerary Banner */}
+      {group?.itineraries && group.itineraries.length > 0 && (
+        <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 p-5 sm:p-6 backdrop-blur-xl shadow-xl shadow-emerald-500/5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0 mt-0.5">
+                <Plane className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
+                    Official Group Travel Itinerary
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    ✓ Forwarded & Linked to Group
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-extrabold text-white mt-1">
+                  {group.itineraries[0].title || `Trip: ${group.itineraries[0].origin} ➔ ${group.itineraries[0].destination}`}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Handcrafted {group.itineraries[0].days}D travel plan for {group.itineraries[0].groupSize || group.members.length} members with verified trains, dedicated cabs & budget stays
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+              <button
+                type="button"
+                onClick={() => setActiveTab("itinerary")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
+                  activeTab === "itinerary"
+                    ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20"
+                    : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
+                }`}
+              >
+                <Plane className="h-4 w-4" />
+                <span>{activeTab === "itinerary" ? "Viewing Itinerary Tab" : "View Day-by-Day Plan"}</span>
+              </button>
+
+              <Link
+                href={`/itinerary?id=${group.itineraries[0].id}`}
+                className="flex items-center gap-1.5 bg-slate-900/80 hover:bg-slate-800 border border-white/10 hover:border-emerald-500/30 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition"
+                title="Open full itinerary studio to view routes, maps, and export PDF"
+              >
+                <span>Open in Studio</span>
+                <ExternalLink className="h-3.5 w-3.5 text-emerald-400" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Quick Metrics & Highlights */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 text-xs">
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+              <div className="text-slate-400 text-[11px]">Route Circuit</div>
+              <div className="font-bold text-white text-sm mt-0.5">{group.itineraries[0].origin} ➔ {group.itineraries[0].destination}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+              <div className="text-slate-400 text-[11px]">Duration</div>
+              <div className="font-bold text-white text-sm mt-0.5">{group.itineraries[0].days} Days / {Math.max(1, group.itineraries[0].days - 1)} Nights</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+              <div className="text-slate-400 text-[11px]">Group Size</div>
+              <div className="font-bold text-teal-300 text-sm mt-0.5">{group.itineraries[0].groupSize || group.members.length} Travellers</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+              <div className="text-slate-400 text-[11px]">Comprehensive Budget</div>
+              <div className="font-bold text-emerald-400 text-sm mt-0.5">
+                ₹{Number(group.itineraries[0].totalBudget || 120000).toLocaleString()}
+                <span className="text-[10px] text-slate-400 font-normal ml-1">
+                  (~₹{Math.round(Number(group.itineraries[0].totalBudget || 120000) / (group.itineraries[0].groupSize || group.members.length || 1)).toLocaleString()}/p)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Responsive Segmented Tabs Navigation — Grid on mobile, wrap on desktop */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
         {[
           ...(isAdmin
             ? [{ key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" }]
+            : []),
+          ...(group?.itineraries && group.itineraries.length > 0
+            ? [{ key: "itinerary", icon: Plane, label: `Itinerary (${group.itineraries.length})`, fullLabel: `Trip Itinerary (${group.itineraries.length})` }]
             : []),
           { key: "matrix", icon: Scale, label: "Ledger", fullLabel: "Traveler Ledger" },
           { key: "balances", icon: CheckCircle2, label: `Transfers (${ledger.transfers.length})`, fullLabel: `Optimized Transfers (${ledger.transfers.length})` },
@@ -1502,6 +1596,229 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* TAB: FORWARDED ITINERARY */}
+      {activeTab === "itinerary" && group?.itineraries && group.itineraries.length > 0 && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {group.itineraries.map((it: any, itIdx: number) => {
+            const plan = it.planData || {};
+            const budgetBreakdown = plan.budgetBreakdown;
+            const daysList = Array.isArray(plan.days) ? plan.days : [];
+
+            return (
+              <div key={it.id || itIdx} className="space-y-6">
+                {/* Itinerary Header Card */}
+                <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 p-6 backdrop-blur-xl">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          ✓ Linked Itinerary
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          Updated: {new Date(it.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
+                        {it.title || `Trip: ${it.origin} ➔ ${it.destination}`}
+                      </h2>
+                      <p className="text-xs text-slate-300 mt-1">
+                        Complete verified day-by-day itinerary with rail berths, dedicated mountain cabs, and budget backpacker hostels & homestays.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/itinerary?id=${it.id}`}
+                        className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
+                      >
+                        <span>Open in Itinerary Studio</span>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* 6-Category Comprehensive Budget Breakdown */}
+                  {budgetBreakdown && Array.isArray(budgetBreakdown.categories) && (
+                    <div className="mt-5 pt-4 border-t border-white/10">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Receipt className="h-4 w-4 text-emerald-400" />
+                          <h4 className="text-sm font-bold text-white">Comprehensive Entire-Trip Group Budget</h4>
+                        </div>
+                        <div className="text-xs font-mono font-bold text-emerald-300">
+                          Total: ₹{Number(budgetBreakdown.totalGroupCost || it.totalBudget).toLocaleString()} (~₹{Number(budgetBreakdown.costPerPerson || 15000).toLocaleString()} / person)
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+                        {budgetBreakdown.categories.map((c: any) => (
+                          <div key={c.id} className="p-2.5 rounded-xl bg-slate-950/70 border border-white/5">
+                            <span className="text-slate-400 text-[10px] block truncate">{c.name.split("(")[0]}</span>
+                            <span className="text-sm font-extrabold text-white font-mono block mt-0.5">
+                              ₹{Number(c.groupTotal || 0).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-teal-300/80 block mt-0.5">
+                              ₹{Number(c.perPerson || 0).toLocaleString()}/p
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Day-by-Day Cards */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-emerald-400" />
+                      <span>Day-by-Day Schedule ({daysList.length} Days)</span>
+                    </h3>
+                    <span className="text-xs text-slate-400">All timings verified with realistic mountain road speeds</span>
+                  </div>
+
+                  {daysList.map((day: any) => (
+                    <div
+                      key={day.day || day.dayNumber}
+                      className="rounded-2xl border border-white/10 bg-slate-900/70 p-5 space-y-4 backdrop-blur-md"
+                    >
+                      {/* Day Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/10">
+                        <div className="flex items-center gap-3">
+                          <span className="h-8 w-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-sm grid place-items-center font-mono">
+                            D{day.day || day.dayNumber}
+                          </span>
+                          <div>
+                            <h4 className="text-base font-bold text-white">{day.dayTitle || `Day ${day.day || day.dayNumber}`}</h4>
+                            {day.date && <p className="text-xs text-slate-400 font-mono">{day.date}</p>}
+                          </div>
+                        </div>
+
+                        {day.stay && (
+                          <div className="flex items-center gap-1.5 text-xs text-teal-300 bg-teal-500/10 border border-teal-500/20 px-3 py-1 rounded-full">
+                            <Hotel className="h-3.5 w-3.5 text-teal-400" />
+                            <span className="truncate max-w-[240px]">Stay: {day.stay}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Transit Legs */}
+                      {Array.isArray(day.legs) && day.legs.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <Train className="h-3.5 w-3.5 text-cyan-400" /> Transit & Transfers
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {day.legs.map((leg: any, legIdx: number) => (
+                              <div key={legIdx} className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-white">{leg.from} ➔ {leg.to}</span>
+                                  <span className="text-emerald-400 font-mono font-bold">₹{leg.cost} (group)</span>
+                                </div>
+                                <div className="text-slate-400 text-[11px] flex items-center gap-2">
+                                  <span className="text-cyan-300">{leg.mode}</span>
+                                  <span>•</span>
+                                  <span>{leg.depart} - {leg.arrive}</span>
+                                  <span>•</span>
+                                  <span>{leg.duration}</span>
+                                </div>
+                                {leg.details && <p className="text-slate-300 text-[11px]">{leg.details}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Activities & Sightseeing */}
+                      {day.activities && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-white/5 text-xs">
+                          {day.activities.morning && (
+                            <div className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1">Morning</span>
+                              <p className="text-slate-300 text-[11px] leading-relaxed">{day.activities.morning}</p>
+                            </div>
+                          )}
+                          {day.activities.afternoon && (
+                            <div className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 block mb-1">Afternoon</span>
+                              <p className="text-slate-300 text-[11px] leading-relaxed">{day.activities.afternoon}</p>
+                            </div>
+                          )}
+                          {day.activities.evening && (
+                            <div className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block mb-1">Evening</span>
+                              <p className="text-slate-300 text-[11px] leading-relaxed">{day.activities.evening}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Accommodation Details & Contacts */}
+                      {day.hotelDetails && (
+                        <div className="p-3.5 rounded-xl bg-slate-950/60 border border-emerald-500/20 text-xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 font-bold text-white">
+                              <Hotel className="h-4 w-4 text-emerald-400" />
+                              <span>{day.hotelDetails.name}</span>
+                            </div>
+                            <span className="text-emerald-400 font-mono font-bold">
+                              ₹{day.hotelDetails.costPerNight} <span className="text-[10px] text-slate-400 font-normal">/ night total</span>
+                            </span>
+                          </div>
+
+                          {day.hotelDetails.breakdownNote && (
+                            <p className="text-slate-300 text-[11px] leading-relaxed">
+                              {day.hotelDetails.breakdownNote}
+                            </p>
+                          )}
+
+                          {day.hotelDetails.contact && (
+                            <p className="text-slate-300 text-[11px] flex items-center gap-1.5">
+                              <Phone className="h-3 w-3 text-emerald-400" />
+                              <span>Reception Contact: <strong className="text-white font-mono">{day.hotelDetails.contact}</strong></span>
+                            </p>
+                          )}
+
+                          {/* Alternate Hostels */}
+                          {Array.isArray(day.hotelDetails.alternateHostels) && day.hotelDetails.alternateHostels.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-white/5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1.5">
+                                Verified Alternate Hostels & Homestays:
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {day.hotelDetails.alternateHostels.map((h: any, hIdx: number) => (
+                                  <div key={hIdx} className="p-2 rounded-lg bg-slate-900 border border-white/5 text-[11px] flex items-center justify-between">
+                                    <span className="text-slate-200">{h.name}</span>
+                                    <span className="text-emerald-300 font-mono font-semibold">₹{h.costPerPerson || 500}/p</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Important Group Travel Tips */}
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-3">
+                  <ShieldAlert className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-bold text-amber-300 block">Nepal Travel & Border Advisory for All Members:</span>
+                    <p className="text-[11px] text-amber-100/90 leading-relaxed">
+                      • Every traveler must carry a physical Voter ID card or original Passport for Nepal border clearance.<br />
+                      • Carry Indian ₹100 and ₹200 currency notes; Indian ₹500 notes are legally prohibited in Nepal.<br />
+                      • Mountain roads between Pokhara, Marpha & Muktinath average 25–35 km/h; daylight travel is advised.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

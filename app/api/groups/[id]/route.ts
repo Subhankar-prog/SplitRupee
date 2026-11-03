@@ -59,6 +59,10 @@ export async function GET(req: Request, { params }: Params) {
             user: { select: { id: true, name: true, avatarColor: true } },
           },
         },
+        itineraries: {
+          orderBy: { updatedAt: "desc" },
+          take: 10,
+        },
       },
     });
 
@@ -140,6 +144,37 @@ export async function GET(req: Request, { params }: Params) {
           createdAt: l.createdAt ? new Date(l.createdAt).toISOString() : new Date().toISOString(),
           user: l.user,
         })),
+        itineraries: (group.itineraries || []).map((it) => {
+          let parsedPlan: any = null;
+          let parsedPrefs: any = null;
+          try {
+            parsedPlan = typeof it.planData === "string" ? JSON.parse(it.planData) : it.planData;
+          } catch {
+            parsedPlan = it.planData;
+          }
+          try {
+            parsedPrefs = typeof it.preferences === "string" ? JSON.parse(it.preferences) : it.preferences;
+          } catch {
+            parsedPrefs = it.preferences;
+          }
+          return {
+            id: it.id,
+            groupId: it.groupId,
+            userId: it.userId,
+            title: it.title,
+            origin: it.origin,
+            destination: it.destination,
+            startDate: it.startDate ? new Date(it.startDate).toISOString().split("T")[0] : null,
+            endDate: it.endDate ? new Date(it.endDate).toISOString().split("T")[0] : null,
+            days: it.days,
+            groupSize: it.groupSize,
+            totalBudget: it.totalBudget,
+            preferences: parsedPrefs,
+            planData: parsedPlan,
+            createdAt: it.createdAt ? new Date(it.createdAt).toISOString() : new Date().toISOString(),
+            updatedAt: it.updatedAt ? new Date(it.updatedAt).toISOString() : new Date().toISOString(),
+          };
+        }),
       },
     }, {
       headers: {
