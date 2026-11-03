@@ -61,3 +61,4 @@ describe("exportItineraryPDF", () => {
     expect(() => exportItineraryPDF(itineraryData)).not.toThrow();
   });
 });
+

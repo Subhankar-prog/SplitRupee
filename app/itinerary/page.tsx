@@ -555,14 +555,6 @@ export default function ItineraryPage() {
         const json = await res.json();
         if (json.ok && json.itinerary?.id) {
           setSavedItineraryId(json.itinerary.id);
-          if (typeof window !== "undefined") {
-            const url = new URL(window.location.href);
-            url.searchParams.set("id", json.itinerary.id);
-            window.history.replaceState({}, "", url.toString());
-            try {
-              sessionStorage.setItem("splitrupee_active_itinerary_id", json.itinerary.id);
-            } catch {}
-          }
           setSavedTripsList((prev) => {
             const filtered = prev.filter((item) => item.id !== json.itinerary.id);
             return [json.itinerary, ...filtered];
@@ -570,19 +562,6 @@ export default function ItineraryPage() {
         }
       })
       .catch((e) => console.warn("Auto-save sync error:", e));
-
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(
-          "splitrupee_last_active_itinerary",
-          JSON.stringify({
-            plan: updatedPlan,
-            chatSession: chatMessages,
-            savedItineraryId: targetSaveId
-          })
-        );
-      } catch {}
-    }
 
     setSaveToast("✓ Itinerary updated! All days & costs refreshed.");
     setTimeout(() => setSaveToast(null), 4000);
@@ -726,12 +705,11 @@ export default function ItineraryPage() {
     }
 
     setIsSavedTripsModalOpen(false);
-    if (typeof window !== "undefined" && it.id) {
+    if (typeof window !== "undefined") {
       try {
-        const url = new URL(window.location.href);
-        url.searchParams.set("id", it.id);
-        window.history.replaceState({}, "", url.toString());
-        sessionStorage.setItem("splitrupee_active_itinerary_id", it.id);
+        sessionStorage.removeItem("splitrupee_active_itinerary_id");
+        localStorage.removeItem("splitrupee_last_saved_itinerary");
+        localStorage.removeItem("splitrupee_last_active_itinerary");
       } catch {}
     }
 
@@ -748,13 +726,38 @@ export default function ItineraryPage() {
     setChatMessages([]);
     setLinkedGroup(null);
     setSaveToast(null);
+    setForm({
+      origin: "",
+      destination: "",
+      startDate: "",
+      endDate: "",
+      nights: "" as any,
+      travellers: "" as any,
+      groupType: "Friends",
+      budget: "" as any,
+      stayBudget: "",
+      transportTrain: true,
+      transportBus: false,
+      transportFlight: false,
+      transportRoad: false,
+      trainClass: "3A",
+      busClass: "AC Sleeper (Volvo)",
+      flightClass: "Economy",
+      stayPreference: "Budget Hostels / Guesthouses",
+      interests: "",
+      pace: "Moderate",
+      specialNotes: ""
+    });
     if (typeof window !== "undefined") {
       try {
         const url = new URL(window.location.href);
-        url.searchParams.delete("id");
-        window.history.replaceState({}, "", url.toString());
+        if (url.searchParams.has("id")) {
+          url.searchParams.delete("id");
+          window.history.replaceState({}, "", url.pathname);
+        }
         sessionStorage.removeItem("splitrupee_active_itinerary_id");
         localStorage.removeItem("splitrupee_last_saved_itinerary");
+        localStorage.removeItem("splitrupee_last_active_itinerary");
       } catch {}
     }
   };
@@ -780,14 +783,23 @@ export default function ItineraryPage() {
   };
 
   // Auto-fetch saved itineraries on mount for count badge & saved trips showcase.
-  // The form intentionally starts BLANK as usual unless an explicit ?id= query param is provided.
+  // The itinerary page ALWAYS starts fresh and blank on visits and page refreshes.
   useEffect(() => {
     let isCancelled = false;
 
-    // Clear any lingering cached last itinerary so new visits always start blank
+    // Clear any lingering cached state so visits & refreshes always start blank
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem("splitrupee_last_saved_itinerary");
+        localStorage.removeItem("splitrupee_last_active_itinerary");
+        sessionStorage.removeItem("splitrupee_active_itinerary_id");
+
+        // Clean any lingering ?id= from the address bar so future refreshes always start blank
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.has("id")) {
+          currentUrl.searchParams.delete("id");
+          window.history.replaceState({}, "", currentUrl.pathname);
+        }
       } catch {}
     }
 
@@ -801,17 +813,8 @@ export default function ItineraryPage() {
         const json = await res.json();
         if (!isCancelled && json.ok && Array.isArray(json.itineraries)) {
           setSavedTripsList(json.itineraries);
-
-          // Auto-load if an explicit ?id= is in URL, or if this session was viewing an active itinerary before refresh
-          const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-          const sessionActiveId = typeof window !== "undefined" ? sessionStorage.getItem("splitrupee_active_itinerary_id") : null;
-          const requestedId = urlParams?.get("id") || sessionActiveId;
-          if (requestedId) {
-            const target = json.itineraries.find((it: any) => it.id === requestedId);
-            if (target && target.planData) {
-              handleLoadSavedItinerary(target, false);
-            }
-          }
+          // Never auto-load or prefill past data on page refresh/visit!
+          // The page stays completely blank so the user can plan a new trip or choose from the saved trips list.
         }
       } catch (err) {
         console.warn("Could not auto-fetch saved itineraries on mount:", err);

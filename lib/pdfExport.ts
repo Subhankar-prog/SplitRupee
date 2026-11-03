@@ -64,7 +64,7 @@ export function exportItineraryPDF(itineraryData: {
         roomCount?: number;
         ratePerUnit?: number;
         breakdownNote?: string;
-      };
+      } | null;
     }>;
     equipments?: any[];
     tips?: any[];
