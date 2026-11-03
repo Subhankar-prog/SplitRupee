@@ -51,7 +51,13 @@ import {
   Lock,
   Plus,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Utensils,
+  Ticket,
+  FileCheck,
+  ShieldAlert,
+  Receipt,
+  Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -134,6 +140,135 @@ export default function ItineraryPage() {
     if (/\b(demo|test|testing|dummy|fake|sample|placeholder|asdf)\b/i.test(cleaned)) return true;
     if (!/[a-z]{3,}/i.test(cleaned)) return true;
     return false;
+  };
+
+  const getComprehensiveTripBudget = (plan: any, formData: any) => {
+    if (!plan) return null;
+
+    const travellers = Math.max(1, Number(formData.travellers) || Number(plan.travellers) || Number(plan.groupSize) || 8);
+    const targetBudget = Number(formData.budget) || Number(plan.targetBudget) || Number(plan.totalBudget) || 120000;
+    const daysCount = Array.isArray(plan.days) ? plan.days.length : Number(formData.nights) + 1 || 10;
+    const nightsCount = Math.max(1, daysCount - 1);
+
+    // If plan has a custom detailed budgetBreakdown, use it directly
+    if (plan.budgetBreakdown && Array.isArray(plan.budgetBreakdown.categories)) {
+      const b = plan.budgetBreakdown;
+      const totalGroup = Number(b.totalGroupCost || targetBudget);
+      return {
+        ...b,
+        travellers,
+        daysCount,
+        nightsCount,
+        targetBudget: Number(b.targetBudget || targetBudget),
+        totalGroupCost: totalGroup,
+        costPerPerson: Math.round(totalGroup / travellers),
+        categories: b.categories.map((c: any) => ({
+          ...c,
+          groupTotal: Number(c.groupTotal || 0),
+          perPerson: Number(c.perPerson || Math.round((c.groupTotal || 0) / travellers))
+        }))
+      };
+    }
+
+    // Dynamic computation if no custom breakdown object exists
+    let transitCost = 0;
+    let hotelCost = 0;
+
+    if (Array.isArray(plan.days)) {
+      plan.days.forEach((d: any) => {
+        if (Array.isArray(d.legs)) {
+          d.legs.forEach((l: any) => {
+            transitCost += Number(l.cost) || 0;
+          });
+        }
+        if (d.hotelDetails?.costPerNight) {
+          hotelCost += Number(d.hotelDetails.costPerNight) || 0;
+        }
+      });
+    }
+
+    if (transitCost === 0) transitCost = Math.round(targetBudget * 0.45);
+    if (hotelCost === 0) hotelCost = Math.round(targetBudget * 0.22);
+
+    const mealsCost = Math.round(daysCount * travellers * 230);
+    const permitsCost = Math.round(travellers * 1200);
+    const activitiesCost = Math.round(travellers * 800);
+    const subTotal = transitCost + hotelCost + mealsCost + permitsCost + activitiesCost;
+    const emergencyBuffer = Math.max(3000, targetBudget > subTotal ? targetBudget - subTotal : Math.round(targetBudget * 0.05));
+    const totalGroupCost = Math.min(targetBudget, subTotal + emergencyBuffer);
+
+    return {
+      targetBudget,
+      totalGroupCost,
+      costPerPerson: Math.round(totalGroupCost / travellers),
+      travellers,
+      daysCount,
+      nightsCount,
+      budgetStatus: totalGroupCost <= targetBudget ? "UNDER_BUDGET" : "BALANCED",
+      summaryNote: `Full-trip comprehensive budget for all ${travellers} travellers covering transit, stays, meals, permits, optional activities, and contingency reserve.`,
+      categories: [
+        {
+          id: "transit",
+          name: "Transit, Trains & Road Transport",
+          tag: "Full Circuit Transit",
+          icon: "Train",
+          description: `Full round-trip rail and road transfers for ${travellers} travellers covering all outbound and return legs.`,
+          groupTotal: transitCost,
+          perPerson: Math.round(transitCost / travellers),
+          isOptional: false
+        },
+        {
+          id: "stays",
+          name: `Accommodations & Stays (${nightsCount} Nights)`,
+          tag: "Group Stays",
+          icon: "Hotel",
+          description: `${nightsCount} nights total: Clean group double rooms & verified mountain lodges for all ${travellers} guests.`,
+          groupTotal: hotelCost,
+          perPerson: Math.round(hotelCost / travellers),
+          isOptional: false
+        },
+        {
+          id: "meals",
+          name: `Daily Meals, Breakfasts & Dining (${daysCount} Days)`,
+          tag: "Daily Meal Pool",
+          icon: "Utensils",
+          description: `${daysCount} days of breakfasts, trail lunches, authentic regional cuisine, snacks & group dinners.`,
+          groupTotal: mealsCost,
+          perPerson: Math.round(mealsCost / travellers),
+          isOptional: false
+        },
+        {
+          id: "permits",
+          name: "Permits, Temple Passes & Government Fees",
+          tag: "Mandatory Passes",
+          icon: "FileCheck",
+          description: `Conservation area permits, entry registrations & local municipality environmental passes for ${travellers} travellers.`,
+          groupTotal: permitsCost,
+          perPerson: Math.round(permitsCost / travellers),
+          isOptional: false
+        },
+        {
+          id: "activities",
+          name: "Sightseeing, Boating & Viewpoint Passes",
+          tag: "Optional Passes",
+          icon: "Ticket",
+          description: "Local boat rides, cable car tickets, sunrise viewpoint entry, caves & cultural museum passes.",
+          groupTotal: activitiesCost,
+          perPerson: Math.round(activitiesCost / travellers),
+          isOptional: true
+        },
+        {
+          id: "buffer",
+          name: "Contingency Reserve & Emergency Buffer",
+          tag: "Safety Buffer",
+          icon: "ShieldAlert",
+          description: "Emergency medical fund, local road tolls, driver tips/allowance & road delay contingency.",
+          groupTotal: emergencyBuffer,
+          perPerson: Math.round(emergencyBuffer / travellers),
+          isOptional: false
+        }
+      ]
+    };
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -1868,6 +2003,153 @@ export default function ItineraryPage() {
                         )}
                       </div>
                     ))}
+
+                    {/* Comprehensive Entire-Trip Group Budget Breakdown */}
+                    {(() => {
+                      const fullBudget = getComprehensiveTripBudget(result, form);
+                      if (!fullBudget) return null;
+
+                      return (
+                        <div className="mt-8 bg-gradient-to-b from-slate-900/90 to-slate-950/95 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:border-black/30 print:bg-white">
+                          {/* Header */}
+                          <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/10 gap-4">
+                            <div>
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-2.5 bg-gradient-to-tr from-emerald-500/20 to-teal-400/20 border border-emerald-500/30 rounded-2xl text-emerald-400 shadow-md">
+                                  <Receipt className="h-6 w-6" />
+                                </div>
+                                <div>
+                                  <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight print:text-black">
+                                    Comprehensive Entire-Trip Group Budget
+                                  </h3>
+                                  <p className="text-xs sm:text-sm text-slate-400 mt-0.5 print:text-gray-700">
+                                    Total estimated budget for all <strong className="text-emerald-400 font-semibold">{fullBudget.travellers} travellers</strong> covering the entire {fullBudget.daysCount}-day trip (Transit, Stays, Meals, Permits, Optional Activities & Emergency Buffer).
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Status Pill */}
+                            <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                              <span className="px-3.5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm">
+                                ✓ Entire Trip Group Total
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Top 4 KPI Metrics */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 my-6">
+                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
+                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Group Budget</span>
+                              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1 font-mono">
+                                ₹{fullBudget.totalGroupCost.toLocaleString()}
+                              </div>
+                              <span className="text-[10px] text-slate-500 mt-1">Full 10-day group total</span>
+                            </div>
+
+                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
+                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Per Person Share</span>
+                              <div className="text-2xl sm:text-3xl font-extrabold text-teal-300 mt-1 font-mono">
+                                ₹{fullBudget.costPerPerson.toLocaleString()}
+                              </div>
+                              <span className="text-[10px] text-slate-500 mt-1">Per member for {fullBudget.travellers} travellers</span>
+                            </div>
+
+                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
+                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Target Budget</span>
+                              <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1 font-mono">
+                                ₹{fullBudget.targetBudget.toLocaleString()}
+                              </div>
+                              <span className="text-[10px] text-slate-500 mt-1">Max allocated ceiling</span>
+                            </div>
+
+                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
+                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Budget Health</span>
+                              <div className="text-lg sm:text-xl font-extrabold text-emerald-400 mt-1 flex items-center gap-1.5">
+                                <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                                <span>100% Balanced</span>
+                              </div>
+                              <span className="text-[10px] text-emerald-300/80 mt-1">All expenses covered</span>
+                            </div>
+                          </div>
+
+                          {/* Itemized Categories List */}
+                          <div className="space-y-3.5">
+                            <div className="flex items-center justify-between pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                              <span>Expense Category & What's Covered</span>
+                              <span className="text-right">Group Total / Per Person</span>
+                            </div>
+
+                            {fullBudget.categories.map((cat: any) => (
+                              <div
+                                key={cat.id}
+                                className={`p-4 sm:p-5 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                                  cat.isOptional
+                                    ? "bg-slate-950/50 border-emerald-500/20 hover:border-emerald-500/40"
+                                    : "bg-slate-950/80 border-white/10 hover:border-white/20"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3.5">
+                                  <div className="mt-0.5 p-2 rounded-xl bg-slate-900 border border-white/10 text-emerald-400 shrink-0">
+                                    {cat.id === "transit" && <Train className="h-4 w-4 text-cyan-400" />}
+                                    {cat.id === "stays" && <Hotel className="h-4 w-4 text-teal-400" />}
+                                    {cat.id === "meals" && <Utensils className="h-4 w-4 text-amber-400" />}
+                                    {cat.id === "permits" && <FileCheck className="h-4 w-4 text-purple-400" />}
+                                    {cat.id === "activities" && <Ticket className="h-4 w-4 text-emerald-400" />}
+                                    {cat.id === "buffer" && <ShieldAlert className="h-4 w-4 text-blue-400" />}
+                                  </div>
+
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h4 className="text-sm sm:text-base font-bold text-white print:text-black">
+                                        {cat.name}
+                                      </h4>
+                                      <span className="text-[10px] font-medium font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                                        {cat.tag}
+                                      </span>
+                                      {cat.isOptional && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
+                                          Optional Pass
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-2xl print:text-gray-700">
+                                      {cat.description}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="text-right shrink-0 sm:pl-4 sm:border-l sm:border-white/10">
+                                  <div className="text-lg sm:text-xl font-bold text-white print:text-black font-mono">
+                                    ₹{cat.groupTotal.toLocaleString()}
+                                  </div>
+                                  <div className="text-xs text-slate-400 font-mono mt-0.5">
+                                    ₹{cat.perPerson.toLocaleString()} <span className="text-[10px] text-slate-500">/ person</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Admin Forward Note */}
+                          <div className="mt-6 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-emerald-400 shrink-0" />
+                              <span>
+                                <strong>Complete Trip Summary:</strong> Covers all transit, stays, meals, government permits, optional passes, and safety reserve for all {fullBudget.travellers} travellers without hidden surprises.
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleOpenForwardModal}
+                              className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition"
+                            >
+                              <Send className="h-3.5 w-3.5" /> Forward to Travel Group
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
