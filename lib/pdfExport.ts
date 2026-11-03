@@ -210,26 +210,6 @@ export function exportItineraryPDF(itineraryData: {
     y += 27;
   }
 
-  // 2.5 TRAVEL GUIDE COMFORT BANNER
-  if (result.auditReview) {
-    checkPageBreak(14);
-    doc.setFillColor(240, 253, 244);
-    doc.setDrawColor(187, 247, 208);
-    doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, "FD");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(21, 128, 61);
-    doc.text(`[TRAVEL GUIDE CHECK] VERIFIED FOR A SMOOTH & COMFORTABLE TRIP (COMFORT: ${result.auditReview.auditScore || 98}%)`, margin + 4, y + 4.5);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    const checksSummary = cleanPdfText(
-      result.auditReview.realityChecks?.slice(0, 2).join(" • ") || "Comfortable travel times, daylight driving, and rest breaks verified for a relaxed holiday."
-    );
-    doc.text(checksSummary, margin + 4, y + 8);
-    y += 13;
-  }
-
   // 3. DAY BY DAY ITINERARY
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
