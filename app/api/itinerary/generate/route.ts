@@ -43,10 +43,11 @@ export async function POST(req: Request) {
     const flightSelected = transportModes.some((m: string) => m.toLowerCase().includes("flight"));
 
     // 1. Universal AI Itinerary Engine (Google Gemini AI with Live Search Grounding)
-    if (process.env.GEMINI_API_KEY) {
+    const geminiKey = (process.env.GEMINI_API_KEY || "").replace(/^["']|["']$/g, "").trim();
+    if (geminiKey) {
       try {
         const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(geminiKey);
 
         let model;
         const systemInstruction = `You are a strict, real-world verified travel engine for Indian Railways, international transit, hotels, and local transport. You PRIORITIZE ACCURACY AND VERIFICATION OVER SPEED. Take all necessary processing time to search, analyze, and validate real-world routes. You NEVER fabricate train numbers or routes. (For example, Train 22811 is the BBS-NDLS Rajdhani Express to New Delhi, NOT to New Jalpaiguri/Sikkim). Every train number you provide MUST be a real 5-digit IRCTC train number that actually operates on that specific route. Every hotel MUST be a real existing property. Every local taxi recommendation MUST be realistic with real tourist taxi union counters or verified local contacts. All math must be 100% exact. ${!flightSelected
@@ -210,11 +211,11 @@ Output strictly VALID JSON (without markdown code blocks) matching this schema:
 
         let text = "";
         const modelNames = [
-          "gemini-3.1-flash-lite",
           "gemini-3.5-flash-lite",
-          "gemini-3.7-flash",
-          "gemini-flash-latest",
-          "gemini-pro-latest"
+          "gemini-3.1-flash-lite",
+          "gemini-flash-lite-latest",
+          "gemini-3.8-flash",
+          "gemini-flash-latest"
         ];
 
         for (const modelName of modelNames) {

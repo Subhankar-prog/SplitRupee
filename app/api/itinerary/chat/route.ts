@@ -188,7 +188,7 @@ CRITICAL TONE & DESIGNATION RULES:
      \`\`\``;
 
     // 4. Direct Google Gemini REST API Integration
-    const apiKey = (process.env.GEMINI_API_KEY || "").trim();
+    const apiKey = (process.env.GEMINI_API_KEY || "").replace(/^["']|["']$/g, "").trim();
 
     if (!replyText && apiKey) {
       try {
@@ -199,7 +199,7 @@ CRITICAL TONE & DESIGNATION RULES:
           },
           {
             role: "model",
-            parts: [{ text: `Understood! Today is ${currentFormattedDate}. I am ready to help as your verified SplitRupee Travel Copilot.` }]
+            parts: [{ text: `Understood! Today is ${currentFormattedDate}. I am ready to help as your warm, verified SplitRupee Travel Copilot.` }]
           }
         ];
 
@@ -219,26 +219,30 @@ CRITICAL TONE & DESIGNATION RULES:
           parts: [{ text: userQuery }]
         });
 
+        // Fast, high-availability Gemini models
         const restModels = [
-          "gemini-3.1-flash-lite",
           "gemini-3.5-flash-lite",
-          "gemini-3.7-flash",
+          "gemini-3.1-flash-lite",
+          "gemini-flash-lite-latest",
+          "gemini-3.8-flash",
           "gemini-flash-latest"
         ];
 
         for (const mName of restModels) {
           try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
+
             const geminiRes = await fetch(
               `https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${apiKey}`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: contentsPayload,
-                  tools: [{ google_search: {} }]
-                })
+                body: JSON.stringify({ contents: contentsPayload }),
+                signal: controller.signal
               }
             );
+            clearTimeout(timeoutId);
 
             const geminiData = await geminiRes.json();
             const candidateText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -407,14 +411,46 @@ ${liveSearchSnippets.length > 0 ? `**Live Railway Information Found**:\n${liveSe
           if (liveSearchSnippets.length > 0) {
             replyText += `\n\n#### Live Web Search Grounding:\n${liveSearchSnippets.slice(0, 2).map((s) => `> ${s}`).join("\n\n")}`;
           }
+        } else if (/change|modify|edit|update|reschedule|adjust|swap|remove|replace|custom/i.test(q)) {
+          replyText = `I would love to help you customize your itinerary! 🗺️
+
+Since you have an active journey for **${activeTravellers} travellers** from **${activeOrigin}** to **${activeDestination}** (Budget: ₹${activeBudget.toLocaleString()}), we can easily modify any part of it:
+
+1. **Modify a Specific Day**: Tell me what you'd like to adjust (e.g. *"Change Day 2 departure to 9:00 AM"*, *"Add a sunrise viewpoint on Day 3"*, or *"Spend an extra day in Pokhara"*).
+2. **Upgrade or Switch Stays**: We can switch between social backpacker hostels (like Zostel/goSTOPS) and private hotels, or adjust your room configuration.
+3. **Adjust Transport & Timings**: Shift between sleeper trains, 3AC, Volvo night buses, or private cabs, or adjust buffer times for road trips.
+4. **Sightseeing & Pace**: Make the schedule more relaxed with free time, or pack in adventure sports (paragliding, rafting, boating).
+
+Tell me which specific day or detail you'd like to change, and I'll tailor the plan for your review!`;
+        } else if (/whatsapp|whats\s*app|calendar|calander|invite|forward|share/i.test(q)) {
+          replyText = `You can share and sync your itinerary with your group members seamlessly! 📲
+
+Here are the ways you can use **WhatsApp** and **Calendar** in SplitRupee:
+
+* **WhatsApp 1-Tap Invite**: In each day's schedule card, tap the green **WhatsApp** button to send that day's verified schedule, timings, and train/cab details directly to your WhatsApp group.
+* **1-Tap Add to Calendar**: Members can tap the link on their phones to save that day's schedule directly into their phone's calendar (Google Calendar / Apple Calendar / Xiaomi Calendar) with departure alarms and station details.
+* **Forward to Travel Group**: If you are the trip admin, you can forward this entire itinerary to your SplitRupee group so all ${activeTravellers} members can track expenses, settle bills, and view real-time trip updates together.
+
+Would you like me to guide you on forwarding to a specific group or generating a day pass?`;
+        } else if (/budget|cost|price|expense|split|money|rupee|inr/i.test(q)) {
+          replyText = `Your current trip has an allocated group budget of **₹${activeBudget.toLocaleString()}** for **${activeTravellers} travellers** (~₹${Math.round(activeBudget / (activeTravellers || 1)).toLocaleString()} per person).
+
+Here is how your budget is optimized:
+* **Nightly Stays**: Capped at ≤ ₹${activeStayBudget.toLocaleString()}/night total for the group to maintain high comfort without overspending.
+* **Rail & Road Transit**: Utilizing verified IRCTC standard berths and local syndicate shared cabs to keep transit costs balanced.
+* **Activity & Food Buffer**: Remaining funds are reserved for local cuisine, permits/entry tickets, and day-to-day group expenses.
+
+Would you like me to recalculate the budget for a different class of transit, adjust your nightly stay limit, or add specific activities?`;
         } else {
-          replyText = `### Response: ${userQuery}
+          replyText = `I'm here as your personal travel guide for your journey from **${activeOrigin}** to **${activeDestination}** (${activeTravellers} travellers)!
 
-I've researched your request regarding **"${userQuery}"** for your journey from **${activeOrigin}** to **${activeDestination}** (${activeTravellers} travellers, budget ₹${activeBudget.toLocaleString()}):
+Whether you'd like to:
+* **Modify specific days** (timing, routes, activities)
+* **Check verified IRCTC trains or buses**
+* **Find recommended budget hotels or hostels**
+* **Sync day schedules to WhatsApp & your phone calendar**
 
-${liveSearchSnippets.length > 0 ? `**Live Information Found**:\n${liveSearchSnippets.map((s) => `• ${s}`).join("\n\n")}\n\n` : ""}- **Transit & Timing**: All trains, shared vehicles, and road transfers are verified against real IRCTC timetables and mountain road speeds (25–35 km/h in hilly terrain).
-- **Accommodations**: Single consistent hotel/hostel property allocated with genuine room capacity (max 2 adults per double room, or dedicated individual dorm beds for groups).
-- **Round-Trip Integrity**: The trip safely completes with a return connection bringing you all the way home to **${activeOrigin}**!`;
+Feel free to ask me anything you have in mind! What would you like to explore or adjust?`;
         }
       }
     }

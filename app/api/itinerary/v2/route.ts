@@ -678,7 +678,7 @@ export async function POST(req: Request) {
       specialNotes = ""
     } = body;
 
-    const apiKey = (process.env.GEMINI_API_KEY || "").trim();
+    const apiKey = (process.env.GEMINI_API_KEY || "").replace(/^["']|["']$/g, "").trim();
     if (!apiKey) {
       return NextResponse.json({ ok: false, error: "Missing GEMINI_API_KEY" }, { status: 500 });
     }
@@ -875,7 +875,13 @@ ${schemaStr}`;
     let draftPlan = null;
     let lastError = "";
 
-    const candidateModels = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.8-flash"];
+    const candidateModels = [
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-lite-latest",
+      "gemini-3.8-flash",
+      "gemini-flash-latest"
+    ];
 
     // ==========================================
     // PASS 1: THE PLANNER (Draft Generation)
