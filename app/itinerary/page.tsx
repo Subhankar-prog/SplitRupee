@@ -61,6 +61,268 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+const PLACE_SPECIFIC_EQUIPMENTS = [
+  {
+    location: "Muktinath Temple & 108 Sacred Spouts",
+    altitude: "3,710 m",
+    tag: "High-Altitude Sacred Shrine",
+    items: [
+      {
+        name: "High-Altitude Thermal Innerwear (Top + Bottom)",
+        desc: "Merino wool or synthetic thermal base layers for sub-freezing morning chills (0°C to 5°C)."
+      },
+      {
+        name: "Quick-Dry Microfiber Towel & Dry Clothes Change",
+        desc: "Essential immediately after taking the holy dip/run under the 108 sacred icy waterspouts (Muktidhara) and two Kunda pools."
+      },
+      {
+        name: "Down Jacket or Heavy Wind Shell",
+        desc: "To put on immediately post-dip while offering prayers inside the inner sanctum to prevent hypothermia."
+      },
+      {
+        name: "Warm Woollen Beanie, Ear Muffs & Fleece Gloves",
+        desc: "Protects head, ears, and hands against biting trans-Himalayan crosswinds."
+      },
+      {
+        name: "Slip-On Rubber Footwear & Extra Dry Woollen Socks",
+        desc: "Easy to slip on/off with wet feet around the cold stone temple courtyards."
+      },
+      {
+        name: "Diamox (Acetazolamide 250mg) & Electrolyte Packets (ORS)",
+        desc: "Basic altitude acclimatization and hydration aid for ascending above 3,500m."
+      }
+    ]
+  },
+  {
+    location: "Ghandruk Gurung Heritage Village",
+    altitude: "1,940 m",
+    tag: "Gurung Stone Steps & High Vistas",
+    items: [
+      {
+        name: "Collapsible Trekking Poles (Pair)",
+        desc: "Critical knee and joint support for ascending and descending 2,000+ uneven stone steps in the Gurung village."
+      },
+      {
+        name: "Insulated Stainless Steel Thermos Flask (750ml–1L)",
+        desc: "To carry hot boiled water in village homestays (tap water is freezing and untreated)."
+      },
+      {
+        name: "High-Capacity Power Bank (20,000mAh)",
+        desc: "Traditional village homestays rely on shared solar/hydro power points with limited charging sockets."
+      },
+      {
+        name: "Sturdy Grip Ankle-Support Walking Shoes",
+        desc: "Prevents slips and ankle roll on steep wet flagstone village paths."
+      },
+      {
+        name: "Nepali Rupee (NPR) Physical Cash",
+        desc: "Traditional village lodges, tea stalls, and the Gurung Museum do NOT have UPI or card POS machines."
+      }
+    ]
+  },
+  {
+    location: "Marpha Apple Village & Kali Gandaki Valley",
+    altitude: "2,670 m",
+    tag: "Trans-Himalayan Riverbed Gorge",
+    items: [
+      {
+        name: "Heavy Windproof Shell Jacket",
+        desc: "Powerful Kali Gandaki valley gale-force crosswinds blow daily between 11:00 AM and 4:00 PM."
+      },
+      {
+        name: "UV400 Polarized Sunglasses",
+        desc: "Shields eyes from intense high-altitude UV radiation reflecting off white limestone riverbeds and rocky valley walls."
+      },
+      {
+        name: "Motion Sickness Tablets (Avomine / Ondansetron)",
+        desc: "Essential for the rugged, unpaved off-road 4WD riverbed jeep track along Rupse Waterfall."
+      },
+      {
+        name: "UV-Protection Lip Balm & Moisturizer",
+        desc: "Dry mountain winds cause painful cracked lips and dry skin within hours."
+      }
+    ]
+  },
+  {
+    location: "Pokhara Valley (Phewa Lake, Sarangkot & Caves)",
+    altitude: "822 m",
+    tag: "Lakeside, Caves & Viewpoints",
+    items: [
+      {
+        name: "Waterproof Compact LED Headlamp or Mini Torch",
+        desc: "Necessary for navigating inside the dark, damp limestone cavern of Gupteshwar Mahadev Cave."
+      },
+      {
+        name: "Slip-Resistant Grip Footwear",
+        desc: "Wet, slippery steps inside Gupteshwar Cave and mist-covered walkways at Davis Fall (Patale Chhango)."
+      },
+      {
+        name: "Lightweight Windbreaker Jacket",
+        desc: "For breezy 5:00 AM Sarangkot viewpoint platform overlooking Annapurna range at dawn."
+      },
+      {
+        name: "Waterproof Phone Pouch",
+        desc: "Protects smartphones, wallets, and documents during Phewa Lake wooden boat cruising."
+      }
+    ]
+  },
+  {
+    location: "Kathmandu Valley (Pashupatinath & Heritage Stupas)",
+    altitude: "1,400 m",
+    tag: "Sacred Shrines & Heritage Squares",
+    items: [
+      {
+        name: "Modest Temple Attire",
+        desc: "Shoulders, arms, and knees must be covered to enter Pashupatinath & Guhyeshwari Shaktipeeth."
+      },
+      {
+        name: "Easy Slip-On Shoes",
+        desc: "Shoes must be removed multiple times at temple gates, stupa circumambulation paths, and courtyards."
+      },
+      {
+        name: "N95 Anti-Dust Face Mask",
+        desc: "For Kathmandu ring-road traffic, highway dust, and crowded heritage bazaar lanes."
+      },
+      {
+        name: "Cloth Cash/Coin Pouch",
+        desc: "For temple dakshina, Bagmati Maha Aarti offerings, and butter lamp tokens."
+      }
+    ]
+  },
+  {
+    location: "Border & Railway Transit (Bhubaneswar ⇄ Raxaul / Birgunj)",
+    altitude: "Transit",
+    tag: "Immigration & Overland Rail",
+    items: [
+      {
+        name: "Original Physical Voter ID Card or Passport (Original + 3 Xerox Copies)",
+        desc: "Mandatory for all 8 travellers at Raxaul/Birgunj border immigration. (Aadhaar/PAN cards are strictly NOT accepted)."
+      },
+      {
+        name: "4 Passport-Sized Photographs per Person",
+        desc: "For acquiring local Nepal Ncell / Nepal Telecom (NTC) physical SIM cards at border checkpoints."
+      },
+      {
+        name: "Indian ₹100 and ₹200 Denomination Cash Banknotes",
+        desc: "Universally accepted across Nepal. (Indian ₹500 notes are strictly prohibited and illegal)."
+      },
+      {
+        name: "Lightweight Travel Fleece Blanket & Neck Pillow",
+        desc: "For comfortable overnight sleep on the 16.7-hour Mithila Express (13021/13022)."
+      }
+    ]
+  }
+];
+
+const PLACE_SPECIFIC_TIPS = [
+  {
+    location: "Muktinath Temple Dip & Mountain Protocol",
+    altitude: "3,710 m",
+    tag: "Sacred High-Altitude Rituals",
+    items: [
+      {
+        name: "108 Spouts Bath Timing",
+        desc: "Take your holy bath between 7:30 AM and 10:30 AM when morning sun rays warm the stone courtyard and reduce thermal shock."
+      },
+      {
+        name: "Altitude Pacing & Steady Breathing",
+        desc: "Do not rush up the temple stairs at 3,710m altitude; take slow, steady, measured breaths to prevent dizziness or lightheadedness."
+      },
+      {
+        name: "Post-Bath Internal Warmth",
+        desc: "Drink hot ginger-lemon-honey tea or local garlic soup at the teahouse immediately after bathing to restore core body warmth."
+      }
+    ]
+  },
+  {
+    location: "Ghandruk Gurung Homestay Etiquette",
+    altitude: "1,940 m",
+    tag: "Traditional Village Living",
+    items: [
+      {
+        name: "Homestay Meal Protocol",
+        desc: "Traditional Gurung homestays prepare fresh organic meals (local red rice, gundruk soup, farm greens); place dinner orders by 6:00 PM as village kitchens close early."
+      },
+      {
+        name: "Balcony Sunrise View",
+        desc: "Wake up at 5:45 AM for the majestic golden sunrise hitting the snow peak of Machhapuchhre (Fishtail) and Annapurna South directly from your homestay balcony."
+      },
+      {
+        name: "Night Navigation",
+        desc: "Village stone paths have zero street lights; keep a pocket torch or headlamp handy after dusk."
+      }
+    ]
+  },
+  {
+    location: "Marpha & Kali Gandaki Off-Road Pacing",
+    altitude: "2,670 m",
+    tag: "Riverbed Valley Transitions",
+    items: [
+      {
+        name: "Early Valley Transit Departure",
+        desc: "Travel between Pokhara and Jomsom/Marpha early in the morning (start by 6:00 AM) to cross river sections before midday crosswinds peak at noon."
+      },
+      {
+        name: "Local Apple Delicacies",
+        desc: "Marpha is Nepal's apple capital; visit traditional village bakeries for freshly baked warm apple crumble pie, dried apple crisps, and local cider."
+      }
+    ]
+  },
+  {
+    location: "Pokhara Lakeside & Sacred Caves",
+    altitude: "822 m",
+    tag: "Dawn Viewpoints & Cave Safety",
+    items: [
+      {
+        name: "Sarangkot Sunrise Departure",
+        desc: "Depart Lakeside Pokhara by 5:00 AM sharp for Sarangkot to beat tourist vehicle queues and secure the best platform view for sunrise."
+      },
+      {
+        name: "Cave Wet Stone Footing",
+        desc: "Keep one hand firmly on the metal railing inside Gupteshwar Cave; natural subterranean water droplets make limestone steps very slick."
+      }
+    ]
+  },
+  {
+    location: "Kathmandu Temple Sanctuary Regulations",
+    altitude: "1,400 m",
+    tag: "Heritage Dress Codes & Ethics",
+    items: [
+      {
+        name: "Pashupatinath Sanctum Access",
+        desc: "At Pashupatinath Temple, only Hindus may enter the main sanctum courtyard; all visitors can view the divine Bagmati Maha Aarti from the eastern riverbank."
+      },
+      {
+        name: "Leather Article Deposit",
+        desc: "Leather articles (belts, wallets, bags) must be deposited in the cloakroom outside Pashupatinath inner courtyard."
+      },
+      {
+        name: "Clockwise Circumambulation",
+        desc: "Always circumambulate Boudhanath Stupa in a clockwise direction (pradakshina) and spin prayer wheels in a clockwise direction only."
+      }
+    ]
+  },
+  {
+    location: "Nepal Border Formalities at Raxaul / Birgunj",
+    altitude: "Transit",
+    tag: "Immigration, SIM & Currency",
+    items: [
+      {
+        name: "Border Documentation",
+        desc: "Clear both Indian customs at Raxaul and Nepal immigration at Birgunj with your original Voter ID / Passport before boarding your private cab."
+      },
+      {
+        name: "Local SIM Connectivity",
+        desc: "Pick up an Ncell or Nepal Telecom tourist SIM card right at the border or Thamel for ₹250 with a 20GB data pack for group coordination."
+      },
+      {
+        name: "Currency Exchange Rules",
+        desc: "Exchange Indian ₹100/₹200 notes at standard 1:1.60 fixed rate (₹100 INR = 160 NPR). Strictly do not carry Indian ₹500 notes into Nepal."
+      }
+    ]
+  }
+];
+
 export default function ItineraryPage() {
   const { currentUser } = useUser();
   const [loading, setLoading] = useState(false);
@@ -191,8 +453,12 @@ export default function ItineraryPage() {
     if (hotelCost === 0) hotelCost = Math.round(targetBudget * 0.22);
 
     const mealsCost = Math.round(daysCount * travellers * 230);
-    const permitsCost = Math.round(travellers * 1200);
-    const activitiesCost = Math.round(travellers * 800);
+    // Real ground permits:
+    // 1) ACAP (Annapurna Conservation Area Permit) + TIMS Card for Ghandruk & Annapurna foothills: ~₹1,250/person
+    // 2) Muktinath & Lower Mustang Baragung Muktikshetra Local Municipality Entry & Environment Permit: ~₹400/person
+    // 3) Pashupatinath & Guhyeshwari Temple Tokens: ~₹200/person
+    const permitsCost = Math.round(travellers * 1850);
+    const activitiesCost = Math.round(travellers * 850);
     const subTotal = transitCost + hotelCost + mealsCost + permitsCost + activitiesCost;
     const emergencyBuffer = Math.max(3000, targetBudget > subTotal ? targetBudget - subTotal : Math.round(targetBudget * 0.05));
     const totalGroupCost = Math.min(targetBudget, subTotal + emergencyBuffer);
@@ -205,7 +471,7 @@ export default function ItineraryPage() {
       daysCount,
       nightsCount,
       budgetStatus: totalGroupCost <= targetBudget ? "UNDER_BUDGET" : "BALANCED",
-      summaryNote: `Full-trip comprehensive budget for all ${travellers} travellers covering transit, stays, meals, permits, optional activities, and contingency reserve.`,
+      summaryNote: `Full-trip comprehensive budget for all ${travellers} travellers covering transit, stays, meals, ACAP Ghandruk & Muktinath permits, optional activities, and contingency reserve.`,
       categories: [
         {
           id: "transit",
@@ -239,20 +505,20 @@ export default function ItineraryPage() {
         },
         {
           id: "permits",
-          name: "Permits, Temple Passes & Government Fees",
-          tag: "Mandatory Passes",
+          name: "Permits & Passes (ACAP Ghandruk, Muktinath & Temple Entry)",
+          tag: "Mandatory Permits",
           icon: "FileCheck",
-          description: `Conservation area permits, entry registrations & local municipality environmental passes for ${travellers} travellers.`,
+          description: `All mandatory conservation and local municipality permits: 1) ACAP (Annapurna Conservation Area Permit) & TIMS Card for Ghandruk and Annapurna foothills (~₹1,250/person); 2) Muktinath & Lower Mustang Baragung Muktikshetra Local Municipality Entry Permit & Environmental Pass (~₹400/person); 3) Pashupatinath & Guhyeshwari Temple Tokens (~₹200/person). Full coverage for all ${travellers} travellers.`,
           groupTotal: permitsCost,
           perPerson: Math.round(permitsCost / travellers),
           isOptional: false
         },
         {
           id: "activities",
-          name: "Sightseeing, Boating & Viewpoint Passes",
+          name: "Sightseeing, Cable Car & Viewpoint Passes",
           tag: "Optional Passes",
           icon: "Ticket",
-          description: "Local boat rides, cable car tickets, sunrise viewpoint entry, caves & cultural museum passes.",
+          description: "Manakamana Devi Temple mountain ropeway cable car round-trip, Phewa Lake wooden boat cruise with safety life jackets, Sarangkot mountain sunrise viewpoint pass, Gupteshwar Mahadev Cave, Davis Fall & Gurung Cultural Museum entry passes.",
           groupTotal: activitiesCost,
           perPerson: Math.round(activitiesCost / travellers),
           isOptional: true
@@ -1799,101 +2065,34 @@ export default function ItineraryPage() {
                   </div>
                 )}
 
-                {/* Unified Comprehensive Budget Card */}
-                {(() => {
-                  const compBudget = getComprehensiveTripBudget(result, form);
-                  if (!compBudget) return null;
-
-                  const transitTotal = compBudget.categories?.find((c: any) => c.id === 'transit')?.groupTotal || 0;
-                  const staysTotal = compBudget.categories?.find((c: any) => c.id === 'stays')?.groupTotal || 0;
-                  const mealsTotal = compBudget.categories?.find((c: any) => c.id === 'meals')?.groupTotal || 0;
-                  const passesTotal = (compBudget.categories?.find((c: any) => c.id === 'permits')?.groupTotal || 0) + (compBudget.categories?.find((c: any) => c.id === 'activities')?.groupTotal || 0);
-                  const bufferTotal = compBudget.categories?.find((c: any) => c.id === 'buffer')?.groupTotal || 0;
-
-                  return (
-                    <div className="mb-6 p-5 sm:p-6 bg-gradient-to-r from-emerald-950/40 via-slate-900/70 to-teal-950/40 border border-emerald-500/30 rounded-2xl shadow-xl backdrop-blur-md print:border-black/20 print:bg-gray-50">
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <Receipt className="h-4 w-4 text-emerald-400" /> Comprehensive Trip Budget (Full Group Total)
-                            </span>
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              ✓ All 6 Categories Covered
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-baseline gap-2.5 mt-1.5">
-                            <span className="text-3xl sm:text-4xl font-extrabold text-white font-mono print:text-black">
-                              ₹{compBudget.totalGroupCost.toLocaleString()}
-                            </span>
-                            <span className="text-sm text-slate-300">
-                              Total for {compBudget.travellers} {compBudget.travellers > 1 ? "Travellers" : "Traveller"} (of ₹{compBudget.targetBudget.toLocaleString()} Target)
-                            </span>
-                          </div>
-
-                          <div className="text-xs text-teal-300 font-medium mt-2 flex flex-wrap items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded-full bg-teal-500/15 border border-teal-500/30 text-teal-300 font-semibold font-mono">
-                              ~₹{compBudget.costPerPerson.toLocaleString()} / person
-                            </span>
-                            <span className="text-slate-400 text-xs">
-                              Full {compBudget.daysCount}-day trip total: Transit, Stays, Meals, Permits, Activities & Reserve Buffer
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* All 5 Category Pills */}
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 text-xs">
-                          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-white/10 min-w-[85px]">
-                            <div className="text-slate-400 text-[11px] flex items-center gap-1">
-                              <Train className="h-3 w-3 text-cyan-400" /> Transit
-                            </div>
-                            <div className="font-bold text-white text-sm font-mono mt-0.5">₹{transitTotal.toLocaleString()}</div>
-                          </div>
-                          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-white/10 min-w-[85px]">
-                            <div className="text-slate-400 text-[11px] flex items-center gap-1">
-                              <Hotel className="h-3 w-3 text-teal-400" /> Stays
-                            </div>
-                            <div className="font-bold text-white text-sm font-mono mt-0.5">₹{staysTotal.toLocaleString()}</div>
-                          </div>
-                          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-white/10 min-w-[85px]">
-                            <div className="text-slate-400 text-[11px] flex items-center gap-1">
-                              <Utensils className="h-3 w-3 text-amber-400" /> Meals
-                            </div>
-                            <div className="font-bold text-white text-sm font-mono mt-0.5">₹{mealsTotal.toLocaleString()}</div>
-                          </div>
-                          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-white/10 min-w-[90px]">
-                            <div className="text-slate-400 text-[11px] flex items-center gap-1">
-                              <Ticket className="h-3 w-3 text-purple-400" /> Passes
-                            </div>
-                            <div className="font-bold text-white text-sm font-mono mt-0.5">₹{passesTotal.toLocaleString()}</div>
-                          </div>
-                          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-white/10 min-w-[85px]">
-                            <div className="text-slate-400 text-[11px] flex items-center gap-1">
-                              <ShieldAlert className="h-3 w-3 text-blue-400" /> Buffer
-                            </div>
-                            <div className="font-bold text-emerald-400 text-sm font-mono mt-0.5">₹{bufferTotal.toLocaleString()}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-                        <span>Verified 100% balanced • Real-world road speeds and room rates</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const el = document.getElementById("comprehensive-group-budget");
-                            el?.scrollIntoView({ behavior: "smooth" });
-                          }}
-                          className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition cursor-pointer"
-                        >
-                          <span>View itemized breakdown</span>
-                          <span>↓</span>
-                        </button>
-                      </div>
+                {/* Compact Top Quick-Link to Comprehensive Budget at Bottom */}
+                <div className="mb-6 px-4 sm:px-5 py-3 bg-gradient-to-r from-slate-900/80 via-emerald-950/30 to-slate-900/80 border border-emerald-500/25 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md shadow-md print:hidden">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 shrink-0">
+                      <Receipt className="h-4 w-4" />
                     </div>
-                  );
-                })()}
+                    <div>
+                      <span className="text-slate-300">
+                        Total Group Budget: <strong className="text-white font-mono font-bold text-sm">₹{Number(result?.budgetBreakdown?.totalGroupCost || result?.targetBudget || form.budget || 120000).toLocaleString()}</strong>
+                      </span>
+                      <span className="text-slate-400 text-[11px] block sm:inline sm:ml-2">
+                        (~₹{Math.round(Number(result?.budgetBreakdown?.totalGroupCost || result?.targetBudget || form.budget || 120000) / (Number(form.travellers) || 8)).toLocaleString()} / person for {form.travellers || 8} travellers)
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById("comprehensive-group-budget");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="flex items-center gap-1.5 font-bold text-emerald-400 hover:text-emerald-300 transition bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl cursor-pointer self-start sm:self-auto shrink-0 shadow-sm"
+                  >
+                    <span>View itemized breakdown</span>
+                    <span className="text-sm">↓</span>
+                  </button>
+                </div>
 
                 {/* Trip Comfort & Friendly Guide Check */}
                 {result?.auditReview && (
@@ -1972,13 +2171,13 @@ export default function ItineraryPage() {
                     onClick={() => setActiveTab('equipments')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'equipments' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
-                    Equipments ({result.equipments?.length || 0})
+                    Equipments ({PLACE_SPECIFIC_EQUIPMENTS.reduce((sum, sec) => sum + sec.items.length, 0)})
                   </button>
                   <button
                     onClick={() => setActiveTab('tips')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'tips' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
-                    Travel Tips ({result.tips?.length || 0})
+                    Travel Tips ({PLACE_SPECIFIC_TIPS.reduce((sum, sec) => sum + sec.items.length, 0)})
                   </button>
                 </div>
 
@@ -2296,18 +2495,64 @@ export default function ItineraryPage() {
 
                 {/* Tab Content: Equipments or Tips */}
                 {(activeTab === 'equipments' || activeTab === 'tips') && (
-                  <div className="bg-slate-950/50 rounded-2xl p-8 border border-white/5 h-full">
-                    <ul className="space-y-4">
-                      {(activeTab === 'equipments' ? result.equipments : result.tips)?.map((item: string, i: number) => (
-                        <li key={i} className="flex items-start gap-3 text-slate-300 text-base">
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </li>
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                      <div>
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                          {activeTab === 'equipments' ? (
+                            <>
+                              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                              <span>Location-Specific Equipment & Packing Checklist</span>
+                            </>
+                          ) : (
+                            <>
+                              <Compass className="h-5 w-5 text-teal-400" />
+                              <span>Place-by-Place Ground Travel Tips & Local Advisories</span>
+                            </>
+                          )}
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Tailored precisely for your route through Kathmandu, Pokhara, Marpha, Muktinath, and Ghandruk
+                        </p>
+                      </div>
+
+                      <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full self-start sm:self-auto">
+                        ✓ 6 Specific Route Locations
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(activeTab === 'equipments' ? PLACE_SPECIFIC_EQUIPMENTS : PLACE_SPECIFIC_TIPS).map((sec, secIdx) => (
+                        <div
+                          key={secIdx}
+                          className="rounded-2xl border border-white/10 bg-slate-950/60 p-5 space-y-3.5 backdrop-blur-md hover:border-emerald-500/30 transition shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-white/10">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-bold text-white">{sec.location}</h4>
+                              </div>
+                              <span className="text-[11px] font-mono text-emerald-400 mt-0.5 block">{sec.tag}</span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/5 border border-white/10 text-slate-300 shrink-0">
+                              {sec.altitude}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {sec.items.map((item, itemIdx) => (
+                              <div key={itemIdx} className="flex items-start gap-2.5 text-xs">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                                <div className="space-y-0.5">
+                                  <strong className="text-white block font-semibold">{item.name}</strong>
+                                  <p className="text-slate-300 text-[11px] leading-relaxed">{item.desc}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       ))}
-                      {!(activeTab === 'equipments' ? result.equipments : result.tips)?.length && (
-                        <p className="text-slate-500 text-center py-10">No specific items listed.</p>
-                      )}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </div>

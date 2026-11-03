@@ -1129,20 +1129,20 @@ Return ONLY a valid JSON object matching this schema:
         },
         {
           id: "permits",
-          name: "Permits, Temple Passes & Government Fees",
-          tag: "Mandatory Passes",
+          name: "Permits & Passes (ACAP Ghandruk, Muktinath & Temple Entry)",
+          tag: "Mandatory Permits",
           icon: "FileCheck",
-          description: `Conservation area permits, entry registrations & local municipality environmental passes for ${numTravellers} travellers.`,
+          description: `All mandatory conservation and local municipality permits: 1) ACAP (Annapurna Conservation Area Permit) & TIMS Card for Ghandruk and Annapurna foothills (~₹1,250/person); 2) Muktinath & Lower Mustang Baragung Muktikshetra Local Municipality Entry Permit & Environmental Pass (~₹400/person); 3) Pashupatinath & Guhyeshwari Temple Tokens (~₹200/person). Full coverage for all ${numTravellers} travellers.`,
           groupTotal: permitsCost,
           perPerson: Math.round(permitsCost / numTravellers),
           isOptional: false
         },
         {
           id: "activities",
-          name: "Sightseeing, Boating & Viewpoint Passes",
+          name: "Sightseeing, Cable Car & Viewpoint Passes",
           tag: "Optional Passes",
           icon: "Ticket",
-          description: "Local boat rides, cable car tickets, sunrise viewpoint entry, caves & cultural museum passes.",
+          description: "Manakamana Devi Temple mountain ropeway cable car round-trip, Phewa Lake wooden boat cruise with safety life jackets, Sarangkot mountain sunrise viewpoint pass, Gupteshwar Mahadev Cave, Davis Fall & Gurung Cultural Museum entry passes.",
           groupTotal: activitiesCost,
           perPerson: Math.round(activitiesCost / numTravellers),
           isOptional: true
