@@ -507,6 +507,66 @@ export default function ItineraryPage() {
       }));
     }
 
+    // Auto-save sync if already tracking a saved itinerary in database
+    if (savedItineraryId) {
+      fetch("/api/itinerary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: savedItineraryId,
+          userId: currentUser?.id || null,
+          groupId: linkedGroup?.id || null,
+          title: `Trip: ${updatedPlan.origin || form.origin} ➔ ${updatedPlan.destination || form.destination} (${updatedPlan.nightsCount || form.nights}N / ${Number(updatedPlan.daysCount || form.nights) + 1}D)`,
+          origin: updatedPlan.origin || form.origin,
+          destination: updatedPlan.destination || form.destination,
+          startDate: updatedPlan.startDate || form.startDate,
+          endDate: updatedPlan.endDate || form.endDate,
+          days: Number(updatedPlan.daysCount || (Array.isArray(updatedPlan.days) ? updatedPlan.days.length : Number(form.nights) + 1)),
+          groupSize: Number(updatedPlan.travellers || form.travellers) || 1,
+          totalBudget: Number(updatedPlan.targetBudget || form.budget) || 0,
+          preferences: {
+            stayBudget: form.stayBudget,
+            stayPreference: form.stayPreference,
+            groupType: form.groupType,
+            trainClass: form.trainClass,
+            busClass: form.busClass,
+            flightClass: form.flightClass,
+            transport: {
+              train: form.transportTrain,
+              bus: form.transportBus,
+              flight: form.transportFlight,
+              road: form.transportRoad
+            }
+          },
+          planData: updatedPlan,
+          chatSession: chatMessages
+        })
+      })
+        .then(async (res) => {
+          const json = await res.json();
+          if (json.ok && json.itinerary) {
+            setSavedTripsList((prev) => {
+              const filtered = prev.filter((item) => item.id !== json.itinerary.id);
+              return [json.itinerary, ...filtered];
+            });
+          }
+        })
+        .catch((e) => console.warn("Auto-save sync error:", e));
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          "splitrupee_last_active_itinerary",
+          JSON.stringify({
+            plan: updatedPlan,
+            chatSession: chatMessages,
+            savedItineraryId
+          })
+        );
+      } catch {}
+    }
+
     setSaveToast("✓ Itinerary updated from Copilot! All days & costs refreshed.");
     setTimeout(() => setSaveToast(null), 4000);
   };
@@ -2206,6 +2266,8 @@ export default function ItineraryPage() {
                 onClose={() => setIsCopilotOpen(false)}
                 initialMessages={chatMessages}
                 onMessagesChange={(msgs) => setChatMessages(msgs)}
+                onSavePlan={handleSaveItinerary}
+                isSaving={isSaving}
               />
             </motion.div>
           </div>

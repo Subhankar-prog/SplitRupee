@@ -29,7 +29,43 @@ export async function GET(req: Request) {
       if (!single) {
         return NextResponse.json({ ok: false, error: "Itinerary not found" }, { status: 404 });
       }
-      return NextResponse.json({ ok: true, itinerary: single });
+
+      let parsedPlan: any = null;
+      let parsedPrefs: any = null;
+      try {
+        parsedPlan = typeof single.planData === "string" ? JSON.parse(single.planData) : single.planData;
+      } catch {
+        parsedPlan = null;
+      }
+      try {
+        parsedPrefs = typeof single.preferences === "string" ? JSON.parse(single.preferences) : single.preferences;
+      } catch {
+        parsedPrefs = null;
+      }
+
+      return NextResponse.json({
+        ok: true,
+        itinerary: {
+          id: single.id,
+          userId: single.userId,
+          groupId: single.groupId,
+          title: single.title,
+          origin: single.origin,
+          destination: single.destination,
+          startDate: single.startDate.toISOString().split("T")[0],
+          endDate: single.endDate.toISOString().split("T")[0],
+          days: single.days,
+          groupSize: single.groupSize,
+          totalBudget: single.totalBudget,
+          preferences: parsedPrefs,
+          group: single.group,
+          user: single.user,
+          createdAt: single.createdAt.toISOString(),
+          updatedAt: single.updatedAt.toISOString(),
+          planData: parsedPlan,
+          chatSession: parsedPlan?.chatSession || []
+        }
+      });
     }
 
     const where: any = {};
@@ -246,13 +282,32 @@ export async function POST(req: Request) {
       }
     }
 
+    let parsedSavedPrefs: any = null;
+    try {
+      parsedSavedPrefs = typeof saved.preferences === "string" ? JSON.parse(saved.preferences) : saved.preferences;
+    } catch {
+      parsedSavedPrefs = preferences;
+    }
+
     return NextResponse.json({
       ok: true,
       itinerary: {
         id: saved.id,
-        title: saved.title,
+        userId: saved.userId,
         groupId: saved.groupId,
+        title: saved.title,
+        origin: saved.origin,
+        destination: saved.destination,
+        startDate: saved.startDate.toISOString().split("T")[0],
+        endDate: saved.endDate.toISOString().split("T")[0],
+        days: saved.days,
+        groupSize: saved.groupSize,
+        totalBudget: saved.totalBudget,
+        preferences: parsedSavedPrefs,
+        createdAt: saved.createdAt.toISOString(),
         updatedAt: saved.updatedAt.toISOString(),
+        planData: completePlanData,
+        chatSession: completePlanData.chatSession || [],
         message: forwardToGroupId
           ? "Itinerary and Copilot chat successfully forwarded to your travel group!"
           : "Itinerary and chat session saved successfully!"

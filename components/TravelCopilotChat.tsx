@@ -16,7 +16,9 @@ import {
   X,
   MessageSquare,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  Bookmark,
+  BookmarkCheck
 } from "lucide-react";
 
 export interface ChatMessage {
@@ -55,6 +57,8 @@ interface TravelCopilotChatProps {
   onApplyPlanUpdate?: (updatedPlan: any) => void;
   initialMessages?: ChatMessage[];
   onMessagesChange?: (messages: ChatMessage[]) => void;
+  onSavePlan?: () => void;
+  isSaving?: boolean;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -87,7 +91,9 @@ export default function TravelCopilotChat({
   onClose,
   onApplyPlanUpdate,
   initialMessages,
-  onMessagesChange
+  onMessagesChange,
+  onSavePlan,
+  isSaving = false
 }: TravelCopilotChatProps) {
   const activeStartDate = startDate || formData?.startDate;
   const activeEndDate = endDate || formData?.endDate;
@@ -260,7 +266,7 @@ export default function TravelCopilotChat({
   };
 
   return (
-    <div className="travel-copilot-modal-card flex flex-col h-[600px] w-full rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
+    <div className="travel-copilot-modal-card flex flex-col h-[600px] max-h-[88vh] w-full rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="travel-copilot-header flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/60">
         <div className="travel-copilot-header-info flex items-center gap-3">
@@ -284,14 +290,39 @@ export default function TravelCopilotChat({
           </div>
         </div>
 
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="travel-copilot-close-button rounded-xl bg-white/5 p-2 text-slate-400 hover:text-white hover:bg-white/10 transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {onSavePlan && (
+            <button
+              type="button"
+              onClick={onSavePlan}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-semibold transition disabled:opacity-50 cursor-pointer shadow-sm"
+              title="Save updated itinerary & AI conversation"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Bookmark className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Save Trip & Chat</span>
+                  <span className="sm:hidden">Save</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="travel-copilot-close-button rounded-xl bg-white/5 p-2 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Friendly Trip Comfort Ribbon */}
