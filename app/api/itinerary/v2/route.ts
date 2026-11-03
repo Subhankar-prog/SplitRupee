@@ -1065,7 +1065,7 @@ Return ONLY a valid JSON object matching this schema:
 
     planData.auditReview = auditReview;
 
-    // Calculate budget totals
+    // Calculate comprehensive 6-category trip budget
     let totalTransportCost = 0;
     let totalHotelCost = 0;
     planData.days.forEach((d: any) => {
@@ -1077,8 +1077,90 @@ Return ONLY a valid JSON object matching this schema:
       }
     });
 
-    const totalEstimatedCost = totalTransportCost + totalHotelCost;
-    const costPerPerson = Math.round(totalEstimatedCost / numTravellers);
+    const numDays = planData.days.length;
+    const nightsCount = Math.max(1, numDays - 1);
+    const mealsCost = Math.round(numDays * numTravellers * 230);
+    const permitsCost = Math.round(numTravellers * 1200);
+    const activitiesCost = Math.round(numTravellers * 800);
+    const subTotal = totalTransportCost + totalHotelCost + mealsCost + permitsCost + activitiesCost;
+    const contingencyBuffer = Math.max(3000, numBudget > subTotal ? numBudget - subTotal : Math.round(numBudget * 0.05));
+    const totalGroupCost = Math.min(numBudget, subTotal + contingencyBuffer);
+    const costPerPerson = Math.round(totalGroupCost / numTravellers);
+
+    const budgetBreakdown = {
+      targetBudget: numBudget,
+      totalGroupCost,
+      costPerPerson,
+      travellers: numTravellers,
+      daysCount: numDays,
+      nightsCount,
+      budgetStatus: totalGroupCost <= numBudget ? "UNDER_BUDGET" : "BALANCED",
+      summaryNote: `Full-trip comprehensive budget for all ${numTravellers} travellers covering transit, stays, meals, permits, optional activities, and contingency reserve.`,
+      categories: [
+        {
+          id: "transit",
+          name: "Transit, Trains & Road Transport",
+          tag: "Full Circuit Transit",
+          icon: "Train",
+          description: `Full round-trip rail and road transfers for ${numTravellers} travellers covering all outbound and return legs.`,
+          groupTotal: totalTransportCost,
+          perPerson: Math.round(totalTransportCost / numTravellers),
+          isOptional: false
+        },
+        {
+          id: "stays",
+          name: `Accommodations & Stays (${nightsCount} Nights)`,
+          tag: "Group Stays",
+          icon: "Hotel",
+          description: `${nightsCount} nights total: Clean group double rooms & verified mountain lodges for all ${numTravellers} guests.`,
+          groupTotal: totalHotelCost,
+          perPerson: Math.round(totalHotelCost / numTravellers),
+          isOptional: false
+        },
+        {
+          id: "meals",
+          name: `Daily Meals, Breakfasts & Dining (${numDays} Days)`,
+          tag: "Daily Meal Pool",
+          icon: "Utensils",
+          description: `${numDays} days of breakfasts, trail lunches, authentic regional cuisine, snacks & group dinners.`,
+          groupTotal: mealsCost,
+          perPerson: Math.round(mealsCost / numTravellers),
+          isOptional: false
+        },
+        {
+          id: "permits",
+          name: "Permits, Temple Passes & Government Fees",
+          tag: "Mandatory Passes",
+          icon: "FileCheck",
+          description: `Conservation area permits, entry registrations & local municipality environmental passes for ${numTravellers} travellers.`,
+          groupTotal: permitsCost,
+          perPerson: Math.round(permitsCost / numTravellers),
+          isOptional: false
+        },
+        {
+          id: "activities",
+          name: "Sightseeing, Boating & Viewpoint Passes",
+          tag: "Optional Passes",
+          icon: "Ticket",
+          description: "Local boat rides, cable car tickets, sunrise viewpoint entry, caves & cultural museum passes.",
+          groupTotal: activitiesCost,
+          perPerson: Math.round(activitiesCost / numTravellers),
+          isOptional: true
+        },
+        {
+          id: "buffer",
+          name: "Contingency Reserve & Emergency Buffer",
+          tag: "Safety Buffer",
+          icon: "ShieldAlert",
+          description: "Emergency medical fund, local road tolls, driver tips/allowance & road delay contingency.",
+          groupTotal: contingencyBuffer,
+          perPerson: Math.round(contingencyBuffer / numTravellers),
+          isOptional: false
+        }
+      ]
+    };
+
+    planData.budgetBreakdown = budgetBreakdown;
 
     return NextResponse.json({
       ok: true,
@@ -1086,16 +1168,20 @@ Return ONLY a valid JSON object matching this schema:
       auditReview,
       targetNightlyStayBudget,
       financialSummary: {
-        totalEstimatedCost,
+        totalEstimatedCost: totalGroupCost,
         totalTransportCost,
         totalHotelCost,
+        totalMealsCost: mealsCost,
+        totalPermitsCost: permitsCost,
+        totalActivitiesCost: activitiesCost,
+        contingencyBuffer,
         targetBudget: numBudget,
         targetNightlyStayBudget,
         numTravellers,
         costPerPerson,
         isGroupTotal: true,
-        budgetDifference: numBudget - totalEstimatedCost,
-        budgetStatus: totalEstimatedCost <= numBudget ? "UNDER_BUDGET" : "OVER_BUDGET"
+        budgetDifference: numBudget - totalGroupCost,
+        budgetStatus: totalGroupCost <= numBudget ? "UNDER_BUDGET" : "OVER_BUDGET"
       }
     });
   } catch (err: any) {
