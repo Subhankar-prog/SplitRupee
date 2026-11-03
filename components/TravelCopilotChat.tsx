@@ -216,25 +216,36 @@ export default function TravelCopilotChat({
   };
 
   const handleApproveModification = (msgId: string, mod: any) => {
-    if (!currentPlan) return;
+    if (!mod) return;
 
-    let updatedDays = currentPlan.days || [];
-    if (mod.updatedPlan?.days) {
+    const basePlan = currentPlan || {
+      origin: origin || formData?.origin || "Bhubaneswar",
+      destination: destination || formData?.destination || "Nepal",
+      startDate: startDate || formData?.startDate || "",
+      endDate: endDate || formData?.endDate || "",
+      daysCount: mod.updatedDays?.length || mod.updatedPlan?.days?.length || 10,
+      nightsCount: Math.max(1, (mod.updatedDays?.length || mod.updatedPlan?.days?.length || 10) - 1),
+      targetBudget: Number(budget || formData?.budget || 120000),
+      travellers: Number(travellers || formData?.travellers || 8),
+      days: []
+    };
+
+    let updatedDays = basePlan.days || [];
+    if (mod.updatedPlan?.days && Array.isArray(mod.updatedPlan.days)) {
       updatedDays = mod.updatedPlan.days;
-    } else if (Array.isArray(mod.updatedDays)) {
+    } else if (Array.isArray(mod.updatedDays) && mod.updatedDays.length > 0) {
       updatedDays = mod.updatedDays;
     } else if (mod.updatedDay) {
-      const targetDay = Number(mod.dayNumber);
-      updatedDays = currentPlan.days.map((d: any) => {
-        if (Number(d.day) === targetDay) {
-          return mod.updatedDay;
-        }
-        return d;
-      });
+      const targetDay = Number(mod.dayNumber || mod.updatedDay.day || 1);
+      if (updatedDays.length > 0) {
+        updatedDays = updatedDays.map((d: any) => (Number(d.day || d.dayNumber) === targetDay ? mod.updatedDay : d));
+      } else {
+        updatedDays = [mod.updatedDay];
+      }
     }
 
     const newPlan = {
-      ...currentPlan,
+      ...basePlan,
       ...(mod.updatedPlan || {}),
       days: updatedDays
     };
@@ -364,8 +375,9 @@ export default function TravelCopilotChat({
                     {!msg.isApplied ? (
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={() => handleApproveModification(msg.id, msg.proposedModification)}
-                          className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md shadow-emerald-500/20"
+                          className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md shadow-emerald-500/20 cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5" /> Approve & Update Itinerary
                         </button>

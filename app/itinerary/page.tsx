@@ -330,29 +330,50 @@ export default function ItineraryPage() {
   };
 
   const handlePlanUpdate = (updatedPlan: any) => {
+    if (!updatedPlan) return;
     setResult(updatedPlan);
+
     let totalTransport = 0;
     let totalHotel = 0;
-    updatedPlan.days?.forEach((d: any) => {
-      d.legs?.forEach((l: any) => {
-        totalTransport += Number(l.cost) || 0;
+    if (Array.isArray(updatedPlan.days)) {
+      updatedPlan.days.forEach((d: any) => {
+        if (Array.isArray(d.legs)) {
+          d.legs.forEach((l: any) => {
+            totalTransport += Number(l.cost) || 0;
+          });
+        }
+        if (d.hotelDetails?.costPerNight) {
+          totalHotel += Number(d.hotelDetails.costPerNight) || 0;
+        }
       });
-      if (d.hotelDetails?.costPerNight) {
-        totalHotel += Number(d.hotelDetails.costPerNight) || 0;
-      }
-    });
+    }
+
     const totalEst = totalTransport + totalHotel;
-    const travellers = Math.max(1, Number(form.travellers) || 1);
-    const targetBudget = Number(form.budget) || 30000;
+    const travellers = Math.max(1, Number(form.travellers) || Number(updatedPlan.travellers) || 1);
+    const targetBudget = Number(form.budget) || Number(updatedPlan.targetBudget) || 120000;
+
     setFinancialSummary((prev: any) => ({
       ...prev,
       totalEstimatedCost: totalEst,
       totalTransportCost: totalTransport,
       totalHotelCost: totalHotel,
+      targetBudget: targetBudget,
       costPerPerson: Math.round(totalEst / travellers),
       budgetDifference: targetBudget - totalEst,
       budgetStatus: totalEst <= targetBudget ? "UNDER_BUDGET" : "OVER_BUDGET"
     }));
+
+    if (updatedPlan.origin || updatedPlan.destination) {
+      setForm((prev) => ({
+        ...prev,
+        origin: updatedPlan.origin || prev.origin,
+        destination: updatedPlan.destination || prev.destination,
+        nights: updatedPlan.nightsCount || (Array.isArray(updatedPlan.days) ? updatedPlan.days.length - 1 : prev.nights)
+      }));
+    }
+
+    setSaveToast("✓ Itinerary updated from Copilot! All days & costs refreshed.");
+    setTimeout(() => setSaveToast(null), 4000);
   };
 
   // 1. Save Itinerary and its Chat Session
@@ -1589,16 +1610,16 @@ export default function ItineraryPage() {
                         </div>
                         <div className="flex items-baseline gap-2 mt-1">
                           <span className="text-3xl font-extrabold text-white print:text-black">
-                            ₹{financialSummary.totalEstimatedCost.toLocaleString()}
+                            ₹{(financialSummary.totalEstimatedCost || 0).toLocaleString()}
                           </span>
                           <span className="text-sm text-slate-400">
-                            Total for {form.travellers} {form.travellers > 1 ? "Travellers" : "Traveller"} (of ₹{financialSummary.targetBudget.toLocaleString()} Target)
+                            Total for {form.travellers || 1} {(form.travellers || 1) > 1 ? "Travellers" : "Traveller"} (of ₹{(financialSummary.targetBudget || Number(form.budget) || 0).toLocaleString()} Target)
                           </span>
                         </div>
-                        {form.travellers > 1 && (
+                        {(form.travellers || 1) > 1 && (
                           <div className="text-xs text-teal-400 font-medium mt-1.5 flex items-center gap-2">
                             <span className="px-2.5 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-300">
-                              ~₹{Math.round(financialSummary.totalEstimatedCost / form.travellers).toLocaleString()} / person
+                              ~₹{Math.round((financialSummary.totalEstimatedCost || 0) / (form.travellers || 1)).toLocaleString()} / person
                             </span>
                             <span className="text-slate-400 text-xs">Full group total shown above (not pre-split)</span>
                           </div>
@@ -1608,16 +1629,16 @@ export default function ItineraryPage() {
                       <div className="flex items-center gap-4 text-xs text-slate-300 print:text-gray-700">
                         <div className="p-2.5 bg-slate-950/50 rounded-xl border border-white/5">
                           <div className="text-slate-400">Transfers</div>
-                          <div className="font-bold text-white text-sm">₹{financialSummary.totalTransportCost.toLocaleString()}</div>
+                          <div className="font-bold text-white text-sm">₹{(financialSummary.totalTransportCost || 0).toLocaleString()}</div>
                         </div>
                         <div className="p-2.5 bg-slate-950/50 rounded-xl border border-white/5">
                           <div className="text-slate-400">Stays</div>
-                          <div className="font-bold text-white text-sm">₹{financialSummary.totalHotelCost.toLocaleString()}</div>
+                          <div className="font-bold text-white text-sm">₹{(financialSummary.totalHotelCost || 0).toLocaleString()}</div>
                         </div>
                         <div className="p-2.5 bg-slate-950/50 rounded-xl border border-white/5">
                           <div className="text-slate-400">Remaining</div>
-                          <div className={`font-bold text-sm ${financialSummary.budgetDifference >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            ₹{Math.abs(financialSummary.budgetDifference).toLocaleString()}
+                          <div className={`font-bold text-sm ${(financialSummary.budgetDifference || 0) >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            ₹{Math.abs(financialSummary.budgetDifference || 0).toLocaleString()}
                           </div>
                         </div>
                       </div>
