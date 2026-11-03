@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getVerifiedGroundData, getVerifiedHotelForBudget, getOptimalGroupAccommodation, isDemoPhoneNumber } from "@/lib/localGroundData";
 import { getVerifiedTrainsForRoute, getVerifiedRoutePlan } from "@/lib/irctcData";
+import { getDestinationPermitsAndActivities, getDynamicPlaceSections } from "@/lib/destinationGroundEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -568,30 +569,34 @@ function generateDynamicFallback(body: any, maxNightlyBudget: number) {
     });
   }
 
-  const tips = [
-    `Ideal for ${group} looking for a balanced pace in ${destination}.`,
-    "Always utilize official prepaid taxi booths at stations/airports for regulated fares.",
-    "Check operational hours of key sightseeing monuments to avoid peak queue times.",
-    "Keep sufficient cash for local vendors where digital QR payments have network issues.",
-    "Verify train/flight PNR status 24 hours prior to departure."
-  ];
+  // Dynamic place-specific equipment and travel tips tailored to destination
+  const dynamicGear = getDynamicPlaceSections("equipments", { destination, origin, days }, destination);
+  const flattenedEquipments: string[] = [];
+  dynamicGear.forEach((sec) => {
+    sec.items.forEach((item) => {
+      flattenedEquipments.push(`[${sec.location}]: ${item.name} — ${item.desc}`);
+    });
+  });
+
+  const dynamicTips = getDynamicPlaceSections("tips", { destination, origin, days }, destination);
+  const flattenedTips: string[] = [];
+  dynamicTips.forEach((sec) => {
+    sec.items.forEach((item) => {
+      flattenedTips.push(`[${sec.location}]: ${item.name} — ${item.desc}`);
+    });
+  });
 
   if (groundData?.generalHelplines) {
     groundData.generalHelplines.forEach((h) => {
-      tips.push(`Verified Helpline: ${h.name} — ${h.number}`);
+      flattenedTips.push(`[Helpline]: ${h.name} — ${h.number}`);
     });
   }
 
   return {
-    equipments: [
-      "Comfortable Walking / Trekking Shoes",
-      "Power Bank (10,000+ mAh) and charging cables",
-      "Valid Government ID proof (Aadhaar / Passport / Voter ID)",
-      "Layered clothing appropriate for destination climate",
-      "Lightweight travel backpack & reusable water bottle",
-      "Personal medicine kit with essentials & ORS"
-    ],
-    tips,
+    placeGear: dynamicGear,
+    placeTips: dynamicTips,
+    equipments: flattenedEquipments,
+    tips: flattenedTips,
     days
   };
 }
@@ -752,8 +757,8 @@ ${groundData.generalHelplines.map((gh) => `- ${gh.name}: ${gh.number}`).join("\n
     }
 
     const schemaStr = `{
-  "equipments": ["string"],
-  "tips": ["string"],
+  "equipments": ["string (place-tagged, format: '[Location / Stop]: Specific Item — Practical reason why required at this specific place')"],
+  "tips": ["string (place-tagged, format: '[Location / Stop]: Tip Title — Real-world practical advice for this specific place')"],
   "days": [
     {
       "day": 1,
@@ -867,7 +872,14 @@ CRITICAL STRICT RULES ON ROUND-TRIP COMPLETION, ROOM CAPACITY, & ROAD TRANSIT RE
    - For consecutive transit legs: The departure of leg 2 MUST be AFTER the arrival of leg 1 + minimum transfer buffer!
    - Arriving at border station at 14:00 and departing at 10:10 or 13:20 is physically impossible.
    - For Raxaul (RXL) to Howrah (HWH), the genuine evening train is #13044 (departs 21:00, arrives 12:15 Next Day).
-9. Return ONLY valid JSON in the exact schema provided.
+9. DYNAMIC PLACE-BY-PLACE EQUIPMENTS & TRAVEL TIPS (ZERO GENERIC FILLER):
+   - For every key stop and region on this trip from "${origin}" to "${destination}", generate location-specific items in "equipments" and "tips".
+   - Format: "[Location]: Item/Tip Name — Practical reason/guidance for this specific location".
+   - For high-altitude/mountain stops: thermal innerwear, down jacket, wind shell, altitude medicine (Diamox), high-traction footwear, hydration.
+   - For coastal/beach stops: waterproof phone pouches, UV rash guards, reef-safe sunscreen, dry bags, water sandals.
+   - For cultural/heritage stops: modest attire, slip-on shoes for temple circumambulation, cash for tokens, hydration.
+   - For transit/border legs: original photo IDs, physical small currency, travel blankets, local SIM tips.
+10. Return ONLY valid JSON in the exact schema provided.
 
 SCHEMA:
 ${schemaStr}`;
@@ -974,8 +986,8 @@ Return ONLY a valid JSON object matching this schema:
     ]
   },
   "plan": {
-    "equipments": ["string"],
-    "tips": ["string"],
+    "equipments": ["string (place-tagged, format: '[Location / Stop]: Specific Item — Practical reason')"],
+    "tips": ["string (place-tagged, format: '[Location / Stop]: Tip Title — Real-world practical advice')"],
     "days": [
       ...corrected days matching draft schema...
     ]
@@ -1080,8 +1092,11 @@ Return ONLY a valid JSON object matching this schema:
     const numDays = planData.days.length;
     const nightsCount = Math.max(1, numDays - 1);
     const mealsCost = Math.round(numDays * numTravellers * 230);
-    const permitsCost = Math.round(numTravellers * 1200);
-    const activitiesCost = Math.round(numTravellers * 800);
+
+    // Dynamic destination-specific permits and activities calculation for ANY place
+    const destGround = getDestinationPermitsAndActivities(dest, numTravellers);
+    const permitsCost = Math.round(numTravellers * destGround.approxPerPersonPermitCost);
+    const activitiesCost = Math.round(numTravellers * destGround.approxPerPersonActivityCost);
     const subTotal = totalTransportCost + totalHotelCost + mealsCost + permitsCost + activitiesCost;
     const contingencyBuffer = Math.max(3000, numBudget > subTotal ? numBudget - subTotal : Math.round(numBudget * 0.05));
     const totalGroupCost = Math.min(numBudget, subTotal + contingencyBuffer);
@@ -1095,7 +1110,7 @@ Return ONLY a valid JSON object matching this schema:
       daysCount: numDays,
       nightsCount,
       budgetStatus: totalGroupCost <= numBudget ? "UNDER_BUDGET" : "BALANCED",
-      summaryNote: `Full-trip comprehensive budget for all ${numTravellers} travellers covering transit, stays, meals, permits, optional activities, and contingency reserve.`,
+      summaryNote: `Full-trip comprehensive budget for all ${numTravellers} travellers covering transit, stays, meals, ${destGround.permitTag}, optional activities, and contingency reserve.`,
       categories: [
         {
           id: "transit",
@@ -1112,7 +1127,7 @@ Return ONLY a valid JSON object matching this schema:
           name: `Accommodations & Stays (${nightsCount} Nights)`,
           tag: "Group Stays",
           icon: "Hotel",
-          description: `${nightsCount} nights total: Clean group double rooms & verified mountain lodges for all ${numTravellers} guests.`,
+          description: `${nightsCount} nights total: Clean group double rooms & verified local stays for all ${numTravellers} guests.`,
           groupTotal: totalHotelCost,
           perPerson: Math.round(totalHotelCost / numTravellers),
           isOptional: false
@@ -1129,20 +1144,20 @@ Return ONLY a valid JSON object matching this schema:
         },
         {
           id: "permits",
-          name: "Permits & Passes (ACAP Ghandruk, Muktinath & Temple Entry)",
-          tag: "Mandatory Permits",
+          name: destGround.permitName,
+          tag: destGround.permitTag,
           icon: "FileCheck",
-          description: `All mandatory conservation and local municipality permits: 1) ACAP (Annapurna Conservation Area Permit) & TIMS Card for Ghandruk and Annapurna foothills (~₹1,250/person); 2) Muktinath & Lower Mustang Baragung Muktikshetra Local Municipality Entry Permit & Environmental Pass (~₹400/person); 3) Pashupatinath & Guhyeshwari Temple Tokens (~₹200/person). Full coverage for all ${numTravellers} travellers.`,
+          description: destGround.permitDescription,
           groupTotal: permitsCost,
           perPerson: Math.round(permitsCost / numTravellers),
           isOptional: false
         },
         {
           id: "activities",
-          name: "Sightseeing, Cable Car & Viewpoint Passes",
-          tag: "Optional Passes",
+          name: destGround.activitiesName,
+          tag: destGround.activitiesTag,
           icon: "Ticket",
-          description: "Manakamana Devi Temple mountain ropeway cable car round-trip, Phewa Lake wooden boat cruise with safety life jackets, Sarangkot mountain sunrise viewpoint pass, Gupteshwar Mahadev Cave, Davis Fall & Gurung Cultural Museum entry passes.",
+          description: destGround.activitiesDescription,
           groupTotal: activitiesCost,
           perPerson: Math.round(activitiesCost / numTravellers),
           isOptional: true

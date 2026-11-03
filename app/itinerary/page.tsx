@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import TravelCopilotChat, { ChatMessage } from "@/components/TravelCopilotChat";
 import MovieTrailerItineraryLoader from "@/components/MovieTrailerItineraryLoader";
 import ThemeSelect from "@/components/ThemeSelect";
@@ -60,268 +60,11 @@ import {
   Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const PLACE_SPECIFIC_EQUIPMENTS = [
-  {
-    location: "Muktinath Temple & 108 Sacred Spouts",
-    altitude: "3,710 m",
-    tag: "High-Altitude Sacred Shrine",
-    items: [
-      {
-        name: "High-Altitude Thermal Innerwear (Top + Bottom)",
-        desc: "Merino wool or synthetic thermal base layers for sub-freezing morning chills (0°C to 5°C)."
-      },
-      {
-        name: "Quick-Dry Microfiber Towel & Dry Clothes Change",
-        desc: "Essential immediately after taking the holy dip/run under the 108 sacred icy waterspouts (Muktidhara) and two Kunda pools."
-      },
-      {
-        name: "Down Jacket or Heavy Wind Shell",
-        desc: "To put on immediately post-dip while offering prayers inside the inner sanctum to prevent hypothermia."
-      },
-      {
-        name: "Warm Woollen Beanie, Ear Muffs & Fleece Gloves",
-        desc: "Protects head, ears, and hands against biting trans-Himalayan crosswinds."
-      },
-      {
-        name: "Slip-On Rubber Footwear & Extra Dry Woollen Socks",
-        desc: "Easy to slip on/off with wet feet around the cold stone temple courtyards."
-      },
-      {
-        name: "Diamox (Acetazolamide 250mg) & Electrolyte Packets (ORS)",
-        desc: "Basic altitude acclimatization and hydration aid for ascending above 3,500m."
-      }
-    ]
-  },
-  {
-    location: "Ghandruk Gurung Heritage Village",
-    altitude: "1,940 m",
-    tag: "Gurung Stone Steps & High Vistas",
-    items: [
-      {
-        name: "Collapsible Trekking Poles (Pair)",
-        desc: "Critical knee and joint support for ascending and descending 2,000+ uneven stone steps in the Gurung village."
-      },
-      {
-        name: "Insulated Stainless Steel Thermos Flask (750ml–1L)",
-        desc: "To carry hot boiled water in village homestays (tap water is freezing and untreated)."
-      },
-      {
-        name: "High-Capacity Power Bank (20,000mAh)",
-        desc: "Traditional village homestays rely on shared solar/hydro power points with limited charging sockets."
-      },
-      {
-        name: "Sturdy Grip Ankle-Support Walking Shoes",
-        desc: "Prevents slips and ankle roll on steep wet flagstone village paths."
-      },
-      {
-        name: "Nepali Rupee (NPR) Physical Cash",
-        desc: "Traditional village lodges, tea stalls, and the Gurung Museum do NOT have UPI or card POS machines."
-      }
-    ]
-  },
-  {
-    location: "Marpha Apple Village & Kali Gandaki Valley",
-    altitude: "2,670 m",
-    tag: "Trans-Himalayan Riverbed Gorge",
-    items: [
-      {
-        name: "Heavy Windproof Shell Jacket",
-        desc: "Powerful Kali Gandaki valley gale-force crosswinds blow daily between 11:00 AM and 4:00 PM."
-      },
-      {
-        name: "UV400 Polarized Sunglasses",
-        desc: "Shields eyes from intense high-altitude UV radiation reflecting off white limestone riverbeds and rocky valley walls."
-      },
-      {
-        name: "Motion Sickness Tablets (Avomine / Ondansetron)",
-        desc: "Essential for the rugged, unpaved off-road 4WD riverbed jeep track along Rupse Waterfall."
-      },
-      {
-        name: "UV-Protection Lip Balm & Moisturizer",
-        desc: "Dry mountain winds cause painful cracked lips and dry skin within hours."
-      }
-    ]
-  },
-  {
-    location: "Pokhara Valley (Phewa Lake, Sarangkot & Caves)",
-    altitude: "822 m",
-    tag: "Lakeside, Caves & Viewpoints",
-    items: [
-      {
-        name: "Waterproof Compact LED Headlamp or Mini Torch",
-        desc: "Necessary for navigating inside the dark, damp limestone cavern of Gupteshwar Mahadev Cave."
-      },
-      {
-        name: "Slip-Resistant Grip Footwear",
-        desc: "Wet, slippery steps inside Gupteshwar Cave and mist-covered walkways at Davis Fall (Patale Chhango)."
-      },
-      {
-        name: "Lightweight Windbreaker Jacket",
-        desc: "For breezy 5:00 AM Sarangkot viewpoint platform overlooking Annapurna range at dawn."
-      },
-      {
-        name: "Waterproof Phone Pouch",
-        desc: "Protects smartphones, wallets, and documents during Phewa Lake wooden boat cruising."
-      }
-    ]
-  },
-  {
-    location: "Kathmandu Valley (Pashupatinath & Heritage Stupas)",
-    altitude: "1,400 m",
-    tag: "Sacred Shrines & Heritage Squares",
-    items: [
-      {
-        name: "Modest Temple Attire",
-        desc: "Shoulders, arms, and knees must be covered to enter Pashupatinath & Guhyeshwari Shaktipeeth."
-      },
-      {
-        name: "Easy Slip-On Shoes",
-        desc: "Shoes must be removed multiple times at temple gates, stupa circumambulation paths, and courtyards."
-      },
-      {
-        name: "N95 Anti-Dust Face Mask",
-        desc: "For Kathmandu ring-road traffic, highway dust, and crowded heritage bazaar lanes."
-      },
-      {
-        name: "Cloth Cash/Coin Pouch",
-        desc: "For temple dakshina, Bagmati Maha Aarti offerings, and butter lamp tokens."
-      }
-    ]
-  },
-  {
-    location: "Border & Railway Transit (Bhubaneswar ⇄ Raxaul / Birgunj)",
-    altitude: "Transit",
-    tag: "Immigration & Overland Rail",
-    items: [
-      {
-        name: "Original Physical Voter ID Card or Passport (Original + 3 Xerox Copies)",
-        desc: "Mandatory for all 8 travellers at Raxaul/Birgunj border immigration. (Aadhaar/PAN cards are strictly NOT accepted)."
-      },
-      {
-        name: "4 Passport-Sized Photographs per Person",
-        desc: "For acquiring local Nepal Ncell / Nepal Telecom (NTC) physical SIM cards at border checkpoints."
-      },
-      {
-        name: "Indian ₹100 and ₹200 Denomination Cash Banknotes",
-        desc: "Universally accepted across Nepal. (Indian ₹500 notes are strictly prohibited and illegal)."
-      },
-      {
-        name: "Lightweight Travel Fleece Blanket & Neck Pillow",
-        desc: "For comfortable overnight sleep on the 16.7-hour Mithila Express (13021/13022)."
-      }
-    ]
-  }
-];
-
-const PLACE_SPECIFIC_TIPS = [
-  {
-    location: "Muktinath Temple Dip & Mountain Protocol",
-    altitude: "3,710 m",
-    tag: "Sacred High-Altitude Rituals",
-    items: [
-      {
-        name: "108 Spouts Bath Timing",
-        desc: "Take your holy bath between 7:30 AM and 10:30 AM when morning sun rays warm the stone courtyard and reduce thermal shock."
-      },
-      {
-        name: "Altitude Pacing & Steady Breathing",
-        desc: "Do not rush up the temple stairs at 3,710m altitude; take slow, steady, measured breaths to prevent dizziness or lightheadedness."
-      },
-      {
-        name: "Post-Bath Internal Warmth",
-        desc: "Drink hot ginger-lemon-honey tea or local garlic soup at the teahouse immediately after bathing to restore core body warmth."
-      }
-    ]
-  },
-  {
-    location: "Ghandruk Gurung Homestay Etiquette",
-    altitude: "1,940 m",
-    tag: "Traditional Village Living",
-    items: [
-      {
-        name: "Homestay Meal Protocol",
-        desc: "Traditional Gurung homestays prepare fresh organic meals (local red rice, gundruk soup, farm greens); place dinner orders by 6:00 PM as village kitchens close early."
-      },
-      {
-        name: "Balcony Sunrise View",
-        desc: "Wake up at 5:45 AM for the majestic golden sunrise hitting the snow peak of Machhapuchhre (Fishtail) and Annapurna South directly from your homestay balcony."
-      },
-      {
-        name: "Night Navigation",
-        desc: "Village stone paths have zero street lights; keep a pocket torch or headlamp handy after dusk."
-      }
-    ]
-  },
-  {
-    location: "Marpha & Kali Gandaki Off-Road Pacing",
-    altitude: "2,670 m",
-    tag: "Riverbed Valley Transitions",
-    items: [
-      {
-        name: "Early Valley Transit Departure",
-        desc: "Travel between Pokhara and Jomsom/Marpha early in the morning (start by 6:00 AM) to cross river sections before midday crosswinds peak at noon."
-      },
-      {
-        name: "Local Apple Delicacies",
-        desc: "Marpha is Nepal's apple capital; visit traditional village bakeries for freshly baked warm apple crumble pie, dried apple crisps, and local cider."
-      }
-    ]
-  },
-  {
-    location: "Pokhara Lakeside & Sacred Caves",
-    altitude: "822 m",
-    tag: "Dawn Viewpoints & Cave Safety",
-    items: [
-      {
-        name: "Sarangkot Sunrise Departure",
-        desc: "Depart Lakeside Pokhara by 5:00 AM sharp for Sarangkot to beat tourist vehicle queues and secure the best platform view for sunrise."
-      },
-      {
-        name: "Cave Wet Stone Footing",
-        desc: "Keep one hand firmly on the metal railing inside Gupteshwar Cave; natural subterranean water droplets make limestone steps very slick."
-      }
-    ]
-  },
-  {
-    location: "Kathmandu Temple Sanctuary Regulations",
-    altitude: "1,400 m",
-    tag: "Heritage Dress Codes & Ethics",
-    items: [
-      {
-        name: "Pashupatinath Sanctum Access",
-        desc: "At Pashupatinath Temple, only Hindus may enter the main sanctum courtyard; all visitors can view the divine Bagmati Maha Aarti from the eastern riverbank."
-      },
-      {
-        name: "Leather Article Deposit",
-        desc: "Leather articles (belts, wallets, bags) must be deposited in the cloakroom outside Pashupatinath inner courtyard."
-      },
-      {
-        name: "Clockwise Circumambulation",
-        desc: "Always circumambulate Boudhanath Stupa in a clockwise direction (pradakshina) and spin prayer wheels in a clockwise direction only."
-      }
-    ]
-  },
-  {
-    location: "Nepal Border Formalities at Raxaul / Birgunj",
-    altitude: "Transit",
-    tag: "Immigration, SIM & Currency",
-    items: [
-      {
-        name: "Border Documentation",
-        desc: "Clear both Indian customs at Raxaul and Nepal immigration at Birgunj with your original Voter ID / Passport before boarding your private cab."
-      },
-      {
-        name: "Local SIM Connectivity",
-        desc: "Pick up an Ncell or Nepal Telecom tourist SIM card right at the border or Thamel for ₹250 with a 20GB data pack for group coordination."
-      },
-      {
-        name: "Currency Exchange Rules",
-        desc: "Exchange Indian ₹100/₹200 notes at standard 1:1.60 fixed rate (₹100 INR = 160 NPR). Strictly do not carry Indian ₹500 notes into Nepal."
-      }
-    ]
-  }
-];
+import {
+  getDestinationPermitsAndActivities,
+  getDynamicPlaceSections,
+  type PlaceSection
+} from "@/lib/destinationGroundEngine";
 
 export default function ItineraryPage() {
   const { currentUser } = useUser();
@@ -383,6 +126,19 @@ export default function ItineraryPage() {
     pace: "Moderate",
     specialNotes: ""
   });
+
+  const destinationName = form.destination || result?.destination || "";
+  const placeEquipments: PlaceSection[] = useMemo(() => {
+    return getDynamicPlaceSections("equipments", result, destinationName);
+  }, [result, destinationName]);
+
+  const placeTips: PlaceSection[] = useMemo(() => {
+    return getDynamicPlaceSections("tips", result, destinationName);
+  }, [result, destinationName]);
+
+  const totalEquipmentsCount = placeEquipments.reduce((sum, sec) => sum + sec.items.length, 0);
+  const totalTipsCount = placeTips.reduce((sum, sec) => sum + sec.items.length, 0);
+  const currentPlaceSections = activeTab === "equipments" ? placeEquipments : placeTips;
 
   const DUMMY_WORDS = [
     "demo", "test", "testing", "sample", "example", "dummy", "fake",
@@ -452,13 +208,12 @@ export default function ItineraryPage() {
     if (transitCost === 0) transitCost = Math.round(targetBudget * 0.45);
     if (hotelCost === 0) hotelCost = Math.round(targetBudget * 0.22);
 
+    const dest = formData?.destination || plan?.destination || "";
+    const groundInfo = getDestinationPermitsAndActivities(dest, travellers);
+
     const mealsCost = Math.round(daysCount * travellers * 230);
-    // Real ground permits:
-    // 1) ACAP (Annapurna Conservation Area Permit) + TIMS Card for Ghandruk & Annapurna foothills: ~₹1,250/person
-    // 2) Muktinath & Lower Mustang Baragung Muktikshetra Local Municipality Entry & Environment Permit: ~₹400/person
-    // 3) Pashupatinath & Guhyeshwari Temple Tokens: ~₹200/person
-    const permitsCost = Math.round(travellers * 1850);
-    const activitiesCost = Math.round(travellers * 850);
+    const permitsCost = Math.round(travellers * groundInfo.approxPerPersonPermitCost);
+    const activitiesCost = Math.round(travellers * groundInfo.approxPerPersonActivityCost);
     const subTotal = transitCost + hotelCost + mealsCost + permitsCost + activitiesCost;
     const emergencyBuffer = Math.max(3000, targetBudget > subTotal ? targetBudget - subTotal : Math.round(targetBudget * 0.05));
     const totalGroupCost = Math.min(targetBudget, subTotal + emergencyBuffer);
@@ -471,7 +226,7 @@ export default function ItineraryPage() {
       daysCount,
       nightsCount,
       budgetStatus: totalGroupCost <= targetBudget ? "UNDER_BUDGET" : "BALANCED",
-      summaryNote: `Full-trip comprehensive budget for all ${travellers} travellers covering transit, stays, meals, ACAP Ghandruk & Muktinath permits, optional activities, and contingency reserve.`,
+      summaryNote: `Full-trip comprehensive budget for all ${travellers} travellers covering transit, stays, meals, ${groundInfo.permitTag}, optional activities, and contingency reserve.`,
       categories: [
         {
           id: "transit",
@@ -488,7 +243,7 @@ export default function ItineraryPage() {
           name: `Accommodations & Stays (${nightsCount} Nights)`,
           tag: "Group Stays",
           icon: "Hotel",
-          description: `${nightsCount} nights total: Clean group double rooms & verified mountain lodges for all ${travellers} guests.`,
+          description: `${nightsCount} nights total: Clean group double rooms & verified local stays for all ${travellers} guests.`,
           groupTotal: hotelCost,
           perPerson: Math.round(hotelCost / travellers),
           isOptional: false
@@ -505,20 +260,20 @@ export default function ItineraryPage() {
         },
         {
           id: "permits",
-          name: "Permits & Passes (ACAP Ghandruk, Muktinath & Temple Entry)",
-          tag: "Mandatory Permits",
+          name: groundInfo.permitName,
+          tag: groundInfo.permitTag,
           icon: "FileCheck",
-          description: `All mandatory conservation and local municipality permits: 1) ACAP (Annapurna Conservation Area Permit) & TIMS Card for Ghandruk and Annapurna foothills (~₹1,250/person); 2) Muktinath & Lower Mustang Baragung Muktikshetra Local Municipality Entry Permit & Environmental Pass (~₹400/person); 3) Pashupatinath & Guhyeshwari Temple Tokens (~₹200/person). Full coverage for all ${travellers} travellers.`,
+          description: groundInfo.permitDescription,
           groupTotal: permitsCost,
           perPerson: Math.round(permitsCost / travellers),
           isOptional: false
         },
         {
           id: "activities",
-          name: "Sightseeing, Cable Car & Viewpoint Passes",
-          tag: "Optional Passes",
+          name: groundInfo.activitiesName,
+          tag: groundInfo.activitiesTag,
           icon: "Ticket",
-          description: "Manakamana Devi Temple mountain ropeway cable car round-trip, Phewa Lake wooden boat cruise with safety life jackets, Sarangkot mountain sunrise viewpoint pass, Gupteshwar Mahadev Cave, Davis Fall & Gurung Cultural Museum entry passes.",
+          description: groundInfo.activitiesDescription,
           groupTotal: activitiesCost,
           perPerson: Math.round(activitiesCost / travellers),
           isOptional: true
@@ -2171,13 +1926,13 @@ export default function ItineraryPage() {
                     onClick={() => setActiveTab('equipments')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'equipments' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
-                    Equipments ({PLACE_SPECIFIC_EQUIPMENTS.reduce((sum, sec) => sum + sec.items.length, 0)})
+                    Equipments ({totalEquipmentsCount})
                   </button>
                   <button
                     onClick={() => setActiveTab('tips')}
                     className={`px-6 py-3 font-semibold transition ${activeTab === 'tips' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
                   >
-                    Travel Tips ({PLACE_SPECIFIC_TIPS.reduce((sum, sec) => sum + sec.items.length, 0)})
+                    Travel Tips ({totalTipsCount})
                   </button>
                 </div>
 
@@ -2512,17 +2267,17 @@ export default function ItineraryPage() {
                           )}
                         </h3>
                         <p className="text-xs text-slate-400 mt-1">
-                          Tailored precisely for your route through Kathmandu, Pokhara, Marpha, Muktinath, and Ghandruk
+                          Tailored precisely for your route through {currentPlaceSections.map((s) => s.location).slice(0, 4).join(', ')}
                         </p>
                       </div>
 
                       <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full self-start sm:self-auto">
-                        ✓ 6 Specific Route Locations
+                        ✓ {currentPlaceSections.length} Specific Route Locations
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {(activeTab === 'equipments' ? PLACE_SPECIFIC_EQUIPMENTS : PLACE_SPECIFIC_TIPS).map((sec, secIdx) => (
+                      {currentPlaceSections.map((sec, secIdx) => (
                         <div
                           key={secIdx}
                           className="rounded-2xl border border-white/10 bg-slate-950/60 p-5 space-y-3.5 backdrop-blur-md hover:border-emerald-500/30 transition shadow-sm"
@@ -2534,9 +2289,11 @@ export default function ItineraryPage() {
                               </div>
                               <span className="text-[11px] font-mono text-emerald-400 mt-0.5 block">{sec.tag}</span>
                             </div>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/5 border border-white/10 text-slate-300 shrink-0">
-                              {sec.altitude}
-                            </span>
+                            {sec.altitude && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/5 border border-white/10 text-slate-300 shrink-0">
+                                {sec.altitude}
+                              </span>
+                            )}
                           </div>
 
                           <div className="space-y-2.5">
