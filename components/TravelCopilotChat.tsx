@@ -216,18 +216,26 @@ export default function TravelCopilotChat({
   };
 
   const handleApproveModification = (msgId: string, mod: any) => {
-    if (!currentPlan || !mod?.updatedDay) return;
+    if (!currentPlan) return;
 
-    const targetDay = Number(mod.dayNumber);
-    const updatedDays = currentPlan.days.map((d: any) => {
-      if (Number(d.day) === targetDay) {
-        return mod.updatedDay;
-      }
-      return d;
-    });
+    let updatedDays = currentPlan.days || [];
+    if (mod.updatedPlan?.days) {
+      updatedDays = mod.updatedPlan.days;
+    } else if (Array.isArray(mod.updatedDays)) {
+      updatedDays = mod.updatedDays;
+    } else if (mod.updatedDay) {
+      const targetDay = Number(mod.dayNumber);
+      updatedDays = currentPlan.days.map((d: any) => {
+        if (Number(d.day) === targetDay) {
+          return mod.updatedDay;
+        }
+        return d;
+      });
+    }
 
     const newPlan = {
       ...currentPlan,
+      ...(mod.updatedPlan || {}),
       days: updatedDays
     };
 

@@ -151,11 +151,11 @@ CRITICAL TONE & DESIGNATION RULES:
 8. GENERAL CONVERSATION: If asked general knowledge, greetings, science, or casual questions, answer directly, fluidly, intelligently, and politely in clean GitHub markdown.
 9. REALISTIC, RELAXED TRAVEL TIMES: Always base travel estimates on realistic terrain speeds: in mountainous regions (Nepal, Himalayas, Sikkim, Darjeeling, Himachal, Uttarakhand), average driving speed is strictly 25-35 km/h (e.g. Raxaul to Kathmandu is ~145 km and takes 6-8 hours; Kathmandu to Pokhara is ~200 km and takes 6-8 hours). Explain gently that winding mountain roads need daylight and careful pacing so they don't get tired or car-sick. Plain highways average 45-60 km/h.
 10. CUSTOMIZING PLANS WITH EXPLICIT CUSTOMER APPROVAL:
-   - When travelers ask to modify, adjust, swap, or change any day (e.g. "Can we change Day 2 departure to 9 AM?", "Change hotel on Day 3", "Add a sunrise viewpoint on Day 2", "Swap Day 2 and 3"):
+   - When travelers ask to modify, adjust, swap, or change any day (or update the whole itinerary route):
      • Evaluate the request warmly as their Travel Guide.
      • Explain the changes nicely in your reply.
-     • If you are proposing an actual day update, append a JSON block at the very end of your response inside \`\`\`json:proposed_modification ... \`\`\` so the customer can review and click approve!
-     Format:
+     • If proposing an update (either for 1 day or multiple days / full route), append a JSON block at the very end of your response inside \`\`\`json:proposed_modification ... \`\`\` so the customer can click the "Approve & Update Itinerary" button to apply it to their plan!
+     Format for Single Day:
      \`\`\`json:proposed_modification
      {
        "dayNumber": 2,
@@ -166,7 +166,10 @@ CRITICAL TONE & DESIGNATION RULES:
        ],
        "updatedDay": {
          "day": 2,
-         "stay": "string",
+         "dayNumber": 2,
+         "dayTitle": "Day 2 - Title",
+         "stay": "Hotel Name",
+         "routeOverview": "From ➔ To",
          "legs": [
            {
              "from": "string",
@@ -176,14 +179,24 @@ CRITICAL TONE & DESIGNATION RULES:
              "depart": "HH:MM",
              "duration_hours": 6.5,
              "arrive": "HH:MM",
-             "buffer_after_minutes": 30,
              "note": "string",
              "cost": 1200
            }
          ],
          "activities": { "morning": "string", "afternoon": "string", "evening": "string", "food": "string" },
-         "hotelDetails": { "name": "string", "contact": null, "costPerNight": 1200 }
+         "hotelDetails": { "name": "string", "contact": null, "costPerNight": 1200, "roomType": "string" }
        }
+     }
+     \`\`\`
+     Format for Multi-Day / Full Route Update:
+     \`\`\`json:proposed_modification
+     {
+       "summary": "Updated Route with Dedicated Private Cab & Verified Trains",
+       "changes": [
+         "Change 1 details",
+         "Change 2 details"
+       ],
+       "updatedDays": [ ...array of all updated day objects each with { day, dayNumber, dayTitle, stay, routeOverview, legs, activities, hotelDetails }... ]
      }
      \`\`\``;
 
@@ -457,7 +470,7 @@ Feel free to ask me anything you have in mind! What would you like to explore or
 
     let proposedModification: any = null;
     if (replyText) {
-      const modMatch = replyText.match(/```(?:json:proposed_modification|json)?\s*(\{[\s\S]*?"updatedDay"[\s\S]*?\})\s*```/);
+      const modMatch = replyText.match(/```(?:json:proposed_modification|json)?\s*(\{[\s\S]*?(?:"updatedDay"|"updatedDays"|"updatedPlan")[\s\S]*?\})\s*```/);
       if (modMatch && modMatch[1]) {
         try {
           proposedModification = JSON.parse(modMatch[1]);
