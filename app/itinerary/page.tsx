@@ -474,7 +474,12 @@ export default function ItineraryPage() {
     try {
       const res = await fetch("/api/itinerary/v2", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        },
         body: JSON.stringify({
           ...form,
           budget: effectiveBudget,
@@ -578,7 +583,12 @@ export default function ItineraryPage() {
     const targetSaveId = savedItineraryId || (savedTripsList.length === 1 ? savedTripsList[0].id : undefined);
     fetch("/api/itinerary", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      },
       body: JSON.stringify({
         id: targetSaveId,
         userId: currentUser?.id || null,
@@ -634,7 +644,12 @@ export default function ItineraryPage() {
     try {
       const res = await fetch("/api/itinerary", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        },
         body: JSON.stringify({
           id: savedItineraryId || undefined,
           userId: currentUser?.id || null,
@@ -693,8 +708,15 @@ export default function ItineraryPage() {
     setIsSavedTripsModalOpen(true);
     setIsLoadingSavedTrips(true);
     try {
-      const url = currentUser?.id ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}` : "/api/itinerary";
-      const res = await fetch(url);
+      const baseUrl = currentUser?.id ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}` : "/api/itinerary";
+      const url = `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        }
+      });
       const json = await res.json();
       if (json.ok && Array.isArray(json.itineraries)) {
         setSavedTripsList(json.itineraries);
@@ -827,7 +849,14 @@ export default function ItineraryPage() {
       const url = currentUser?.id
         ? `/api/itinerary?id=${encodeURIComponent(itId)}&userId=${encodeURIComponent(currentUser.id)}`
         : `/api/itinerary?id=${encodeURIComponent(itId)}`;
-      const res = await fetch(url, { method: "DELETE" });
+      const res = await fetch(url, {
+        method: "DELETE",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        }
+      });
       const json = await res.json();
       if (json.ok) {
         setSavedTripsList((prev) => prev.filter((item) => item.id !== itId));
@@ -864,10 +893,17 @@ export default function ItineraryPage() {
     const fetchInitialSavedTrips = async () => {
       setIsLoadingSavedTrips(true);
       try {
-        const url = currentUser?.id
+        const baseUrl = currentUser?.id
           ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}`
           : "/api/itinerary";
-        const res = await fetch(url);
+        const url = `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+        const res = await fetch(url, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
         const json = await res.json();
         if (!isCancelled && json.ok && Array.isArray(json.itineraries)) {
           setSavedTripsList(json.itineraries);
@@ -894,8 +930,15 @@ export default function ItineraryPage() {
     setIsLoadingGroups(true);
     setForwardFeedback(null);
     try {
-      const url = currentUser?.id ? `/api/groups?userId=${encodeURIComponent(currentUser.id)}` : "/api/groups";
-      const res = await fetch(url);
+      const baseUrl = currentUser?.id ? `/api/groups?userId=${encodeURIComponent(currentUser.id)}` : "/api/groups";
+      const url = `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        }
+      });
       const json = await res.json();
       if (json.ok && Array.isArray(json.groups)) {
         setUserGroups(json.groups);
@@ -926,7 +969,12 @@ export default function ItineraryPage() {
     try {
       const res = await fetch("/api/itinerary", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        },
         body: JSON.stringify({
           id: savedItineraryId || undefined,
           userId: currentUser?.id,

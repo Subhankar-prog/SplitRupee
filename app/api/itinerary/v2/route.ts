@@ -5,6 +5,8 @@ import { getVerifiedTrainsForRoute, getVerifiedRoutePlan } from "@/lib/irctcData
 import { getDestinationPermitsAndActivities, getDynamicPlaceSections } from "@/lib/destinationGroundEngine";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function sanitizePlan(plan: any, expectedNights: number, body: any, maxNightlyBudget: number): any {
   if (!plan || typeof plan !== "object") {

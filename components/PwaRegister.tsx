@@ -8,24 +8,61 @@ export default function PwaRegister() {
   const [showReconnected, setShowReconnected] = useState(false);
 
   useEffect(() => {
-    // 1. Register Service Worker reliably in production & client hydration
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      const registerSW = async () => {
-        try {
-          const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-          console.log("[PWA] Service Worker registered. Scope:", reg.scope);
+    // 1. In development, strictly unregister all Service Workers and clear caches to prevent stale cache bugs
+    if (typeof window !== "undefined") {
+      const isDev =
+        process.env.NODE_ENV !== "production" ||
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
 
-          // Force check for updates
-          reg.update().catch(() => { });
-        } catch (err) {
-          console.warn("[PWA] ServiceWorker registration failed:", err);
+      if (isDev) {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (const registration of registrations) {
+              registration.unregister().catch(() => {});
+            }
+          });
         }
-      };
+        if ("caches" in window) {
+          caches.keys().then((names) => {
+            for (const name of names) {
+              caches.delete(name).catch(() => {});
+            }
+          });
+        }
+        return;
+      }
 
-      if (document.readyState === "complete" || document.readyState === "interactive") {
-        registerSW();
-      } else {
-        window.addEventListener("load", registerSW, { once: true });
+      // 2. In production, register Service Worker and aggressively refresh on update
+      if ("serviceWorker" in navigator) {
+        const registerSW = async () => {
+          try {
+            const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+            // Check for updates on every navigation and focus
+            reg.update().catch(() => {});
+
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              if (installingWorker) {
+                installingWorker.onstatechange = () => {
+                  if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+                    // Force the new service worker to take control immediately
+                    installingWorker.postMessage({ type: "SKIP_WAITING" });
+                  }
+                };
+              }
+            };
+          } catch (err) {
+            console.warn("[PWA] ServiceWorker registration failed:", err);
+          }
+        };
+
+        if (document.readyState === "complete" || document.readyState === "interactive") {
+          registerSW();
+        } else {
+          window.addEventListener("load", registerSW, { once: true });
+        }
       }
     }
 

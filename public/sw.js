@@ -1,16 +1,18 @@
-// SplitRupee Production Service Worker (PWA Offline Engine v5)
-const CACHE_NAME = "splitrupee-pwa-v5";
+// SplitRupee Production Service Worker (PWA Offline Engine v7 - Zero-Stale-Cache Policy)
+const CACHE_NAME = "splitrupee-pwa-v7";
 
 const PRECACHE_URLS = [
-  "/",
   "/offline",
-  "/dashboard",
-  "/groups",
-  "/expenses",
-  "/activity",
   "/manifest.json",
   "/icon.svg"
 ];
+
+// Listen for message events (e.g. SKIP_WAITING from client)
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 // Helper: Normalize URL by stripping _t timestamp cache-busters
 function getCanonicalUrl(urlString) {
@@ -152,31 +154,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // C. API Requests (/api/): Network-First with Normalized Offline Fallback
+  // C. API Requests (/api/): Strict Network-Only, NEVER cache dynamic API responses in CacheStorage!
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const canonicalUrl = getCanonicalUrl(request.url);
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(canonicalUrl, responseClone);
-              cache.put(request.url, responseClone.clone());
-            });
-          }
-          return networkResponse;
-        })
+      fetch(request, { cache: "no-store" })
         .catch(async () => {
-          const canonicalUrl = getCanonicalUrl(request.url);
-          const cachedResponse =
-            (await caches.match(canonicalUrl)) ||
-            (await caches.match(request.url)) ||
-            (await caches.match(request));
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-
           return new Response(
             JSON.stringify({
               ok: false,
@@ -193,44 +175,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // D. HTML Page Navigation (request.mode === "navigate"): Network-First with Clean Offline Fallback
+  // D. HTML Page Navigation (request.mode === "navigate"): Always Fresh from Network
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-              cache.put(url.pathname, responseClone.clone());
-            });
-          }
-          return networkResponse;
-        })
         .catch(async () => {
-          // 1. Exact match
-          let cached = await caches.match(request);
-          if (cached) return cached;
-
-          // 2. Pathname match
-          cached = await caches.match(url.pathname);
-          if (cached) return cached;
-
-          // 3. For any group detail route (/groups/*), use cached /groups or /dashboard
-          if (url.pathname.startsWith("/groups/")) {
-            const groupShell =
-              (await caches.match("/groups")) ||
-              (await caches.match("/dashboard"));
-            if (groupShell) return groupShell;
-          }
-
-          // 4. Fallback to cached dashboard, offline, or root
-          const fallback =
-            (await caches.match("/dashboard")) ||
-            (await caches.match("/offline")) ||
-            (await caches.match("/"));
-
-          if (fallback) return fallback;
+          // Fallback to offline page when completely disconnected from network
+          const offlinePage = await caches.match("/offline");
+          if (offlinePage) return offlinePage;
 
           return new Response(
             "<!DOCTYPE html><html><head><title>SplitRupee Offline</title></head><body style='background:#020617;color:#fff;font-family:sans-serif;text-align:center;padding:50px;'><h2>You are offline</h2><p>Please connect to the internet or reload once online.</p></body></html>",
