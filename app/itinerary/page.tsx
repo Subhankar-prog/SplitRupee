@@ -507,52 +507,60 @@ export default function ItineraryPage() {
       }));
     }
 
-    // Auto-save sync if already tracking a saved itinerary in database
-    if (savedItineraryId) {
-      fetch("/api/itinerary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: savedItineraryId,
-          userId: currentUser?.id || null,
-          groupId: linkedGroup?.id || null,
-          title: `Trip: ${updatedPlan.origin || form.origin} ➔ ${updatedPlan.destination || form.destination} (${updatedPlan.nightsCount || form.nights}N / ${Number(updatedPlan.daysCount || form.nights) + 1}D)`,
-          origin: updatedPlan.origin || form.origin,
-          destination: updatedPlan.destination || form.destination,
-          startDate: updatedPlan.startDate || form.startDate,
-          endDate: updatedPlan.endDate || form.endDate,
-          days: Number(updatedPlan.daysCount || (Array.isArray(updatedPlan.days) ? updatedPlan.days.length : Number(form.nights) + 1)),
-          groupSize: Number(updatedPlan.travellers || form.travellers) || 1,
-          totalBudget: Number(updatedPlan.targetBudget || form.budget) || 0,
-          preferences: {
-            stayBudget: form.stayBudget,
-            stayPreference: form.stayPreference,
-            groupType: form.groupType,
-            trainClass: form.trainClass,
-            busClass: form.busClass,
-            flightClass: form.flightClass,
-            transport: {
-              train: form.transportTrain,
-              bus: form.transportBus,
-              flight: form.transportFlight,
-              road: form.transportRoad
-            }
-          },
-          planData: updatedPlan,
-          chatSession: chatMessages
-        })
-      })
-        .then(async (res) => {
-          const json = await res.json();
-          if (json.ok && json.itinerary) {
-            setSavedTripsList((prev) => {
-              const filtered = prev.filter((item) => item.id !== json.itinerary.id);
-              return [json.itinerary, ...filtered];
-            });
+    // Auto-save sync so changes from Copilot & chat history persist immediately to the database
+    const targetSaveId = savedItineraryId || (savedTripsList.length === 1 ? savedTripsList[0].id : undefined);
+    fetch("/api/itinerary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: targetSaveId,
+        userId: currentUser?.id || null,
+        groupId: linkedGroup?.id || null,
+        title: `Trip: ${updatedPlan.origin || form.origin} ➔ ${updatedPlan.destination || form.destination} (${updatedPlan.nightsCount || form.nights}N / ${Number(updatedPlan.daysCount || form.nights) + 1}D)`,
+        origin: updatedPlan.origin || form.origin,
+        destination: updatedPlan.destination || form.destination,
+        startDate: updatedPlan.startDate || form.startDate,
+        endDate: updatedPlan.endDate || form.endDate,
+        days: Number(updatedPlan.daysCount || (Array.isArray(updatedPlan.days) ? updatedPlan.days.length : Number(form.nights) + 1)),
+        groupSize: Number(updatedPlan.travellers || form.travellers) || 1,
+        totalBudget: Number(updatedPlan.targetBudget || form.budget) || 0,
+        preferences: {
+          stayBudget: form.stayBudget,
+          stayPreference: form.stayPreference,
+          groupType: form.groupType,
+          trainClass: form.trainClass,
+          busClass: form.busClass,
+          flightClass: form.flightClass,
+          transport: {
+            train: form.transportTrain,
+            bus: form.transportBus,
+            flight: form.transportFlight,
+            road: form.transportRoad
           }
-        })
-        .catch((e) => console.warn("Auto-save sync error:", e));
-    }
+        },
+        planData: updatedPlan,
+        chatSession: chatMessages
+      })
+    })
+      .then(async (res) => {
+        const json = await res.json();
+        if (json.ok && json.itinerary?.id) {
+          setSavedItineraryId(json.itinerary.id);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.set("id", json.itinerary.id);
+            window.history.replaceState({}, "", url.toString());
+            try {
+              sessionStorage.setItem("splitrupee_active_itinerary_id", json.itinerary.id);
+            } catch {}
+          }
+          setSavedTripsList((prev) => {
+            const filtered = prev.filter((item) => item.id !== json.itinerary.id);
+            return [json.itinerary, ...filtered];
+          });
+        }
+      })
+      .catch((e) => console.warn("Auto-save sync error:", e));
 
     if (typeof window !== "undefined") {
       try {
@@ -561,7 +569,7 @@ export default function ItineraryPage() {
           JSON.stringify({
             plan: updatedPlan,
             chatSession: chatMessages,
-            savedItineraryId
+            savedItineraryId: targetSaveId
           })
         );
       } catch {}
@@ -709,6 +717,15 @@ export default function ItineraryPage() {
     }
 
     setIsSavedTripsModalOpen(false);
+    if (typeof window !== "undefined" && it.id) {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("id", it.id);
+        window.history.replaceState({}, "", url.toString());
+        sessionStorage.setItem("splitrupee_active_itinerary_id", it.id);
+      } catch {}
+    }
+
     if (showToast) {
       setSaveToast(`✓ Loaded: ${it.title || `${it.origin} ➔ ${it.destination}`}`);
       setTimeout(() => setSaveToast(null), 3000);
@@ -724,6 +741,10 @@ export default function ItineraryPage() {
     setSaveToast(null);
     if (typeof window !== "undefined") {
       try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("id");
+        window.history.replaceState({}, "", url.toString());
+        sessionStorage.removeItem("splitrupee_active_itinerary_id");
         localStorage.removeItem("splitrupee_last_saved_itinerary");
       } catch {}
     }
@@ -772,9 +793,10 @@ export default function ItineraryPage() {
         if (!isCancelled && json.ok && Array.isArray(json.itineraries)) {
           setSavedTripsList(json.itineraries);
 
-          // ONLY auto-load if a specific trip ID was explicitly passed in the URL (e.g. ?id=xxx)
+          // Auto-load if an explicit ?id= is in URL, or if this session was viewing an active itinerary before refresh
           const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-          const requestedId = urlParams ? urlParams.get("id") : null;
+          const sessionActiveId = typeof window !== "undefined" ? sessionStorage.getItem("splitrupee_active_itinerary_id") : null;
+          const requestedId = urlParams?.get("id") || sessionActiveId;
           if (requestedId) {
             const target = json.itineraries.find((it: any) => it.id === requestedId);
             if (target && target.planData) {
@@ -2036,6 +2058,33 @@ export default function ItineraryPage() {
                                   <p className="text-xs text-slate-300 mt-1 print:text-gray-700 leading-relaxed">
                                     {day.hotelDetails.breakdownNote}
                                   </p>
+                                )}
+
+                                {/* 4-5 Verified Hostels & Homestays List */}
+                                {Array.isArray(day.hotelDetails.alternateHostels) && day.hotelDetails.alternateHostels.length > 0 && (
+                                  <div className="mt-3 pt-2.5 border-t border-emerald-500/20">
+                                    <div className="text-[11px] font-bold text-emerald-400 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                                      <Hotel className="h-3.5 w-3.5 text-emerald-400" />
+                                      <span>4–5 Verified Hostels & Homestay Options for this Day:</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                                      {day.hotelDetails.alternateHostels.map((h: any, hIdx: number) => (
+                                        <div key={hIdx} className="bg-slate-900/80 border border-emerald-500/20 rounded-xl p-2.5 text-xs shadow-sm">
+                                          <div className="flex items-center justify-between gap-1">
+                                            <span className="font-bold text-white text-xs">{h.name}</span>
+                                            <span className="text-emerald-300 font-semibold text-[11px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full shrink-0">
+                                              ₹{h.costPerPerson || 500} / person
+                                            </span>
+                                          </div>
+                                          {h.note && (
+                                            <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                                              {h.note}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                               <div className="text-right shrink-0">

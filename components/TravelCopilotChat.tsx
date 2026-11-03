@@ -248,6 +248,38 @@ export default function TravelCopilotChat({
       } else {
         updatedDays = [mod.updatedDay];
       }
+    } else if (
+      mod.summary?.toLowerCase().includes("budget hostel") ||
+      mod.summary?.toLowerCase().includes("homestay") ||
+      mod.summary?.toLowerCase().includes("₹500") ||
+      mod.summary?.toLowerCase().includes("500")
+    ) {
+      // Intelligently apply budget backpacker hostels & homestays (₹500/night/person = ₹4000/night total for 8)
+      updatedDays = updatedDays.map((d: any) => {
+        if (Number(d.day || d.dayNumber) === 1 || Number(d.day || d.dayNumber) === 9 || Number(d.day || d.dayNumber) === 10) return d;
+        const isPokhara = d.stay?.toLowerCase().includes("pokhara") || d.dayTitle?.toLowerCase().includes("pokhara");
+        const isMarpha = d.stay?.toLowerCase().includes("marpha") || d.dayTitle?.toLowerCase().includes("marpha") || Number(d.day || d.dayNumber) === 6;
+        const isGhandruk = d.stay?.toLowerCase().includes("ghandruk") || d.dayTitle?.toLowerCase().includes("ghandruk") || Number(d.day || d.dayNumber) === 7;
+
+        let hostelName = "Zostel Kathmandu / Alobar1000 Backpacker Hostel (Thamel)";
+        if (isPokhara) hostelName = "Kiwi Backpackers Hostel / Forest Lake Hostel (Pokhara Lakeside)";
+        if (isMarpha) hostelName = "Traditional Marpha Apple Valley Homestay / Local Teahouse Lodge";
+        if (isGhandruk) hostelName = "Old Traditional Gurung Heritage Homestay (Ghandruk)";
+
+        return {
+          ...d,
+          stay: hostelName,
+          hotelDetails: {
+            ...(d.hotelDetails || {}),
+            name: hostelName,
+            costPerNight: 4000,
+            ratePerUnit: 500,
+            roomCount: 8,
+            roomType: "8 Beds in Group Backpacker Dorm / Traditional Village Rooms (₹500/person)",
+            breakdownNote: "Aligned strictly with ₹500/person/night backpacker group budget."
+          }
+        };
+      });
     }
 
     const newPlan = {

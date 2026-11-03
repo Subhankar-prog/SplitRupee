@@ -251,7 +251,13 @@ CRITICAL TONE & DESIGNATION RULES:
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: contentsPayload }),
+                body: JSON.stringify({
+                  contents: contentsPayload,
+                  generationConfig: {
+                    maxOutputTokens: 8192,
+                    temperature: 0.7
+                  }
+                }),
                 signal: controller.signal
               }
             );
