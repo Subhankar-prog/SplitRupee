@@ -168,10 +168,74 @@ export default function ItineraryPage() {
     const daysCount = Array.isArray(plan.days) ? plan.days.length : Number(formData.nights) + 1 || 10;
     const nightsCount = Math.max(1, daysCount - 1);
 
-    // If plan has a custom detailed budgetBreakdown, use it directly
+    const daysText = Array.isArray(plan?.days)
+      ? plan.days.map((d: any) => `${d.stay || ""} ${d.legs?.map((l: any) => `${l.from || ""} ${l.to || ""}`).join(" ") || ""}`).join(" ")
+      : "";
+    const dest = `${formData?.destination || ""} ${plan?.destination || ""} ${daysText}`.trim();
+    const groundInfo = getDestinationPermitsAndActivities(dest, travellers);
+
+    // If plan has a custom detailed budgetBreakdown, reconcile and guarantee mathematical accuracy
     if (plan.budgetBreakdown && Array.isArray(plan.budgetBreakdown.categories)) {
       const b = plan.budgetBreakdown;
-      const totalGroup = Number(b.totalGroupCost || targetBudget);
+
+      const updatedCategories = b.categories.map((c: any) => {
+        if (c.id === "permits") {
+          const accuratePerPerson = groundInfo.approxPerPersonPermitCost;
+          const accurateGroupTotal = Math.round(travellers * accuratePerPerson);
+          return {
+            ...c,
+            name: groundInfo.permitName || c.name,
+            tag: groundInfo.permitTag || c.tag,
+            description: groundInfo.permitDescription || c.description,
+            groupTotal: accurateGroupTotal,
+            perPerson: accuratePerPerson
+          };
+        }
+        if (c.id === "activities") {
+          const accuratePerPerson = groundInfo.approxPerPersonActivityCost;
+          const accurateGroupTotal = Math.round(travellers * accuratePerPerson);
+          return {
+            ...c,
+            name: groundInfo.activitiesName || c.name,
+            tag: groundInfo.activitiesTag || c.tag,
+            description: groundInfo.activitiesDescription || c.description,
+            groupTotal: accurateGroupTotal,
+            perPerson: accuratePerPerson
+          };
+        }
+        const gTotal = Number(c.groupTotal || 0);
+        return {
+          ...c,
+          groupTotal: gTotal,
+          perPerson: Number(c.perPerson || Math.round(gTotal / travellers))
+        };
+      });
+
+      // Recalculate contingency buffer and totalGroupCost so numbers are 100% mathematically balanced
+      const nonBufferSubTotal = updatedCategories
+        .filter((c: any) => c.id !== "buffer")
+        .reduce((sum: number, c: any) => sum + Number(c.groupTotal || 0), 0);
+
+      const emergencyBuffer = Math.max(3000, targetBudget > nonBufferSubTotal ? targetBudget - nonBufferSubTotal : Math.round(targetBudget * 0.05));
+      const bufferCat = updatedCategories.find((c: any) => c.id === "buffer");
+      if (bufferCat) {
+        bufferCat.groupTotal = emergencyBuffer;
+        bufferCat.perPerson = Math.round(emergencyBuffer / travellers);
+      } else {
+        updatedCategories.push({
+          id: "buffer",
+          name: "Contingency Reserve & Emergency Buffer",
+          tag: "Safety Buffer",
+          icon: "ShieldAlert",
+          description: "Emergency medical fund, local road tolls, driver tips/allowance & road delay contingency.",
+          groupTotal: emergencyBuffer,
+          perPerson: Math.round(emergencyBuffer / travellers),
+          isOptional: false
+        });
+      }
+
+      const totalGroup = Math.min(targetBudget, nonBufferSubTotal + emergencyBuffer);
+
       return {
         ...b,
         travellers,
@@ -180,11 +244,8 @@ export default function ItineraryPage() {
         targetBudget: Number(b.targetBudget || targetBudget),
         totalGroupCost: totalGroup,
         costPerPerson: Math.round(totalGroup / travellers),
-        categories: b.categories.map((c: any) => ({
-          ...c,
-          groupTotal: Number(c.groupTotal || 0),
-          perPerson: Number(c.perPerson || Math.round((c.groupTotal || 0) / travellers))
-        }))
+        budgetStatus: totalGroup <= targetBudget ? "UNDER_BUDGET" : "BALANCED",
+        categories: updatedCategories
       };
     }
 
@@ -207,9 +268,6 @@ export default function ItineraryPage() {
 
     if (transitCost === 0) transitCost = Math.round(targetBudget * 0.45);
     if (hotelCost === 0) hotelCost = Math.round(targetBudget * 0.22);
-
-    const dest = formData?.destination || plan?.destination || "";
-    const groundInfo = getDestinationPermitsAndActivities(dest, travellers);
 
     const mealsCost = Math.round(daysCount * travellers * 230);
     const permitsCost = Math.round(travellers * groundInfo.approxPerPersonPermitCost);

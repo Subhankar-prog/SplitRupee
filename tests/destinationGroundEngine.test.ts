@@ -3,10 +3,16 @@ import { getDestinationPermitsAndActivities, getDynamicPlaceSections } from "../
 
 describe("destinationGroundEngine", () => {
   describe("getDestinationPermitsAndActivities", () => {
-    it("returns ACAP & Muktinath permits for Nepal", () => {
+    it("returns ACAP & Muktinath permits for Nepal with exact matching math", () => {
       const res = getDestinationPermitsAndActivities("Kathmandu, Nepal", 8);
       expect(res.permitName).toContain("ACAP Ghandruk, Muktinath");
       expect(res.permitDescription).toContain("Annapurna Conservation Area Permit");
+      expect(res.permitDescription).toContain("~₹1,250/person");
+      expect(res.permitDescription).toContain("~₹400/person");
+      expect(res.permitDescription).toContain("~₹200/person");
+      // 1,250 (ACAP) + 400 (Muktinath) + 200 (Temples) = 1,850 per person!
+      expect(res.approxPerPersonPermitCost).toBe(1850);
+      expect(res.approxPerPersonPermitCost * 8).toBe(14800);
       expect(res.activitiesName).toContain("Cable Car");
     });
 
