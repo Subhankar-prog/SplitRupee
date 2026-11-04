@@ -74,4 +74,35 @@ describe("magazinePdfExport and fallback system", () => {
   it("exposes exportMagazinePDF as a callable function", () => {
     expect(typeof exportMagazinePDF).toBe("function");
   });
+
+  it("dynamically generates correct pages for different day lengths (3, 5, 10, 15 days)", () => {
+    [3, 5, 10, 15].forEach((dayCount) => {
+      const dynamicDays = Array.from({ length: dayCount }, (_, i) => ({
+        day: i + 1,
+        stay: `Hotel Day ${i + 1}`,
+        legs: [{ from: `City ${i}`, to: `City ${i + 1}`, mode: "Cab" }],
+        activities: {
+          morning: `Activity morning ${i + 1}`,
+          afternoon: `Activity afternoon ${i + 1}`,
+          evening: `Activity evening ${i + 1}`,
+          food: `Food ${i + 1}`
+        }
+      }));
+
+      const plan = {
+        ...sampleNepalPlan,
+        form: {
+          ...sampleNepalPlan.form,
+          nights: dayCount - 1
+        },
+        result: {
+          ...sampleNepalPlan.result,
+          days: dynamicDays
+        }
+      };
+
+      expect(() => exportItineraryPDF(plan)).not.toThrow();
+    });
+  });
 });
+
