@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Smartphone,
+  Trash2,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
 import type { MemberDTO } from "@/lib/types";
@@ -48,7 +49,7 @@ export default function ProfileSettingsModal({
   onOpenChangePassword,
   onLogoutConfirm,
 }: Props) {
-  const { currentUser, refreshUsers } = useUser();
+  const { currentUser, setCurrentUser, refreshUsers } = useUser();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -57,6 +58,7 @@ export default function ProfileSettingsModal({
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
+  const [deletingUpi, setDeletingUpi] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -65,6 +67,42 @@ export default function ProfileSettingsModal({
     groupsCount: number;
     expensesCount: number;
   } | null>(null);
+
+  const handleDeleteUpi = async () => {
+    if (!currentUser) return;
+    try {
+      setDeletingUpi(true);
+      setError("");
+      setSuccessMsg("");
+
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          upiId: null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || data.error || "Failed to remove UPI ID");
+      }
+
+      setUpiId("");
+      setShowQrModal(false);
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+      await refreshUsers();
+      setSuccessMsg("UPI ID removed successfully!");
+      setTimeout(() => setSuccessMsg(""), 2500);
+    } catch (err: any) {
+      setError(err.message || "Failed to remove UPI ID");
+    } finally {
+      setDeletingUpi(false);
+    }
+  };
 
   // Initialize from currentUser
   useEffect(() => {
@@ -148,6 +186,9 @@ export default function ProfileSettingsModal({
         localStorage.setItem("splitrupee_pref_currency", preferredCurrency);
       }
 
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
       await refreshUsers();
 
       if (data.claimedGroupsCount && data.claimedGroupsCount > 0) {
@@ -351,16 +392,30 @@ export default function ProfileSettingsModal({
                 <QrCode className="h-3.5 w-3.5 text-emerald-400" />
                 <span>UPI Payment Address</span>
               </div>
-              {upiId && (
-                <button
-                  type="button"
-                  onClick={handleCopyUpi}
-                  className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
-                >
-                  {copiedUpi ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                  <span>{copiedUpi ? "Copied" : "Copy UPI"}</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {(upiId || currentUser.upiId) && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteUpi}
+                    disabled={deletingUpi || saving}
+                    className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition px-2 py-0.5 rounded-lg hover:bg-rose-500/10 border border-rose-500/20"
+                    title="Delete UPI ID from account"
+                  >
+                    {deletingUpi ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                    <span>Delete UPI</span>
+                  </button>
+                )}
+                {upiId && (
+                  <button
+                    type="button"
+                    onClick={handleCopyUpi}
+                    className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
+                  >
+                    {copiedUpi ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    <span>{copiedUpi ? "Copied" : "Copy UPI"}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div>
@@ -545,3 +600,4 @@ export default function ProfileSettingsModal({
     </div>
   );
 }
+

@@ -26,6 +26,7 @@ import {
   Edit2,
   Plane,
   User,
+  Trash2,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
@@ -35,7 +36,7 @@ import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useTheme } from "@/lib/themeContext";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
-  const { currentUser, logout, refreshUsers } = useUser();
+  const { currentUser, setCurrentUser, logout, refreshUsers } = useUser();
   const { isDarkMode, toggleTheme } = useTheme();
   const [showGlobalAddExpense, setShowGlobalAddExpense] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -109,6 +110,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       });
       const data = await res.json();
       if (data.ok) {
+        if (data.user) {
+          setCurrentUser(data.user);
+        }
         await refreshUsers();
         setUpiSaved(true);
         setTimeout(() => {
@@ -118,6 +122,38 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       }
     } catch (err) {
       console.error("Failed to save UPI ID", err);
+    } finally {
+      setSavingUpi(false);
+    }
+  }
+
+  async function handleDeleteUpi() {
+    if (!currentUser) return;
+    setSavingUpi(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          upiId: null,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setUpiInput("");
+        if (data.user) {
+          setCurrentUser(data.user);
+        }
+        await refreshUsers();
+        setUpiSaved(true);
+        setTimeout(() => {
+          setUpiSaved(false);
+          setIsEditingUpi(false);
+        }, 800);
+      }
+    } catch (err) {
+      console.error("Failed to delete UPI ID", err);
     } finally {
       setSavingUpi(false);
     }
@@ -868,14 +904,26 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                                 </button>
                               ))}
                             </div>
-                            <div className="flex gap-1.5 pt-0.5">
+                            <div className="flex items-center gap-1.5 pt-0.5">
                               <button
                                 onClick={handleSaveUpi}
                                 disabled={savingUpi}
                                 className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-bold py-1 rounded-md transition shadow flex items-center justify-center gap-1"
                               >
-                                {savingUpi ? "Saving..." : upiSaved ? "Saved! ✓" : "Save UPI"}
+                                {savingUpi ? "Saving..." : upiSaved ? "Saved! ✓" : upiInput.trim() ? "Save UPI" : "Clear UPI"}
                               </button>
+                              {currentUser.upiId && (
+                                <button
+                                  type="button"
+                                  onClick={handleDeleteUpi}
+                                  disabled={savingUpi}
+                                  className="text-[10px] text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 border border-rose-500/30 px-2 py-1 rounded-md transition flex items-center gap-1"
+                                  title="Delete UPI ID"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  <span>Delete</span>
+                                </button>
+                              )}
                               <button
                                 onClick={() => setIsEditingUpi(false)}
                                 className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-white/10 transition"

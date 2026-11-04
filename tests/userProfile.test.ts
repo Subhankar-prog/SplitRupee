@@ -205,4 +205,39 @@ describe("PATCH /api/users", () => {
       where: { id: "placeholder-1" },
     });
   });
+
+  it("successfully deletes/clears UPI ID when upiId is null or empty string", async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      id: "u1",
+      name: "Rahul",
+      email: "rahul@gmail.com",
+      upiId: "old@ybl",
+    });
+
+    mockPrisma.user.update.mockResolvedValueOnce({
+      id: "u1",
+      name: "Rahul",
+      email: "rahul@gmail.com",
+      upiId: null,
+    });
+
+    const req = new Request("http://localhost/api/users", {
+      method: "PATCH",
+      body: JSON.stringify({
+        userId: "u1",
+        upiId: null,
+      }),
+    });
+
+    const res = await PATCH(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { upiId: null },
+      select: expect.any(Object),
+    });
+  });
 });

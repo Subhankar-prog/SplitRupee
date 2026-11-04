@@ -91,7 +91,16 @@ export async function PATCH(req: Request) {
     }
 
     const cleanName = typeof name === "string" ? name.trim() : undefined;
-    const cleanUPI = typeof upiId === "string" ? upiId.trim() : undefined;
+
+    let cleanUPI: string | null | undefined = undefined;
+    if (upiId !== undefined) {
+      if (typeof upiId === "string") {
+        const trimmed = upiId.trim();
+        cleanUPI = trimmed === "" ? null : trimmed;
+      } else if (upiId === null) {
+        cleanUPI = null;
+      }
+    }
 
     let cleanPhone: string | null | undefined = undefined;
     if (phone !== undefined) {
@@ -272,7 +281,7 @@ export async function PATCH(req: Request) {
       data: {
         ...(cleanName ? { name: cleanName } : {}),
         ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
-        ...(cleanUPI !== undefined ? { upiId: cleanUPI || null } : {}),
+        ...(cleanUPI !== undefined ? { upiId: cleanUPI } : {}),
         ...(avatarColor ? { avatarColor } : {}),
       },
       select: {

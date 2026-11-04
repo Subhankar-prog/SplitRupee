@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Loader2,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
 import Navbar from "@/components/Navbar";
@@ -38,7 +39,7 @@ const UPI_HANDLES = ["@ybl", "@paytm", "@okaxis", "@okhdfcbank", "@icici"];
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { currentUser, refreshUsers, logout, isLoading } = useUser();
+  const { currentUser, setCurrentUser, refreshUsers, logout, isLoading } = useUser();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -47,10 +48,46 @@ export default function ProfilePage() {
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
+  const [deletingUpi, setDeletingUpi] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [showQr, setShowQr] = useState(true);
+
+  const handleDeleteUpi = async () => {
+    if (!currentUser) return;
+    try {
+      setDeletingUpi(true);
+      setError("");
+      setSuccessMsg("");
+
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          upiId: null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || data.error || "Failed to remove UPI ID");
+      }
+
+      setUpiId("");
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+      await refreshUsers();
+      setSuccessMsg("UPI ID removed successfully!");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to remove UPI ID");
+    } finally {
+      setDeletingUpi(false);
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -155,6 +192,9 @@ export default function ProfilePage() {
         localStorage.setItem("splitrupee_pref_currency", preferredCurrency);
       }
 
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
       await refreshUsers();
 
       if (data.claimedGroupsCount && data.claimedGroupsCount > 0) {
@@ -369,16 +409,30 @@ export default function ProfilePage() {
                     <QrCode className="h-4 w-4 text-emerald-400" />
                     <span>UPI Settlement Address</span>
                   </div>
-                  {upiId && (
-                    <button
-                      type="button"
-                      onClick={handleCopyUpi}
-                      className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
-                    >
-                      {copiedUpi ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                      <span>{copiedUpi ? "Copied" : "Copy UPI"}</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {(upiId || currentUser.upiId) && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteUpi}
+                        disabled={deletingUpi || saving}
+                        className="text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition px-2.5 py-1 rounded-lg hover:bg-rose-500/10 border border-rose-500/20"
+                        title="Delete UPI ID from account"
+                      >
+                        {deletingUpi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        <span>Delete UPI</span>
+                      </button>
+                    )}
+                    {upiId && (
+                      <button
+                        type="button"
+                        onClick={handleCopyUpi}
+                        className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
+                      >
+                        {copiedUpi ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        <span>{copiedUpi ? "Copied" : "Copy UPI"}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -485,3 +539,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

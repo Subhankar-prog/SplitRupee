@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, QrCode, CheckCircle2, Loader2, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import { X, QrCode, CheckCircle2, Loader2, ArrowRight, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
 
 interface AddUpiModalProps {
@@ -10,7 +10,7 @@ interface AddUpiModalProps {
 }
 
 export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
-  const { currentUser, refreshUsers } = useUser();
+  const { currentUser, setCurrentUser, refreshUsers } = useUser();
   const [upiId, setUpiId] = useState(currentUser?.upiId || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -24,6 +24,46 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
   }, [isOpen, currentUser]);
 
   if (!isOpen || !currentUser) return null;
+
+  async function handleDelete() {
+    if (!currentUser) return;
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          upiId: null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to remove UPI ID");
+      }
+
+      setUpiId("");
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+      await refreshUsers();
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        onClose();
+      }, 1000);
+    } catch (err: any) {
+      setError(err.message || "Failed to remove UPI ID");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +101,9 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
         throw new Error(data.error || "Failed to update UPI ID");
       }
 
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
       await refreshUsers();
       setSaved(true);
       setTimeout(() => {
@@ -175,6 +218,17 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
               >
                 Later
               </button>
+              {currentUser.upiId && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2.5 text-xs font-bold text-rose-400 hover:bg-rose-500/20 transition flex items-center gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Remove UPI</span>
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={loading}
