@@ -13,7 +13,7 @@ export function buildWhatsAppSummary(
   const lines: string[] = [];
   lines.push(`*💸 SplitRupee: ${groupName}*`);
   lines.push("");
-  lines.push("*Who pays whom (Optimized Transfers)*");
+  lines.push("*Who will pay whom (Optimized Transfers)*");
   if (transfers.length === 0) {
     lines.push("✅ Everyone is settled up! All Square.");
   } else {
@@ -88,8 +88,8 @@ export function buildGroupLedgerCSV(
       netINR > 0
         ? `Gets Back INR ${netINR}`
         : netINR < 0
-        ? `Owes INR ${Math.abs(netINR)}`
-        : "Settled (All Square)";
+          ? `Owes INR ${Math.abs(netINR)}`
+          : "Settled (All Square)";
 
     const paid = roundFigure(memberPaid[m.id] || 0);
     const share = roundFigure(memberShare[m.id] || 0);
