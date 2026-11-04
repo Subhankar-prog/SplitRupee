@@ -47,10 +47,13 @@ export default function SettleUpModal({
 }: Props) {
   const { currentUser } = useUser();
 
-  // Role resolution: Server-backed creatorId check
+  // Role resolution: Server-backed creatorId check or ADMIN role check
   const isAdmin = useMemo(() => {
-    return !!(currentUser && groupCreatorId && currentUser.id === groupCreatorId);
-  }, [currentUser, groupCreatorId]);
+    if (!currentUser) return false;
+    if (groupCreatorId && currentUser.id === groupCreatorId) return true;
+    const currentMember = members.find((m) => m.id === currentUser.id);
+    return currentMember?.role === "ADMIN";
+  }, [currentUser, groupCreatorId, members]);
 
   // 1. Initial payer:
   // If defaultPayerId was passed (e.g. from 1-Tap Settle or Friends Balances), honor it!
@@ -322,7 +325,7 @@ export default function SettleUpModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-4">
           {error && (
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
@@ -443,9 +446,9 @@ export default function SettleUpModal({
               </span>
               <input
                 type="number"
-                step="1"
+                step="any"
                 min="0.01"
-                max={maxOutstandingRupees > 0 ? maxOutstandingRupees : undefined}
+                max={!isAdmin && maxOutstandingRupees > 0 ? maxOutstandingRupees : undefined}
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => {

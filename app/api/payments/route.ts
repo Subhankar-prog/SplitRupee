@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       include: {
-        members: { select: { userId: true, joinedAt: true }, orderBy: { joinedAt: "asc" } },
+        members: { select: { userId: true, joinedAt: true, role: true }, orderBy: { joinedAt: "asc" } },
         activityLogs: {
           where: { action: "GROUP_CREATED" },
           select: { userId: true },
@@ -65,10 +65,11 @@ export async function POST(req: Request) {
 
     // Determine Group Admin / Creator
     const creatorId = group.activityLogs[0]?.userId || group.members[0]?.userId;
+    const callerMember = callerId ? group.members.find((m) => m.userId === callerId) : null;
+    const isCallerAdmin = Boolean(callerId && (callerId === creatorId || callerMember?.role === "ADMIN"));
 
     // 2. Server-side role authorization: Payer, Receiver, or Group Admin
     if (callerId) {
-      const isCallerAdmin = callerId === creatorId;
       const isCallerPayer = callerId === payerId;
       const isCallerReceiver = callerId === receiverId;
       if (!isCallerAdmin && !isCallerPayer && !isCallerReceiver) {
@@ -126,19 +127,19 @@ export async function POST(req: Request) {
       const payerNetPaise = netBalances[payerId] ?? 0;
       const receiverNetPaise = netBalances[receiverId] ?? 0;
 
-      // Payer must owe money (net balance < 0)
-      if (payerNetPaise >= 0) {
+      // Payer must owe money (net balance < 0), unless recorded by an authorized Group Admin
+      if (!isCallerAdmin && payerNetPaise >= 0) {
         throw new SettlementError("PAYER_NOT_DEBTOR", 400, "Payer does not have an outstanding debt in this group");
       }
 
-      // Receiver must be owed money (net balance > 0)
-      if (receiverNetPaise <= 0) {
+      // Receiver must be owed money (net balance > 0), unless recorded by an authorized Group Admin
+      if (!isCallerAdmin && receiverNetPaise <= 0) {
         throw new SettlementError("RECEIVER_NOT_CREDITOR", 400, "Receiver is not entitled to receive payments in this group");
       }
 
-      // Prevent over-settlement: Amount cannot exceed payer's remaining debt
+      // Prevent over-settlement for standard members: Amount cannot exceed payer's remaining debt
       const payerDebtPaise = Math.abs(payerNetPaise);
-      if (amountPaise > payerDebtPaise) {
+      if (!isCallerAdmin && amountPaise > payerDebtPaise) {
         throw new SettlementError(
           "OVER_SETTLEMENT",
           400,
