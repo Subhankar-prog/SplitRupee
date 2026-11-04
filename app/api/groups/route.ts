@@ -4,13 +4,19 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** GET /api/groups: list groups (optionally filtered by userId) */
+/** GET /api/groups: list groups (strictly filtered by userId) */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
-    const where = userId ? { members: { some: { userId } } } : {};
+    // In SplitRupee, groups are strictly private to their members.
+    // Never expose all database groups to unauthenticated or un-scoped queries!
+    if (!userId) {
+      return NextResponse.json({ ok: true, groups: [] });
+    }
+
+    const where = { members: { some: { userId } } };
 
     const groups = await prisma.group.findMany({
       where,

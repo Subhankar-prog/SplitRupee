@@ -53,9 +53,12 @@ export default function Dashboard() {
 
   const loadGroups = useCallback(async () => {
     try {
-      const url = currentUser?.id
-        ? `/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`
-        : `/api/groups?_t=${Date.now()}`;
+      if (!currentUser?.id) {
+        setGroups([]);
+        setLoaded(true);
+        return;
+      }
+      const url = `/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`;
       const res = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache, no-store, must-revalidate" } });
       const json = await res.json();
       if (json.ok && Array.isArray(json.groups)) {

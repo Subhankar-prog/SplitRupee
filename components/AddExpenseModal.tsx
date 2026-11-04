@@ -146,21 +146,35 @@ export default function AddExpenseModal({
     });
   }, []);
 
-  // Fetch groups if not provided
+  // Fetch groups if not provided (strictly scoped to currentUser's active groups)
   useEffect(() => {
-    if (!providedGroup) {
-      fetch("/api/groups")
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.ok && d.groups.length > 0) {
-            setAllGroups(d.groups);
-            if (!selectedGroupId) {
-              setSelectedGroupId(d.groups[0].id);
-            }
-          }
-        });
+    if (providedGroup) {
+      setAllGroups([providedGroup]);
+      setSelectedGroupId(providedGroup.id);
+      return;
     }
-  }, [providedGroup, selectedGroupId]);
+
+    if (!currentUser?.id) return;
+
+    fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok && Array.isArray(d.groups)) {
+          // Strictly filter to groups where currentUser is an active member
+          const myGroups = d.groups.filter((g: any) =>
+            g.members?.some((m: any) => m.id === currentUser.id || m.userId === currentUser.id)
+          );
+          setAllGroups(myGroups);
+          if (!selectedGroupId && myGroups.length > 0) {
+            setSelectedGroupId(myGroups[0].id);
+          }
+        }
+      })
+      .catch((err) => console.warn("Failed to fetch user groups:", err));
+  }, [providedGroup, selectedGroupId, currentUser?.id]);
 
   const activeGroup = providedGroup || allGroups.find((g) => g.id === selectedGroupId) || null;
   const members = activeGroup?.members || [];
