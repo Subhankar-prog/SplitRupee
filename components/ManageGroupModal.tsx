@@ -20,6 +20,9 @@ import {
   Tag,
   DollarSign,
   Copy,
+  GitMerge,
+  ArrowRight,
+  UserCheck,
 } from "lucide-react";
 import type { MemberDTO, GroupTypeName } from "@/lib/types";
 
@@ -82,6 +85,68 @@ export default function ManageGroupModal({
   const [exiting, setExiting] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<MemberDTO | null>(null);
   const [removingMember, setRemovingMember] = useState(false);
+
+  // Merge Duplicate Members state
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [sourceMemberId, setSourceMemberId] = useState("");
+  const [targetMemberId, setTargetMemberId] = useState("");
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState("");
+  const [mergeSuccess, setMergeSuccess] = useState("");
+
+  const handleMergeMembers = async () => {
+    if (!sourceMemberId || !targetMemberId) {
+      setMergeError("Please select both a duplicate member and an active member.");
+      return;
+    }
+    if (sourceMemberId === targetMemberId) {
+      setMergeError("Duplicate member and active member cannot be the same.");
+      return;
+    }
+
+    try {
+      setMerging(true);
+      setMergeError("");
+      setMergeSuccess("");
+
+      const res = await fetch(`/api/groups/${group.id}/merge-members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceUserId: sourceMemberId,
+          targetUserId: targetMemberId,
+          requesterId: currentUser.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || data.error || "Failed to merge members");
+      }
+
+      setMergeSuccess(data.message || "Members merged successfully!");
+      setSuccessMsg(data.message || "Members merged successfully!");
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("splitrupee_refresh", { detail: { groupId: group.id } })
+        );
+      }
+
+      onGroupUpdated();
+
+      setTimeout(() => {
+        setShowMergeModal(false);
+        setSourceMemberId("");
+        setTargetMemberId("");
+        setMergeSuccess("");
+      }, 1500);
+    } catch (err: any) {
+      setMergeError(err.message || "Failed to merge members");
+    } finally {
+      setMerging(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -481,6 +546,168 @@ export default function ManageGroupModal({
                 <span>Manage member permissions, admin status, and access</span>
                 <span className="font-semibold text-white">{members.length} Total</span>
               </div>
+
+              {/* Merge Duplicate Members Action Card */}
+              {members.length >= 2 && (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-900 border border-indigo-500/20 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+                        <GitMerge className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-indigo-200 flex items-center gap-1.5">
+                          <span>Merge Duplicate Members</span>
+                          <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.2 rounded font-mono font-bold">1-Click</span>
+                        </div>
+                        <div className="text-[11px] text-indigo-300/70 truncate">
+                          Added someone by phone and they joined with Google? Merge them here
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMergeModal(!showMergeModal);
+                        setMergeError("");
+                        setMergeSuccess("");
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs shrink-0 transition shadow-sm shadow-indigo-500/20"
+                    >
+                      {showMergeModal ? "Cancel" : "Merge Members"}
+                    </button>
+                  </div>
+
+                  {/* Expandable Merge Sub-Panel */}
+                  {showMergeModal && (
+                    <div className="pt-3 border-t border-indigo-500/20 space-y-3">
+                      {mergeError && (
+                        <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>{mergeError}</span>
+                        </div>
+                      )}
+
+                      {mergeSuccess && (
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                          <Check className="h-4 w-4 shrink-0" />
+                          <span>{mergeSuccess}</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                        {/* Source Member */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-indigo-300 mb-1">
+                            1. Select Duplicate / Old Profile (To Remove)
+                          </label>
+                          <select
+                            value={sourceMemberId}
+                            onChange={(e) => setSourceMemberId(e.target.value)}
+                            className="w-full text-xs bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-indigo-500"
+                          >
+                            <option value="">-- Choose duplicate member --</option>
+                            {members.map((m) => {
+                              const isPlaceholder =
+                                m.email?.endsWith("@splitrupee.in") ||
+                                m.name.startsWith("Member ") ||
+                                m.name.startsWith("user.");
+                              const bal = balances[m.id] ?? 0;
+                              return (
+                                <option
+                                  key={m.id}
+                                  value={m.id}
+                                  disabled={m.id === targetMemberId}
+                                >
+                                  {m.name} {isPlaceholder ? "📱 (Phone Placeholder)" : ""} —{" "}
+                                  {bal > 0 ? `+₹${Math.round(bal)}` : bal < 0 ? `-₹${Math.round(-bal)}` : "₹0"}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        {/* Target Member */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-emerald-400 mb-1">
+                            2. Select Real / Active Account (To Keep)
+                          </label>
+                          <select
+                            value={targetMemberId}
+                            onChange={(e) => setTargetMemberId(e.target.value)}
+                            className="w-full text-xs bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-emerald-500"
+                          >
+                            <option value="">-- Choose active member --</option>
+                            {members.map((m) => {
+                              const bal = balances[m.id] ?? 0;
+                              return (
+                                <option
+                                  key={m.id}
+                                  value={m.id}
+                                  disabled={m.id === sourceMemberId}
+                                >
+                                  {m.name} ({m.email || "No email"}) —{" "}
+                                  {bal > 0 ? `+₹${Math.round(bal)}` : bal < 0 ? `-₹${Math.round(-bal)}` : "₹0"}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Live Combined Balance Preview */}
+                      {sourceMemberId && targetMemberId && (
+                        <div className="p-3 rounded-xl bg-slate-950/60 border border-indigo-500/20 text-xs space-y-1.5">
+                          <div className="font-semibold text-slate-300 flex items-center justify-between">
+                            <span>Balance Transfer Preview:</span>
+                            <span className="font-mono text-emerald-400 font-bold">
+                              New Balance: ₹
+                              {Math.round(
+                                (balances[sourceMemberId] ?? 0) + (balances[targetMemberId] ?? 0)
+                              )}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            All expenses, splits, debts, and payments from{" "}
+                            <strong className="text-indigo-300">
+                              {members.find((m) => m.id === sourceMemberId)?.name}
+                            </strong>{" "}
+                            will transfer directly to{" "}
+                            <strong className="text-emerald-400">
+                              {members.find((m) => m.id === targetMemberId)?.name}
+                            </strong>
+                            . The duplicate profile will be cleanly removed.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowMergeModal(false)}
+                          disabled={merging}
+                          className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-300 hover:bg-white/10 transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleMergeMembers}
+                          disabled={merging || !sourceMemberId || !targetMemberId}
+                          className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                        >
+                          {merging ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <UserCheck className="h-3.5 w-3.5" />
+                          )}
+                          <span>Confirm & Merge</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 {members.map((m) => {

@@ -25,17 +25,20 @@ import {
   Check,
   Edit2,
   Plane,
+  User,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import AddUpiModal from "./AddUpiModal";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useTheme } from "@/lib/themeContext";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const { currentUser, logout, refreshUsers } = useUser();
   const { isDarkMode, toggleTheme } = useTheme();
   const [showGlobalAddExpense, setShowGlobalAddExpense] = useState(false);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAddUpiModal, setShowAddUpiModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -924,6 +927,17 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
+                          setShowProfileSettings(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-slate-200 hover:bg-white/10 transition text-left"
+                      >
+                        <User className="h-4 w-4 text-emerald-400" />
+                        <span>Profile Settings</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
                           setShowChangePassword(true);
                         }}
                         className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-slate-200 hover:bg-white/10 transition text-left"
@@ -1047,27 +1061,39 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               </span>
             </button>
 
-            <div className="pt-3 border-t border-white/10 flex gap-2">
+            <div className="pt-3 border-t border-white/10 space-y-2">
               {currentUser ? (
                 <>
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setShowChangePassword(true);
+                      setShowProfileSettings(true);
                     }}
-                    className="flex-1 rounded-xl border border-white/15 bg-white/5 py-2.5 text-center text-xs font-semibold text-white"
+                    className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-center text-xs font-bold text-emerald-300 flex items-center justify-center gap-2"
                   >
-                    Change Password
+                    <User className="h-4 w-4" />
+                    <span>Profile Settings</span>
                   </button>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setShowLogoutConfirm(true);
-                    }}
-                    className="flex-1 rounded-xl bg-rose-500/20 border border-rose-500/30 py-2.5 text-center text-xs font-bold text-rose-400"
-                  >
-                    Log Out
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setShowChangePassword(true);
+                      }}
+                      className="flex-1 rounded-xl border border-white/15 bg-white/5 py-2.5 text-center text-xs font-semibold text-white"
+                    >
+                      Change Password
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setShowLogoutConfirm(true);
+                      }}
+                      className="flex-1 rounded-xl bg-rose-500/20 border border-rose-500/30 py-2.5 text-center text-xs font-bold text-rose-400"
+                    >
+                      Log Out
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
@@ -1106,6 +1132,16 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
       {/* Change Password Modal */}
       {showChangePassword && (
         <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+
+      {/* Profile Settings Modal */}
+      {showProfileSettings && (
+        <ProfileSettingsModal
+          isOpen={showProfileSettings}
+          onClose={() => setShowProfileSettings(false)}
+          onOpenChangePassword={() => setShowChangePassword(true)}
+          onLogoutConfirm={() => setShowLogoutConfirm(true)}
+        />
       )}
 
       {/* Add / Edit UPI Modal */}
