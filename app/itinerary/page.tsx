@@ -93,6 +93,7 @@ export default function ItineraryPage() {
   // Forwarding to Travel Group (Admin-Only) state
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const [userGroups, setUserGroups] = useState<any[]>([]);
+  const [pdfProgress, setPdfProgress] = useState<string | null>(null);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [isForwarding, setIsForwarding] = useState(false);
@@ -514,13 +515,26 @@ export default function ItineraryPage() {
     setLoading(false);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async (mode: "magazine" | "classic" = "magazine") => {
     if (!result) return;
-    exportItineraryPDF({
-      form,
-      result,
-      financialSummary,
-    });
+    setPdfProgress("Starting PDF export...");
+    try {
+      await exportItineraryPDF({
+        form,
+        result,
+        financialSummary,
+        mode,
+        onProgress: (step, total, msg) => {
+          setPdfProgress(msg || `Generating Page ${step} of ${total}...`);
+        }
+      });
+      setSaveToast(`✨ ${mode === "magazine" ? "Magazine Scrapbook" : "Classic Statement"} downloaded successfully!`);
+      setTimeout(() => setSaveToast(null), 4000);
+    } catch (err) {
+      console.error("PDF export error:", err);
+    } finally {
+      setPdfProgress(null);
+    }
   };
 
   const handleAddToCalendar = () => {
@@ -1819,15 +1833,31 @@ export default function ItineraryPage() {
 
                     {/* PDF Export */}
                     <button
-                      onClick={handleDownloadPDF}
-                      className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
-                      title="Download Itinerary PDF"
+                      onClick={() => handleDownloadPDF("magazine")}
+                      disabled={!!pdfProgress}
+                      className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition disabled:opacity-60"
+                      title="Download Travel Guide (Magazine Edition)"
                     >
-                      <Download className="h-4 w-4 stroke-[2.5]" />
-                      <span>PDF</span>
+                      {pdfProgress ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 stroke-[2.5]" />
+                      )}
+                      <span>{pdfProgress ? "Exporting..." : "PDF"}</span>
                     </button>
                   </div>
                 </div>
+
+                {/* PDF Generation Progress Floating Banner */}
+                {pdfProgress && (
+                  <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-emerald-500/50 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3.5 backdrop-blur-lg animate-in fade-in slide-in-from-bottom-3">
+                    <Loader2 className="h-5 w-5 text-emerald-400 animate-spin shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Generating Travel Magazine PDF</div>
+                      <div className="text-sm font-medium text-slate-200">{pdfProgress}</div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Save Toast Notification */}
                 {saveToast && (

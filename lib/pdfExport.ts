@@ -3,6 +3,9 @@ import type { MemberDTO, ExpenseDTO, PaymentDTO } from "./types";
 import type { Transfer } from "./debt";
 import { roundFigure } from "./money";
 import { getDynamicPlaceSections, type PlaceSection } from "./destinationGroundEngine";
+import { exportMagazinePDF, type MagazineItineraryData } from "./magazinePdfExport";
+
+export { exportMagazinePDF };
 
 /**
  * Cleans string of Unicode characters that break in standard jsPDF WinAnsi fonts.
@@ -23,10 +26,7 @@ function cleanPdfText(str: any): string {
     .trim();
 }
 
-/**
- * Generates an elegant, theme-based printable PDF for travel itineraries.
- */
-export function exportItineraryPDF(itineraryData: {
+export interface ItineraryPdfOptions {
   form: {
     origin: string;
     destination: string;
@@ -42,8 +42,10 @@ export function exportItineraryPDF(itineraryData: {
     specialNotes?: string;
   };
   result: {
+    destination?: string;
     days?: Array<{
       day: number;
+      title?: string;
       stay: string;
       legs?: Array<{
         from: string;
@@ -68,6 +70,8 @@ export function exportItineraryPDF(itineraryData: {
     }>;
     equipments?: any[];
     tips?: any[];
+    placeGear?: any[];
+    placeTips?: any[];
     auditReview?: {
       status?: string;
       auditScore?: number;
@@ -84,7 +88,33 @@ export function exportItineraryPDF(itineraryData: {
     budgetStatus: string;
     targetNightlyStayBudget?: number;
   };
-}) {
+  mode?: "magazine" | "classic";
+  onProgress?: (step: number, total: number, message: string) => void;
+}
+
+/**
+ * Main PDF export function. Defaults to the rich, dynamic Magazine Scrapbook edition
+ * matching the SplitRupee Travel Guide aesthetic with fallback to classic layout.
+ */
+export function exportItineraryPDF(itineraryData: ItineraryPdfOptions) {
+  const { mode = "magazine", onProgress } = itineraryData;
+
+  // In browser runtime with magazine mode, launch the magazine scrapbook engine
+  if (typeof window !== "undefined" && mode === "magazine") {
+    exportMagazinePDF(itineraryData as MagazineItineraryData, onProgress).catch((err) => {
+      console.warn("Magazine PDF generation encountered error, smoothly falling back to classic engine:", err);
+      exportClassicItineraryPDF(itineraryData);
+    });
+    return;
+  }
+
+  exportClassicItineraryPDF(itineraryData);
+}
+
+/**
+ * Generates an elegant, theme-based printable PDF for travel itineraries (Classic Edition).
+ */
+export function exportClassicItineraryPDF(itineraryData: ItineraryPdfOptions) {
   const { form, result, financialSummary } = itineraryData;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
