@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { UserProvider } from "@/lib/userContext";
 import { ThemeProvider } from "@/lib/themeContext";
@@ -7,16 +7,18 @@ import AppShell from "@/components/AppShell";
 import PwaRegister from "@/components/PwaRegister";
 import Script from "next/script";
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const inter = localFont({
+  src: "./fonts/inter-latin.woff2",
+  weight: "100 900",
+  style: "normal",
   variable: "--font-inter",
   display: "swap",
 });
 
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+const manrope = localFont({
+  src: "./fonts/manrope-latin.woff2",
+  weight: "200 800",
+  style: "normal",
   variable: "--font-manrope",
   display: "swap",
 });
