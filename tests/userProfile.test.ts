@@ -7,11 +7,15 @@ const { mockPrisma } = vi.hoisted(() => {
       findMany: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     groupMember: {
+      findMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     expense: {
       updateMany: vi.fn(),
@@ -20,17 +24,23 @@ const { mockPrisma } = vi.hoisted(() => {
       updateMany: vi.fn(),
     },
     expenseSplit: {
+      findMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     payment: {
       findMany: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     activityLog: {
       create: vi.fn(),
+      createMany: vi.fn(),
     },
     $transaction: vi.fn(async (callback: any) => {
       return await callback(mockPrisma);
@@ -108,11 +118,8 @@ describe("PATCH /api/users", () => {
     mockPrisma.user.findMany.mockResolvedValueOnce([
       {
         id: "u2",
-        name: "Other User",
         email: "other@gmail.com",
         passwordHash: "secure_hash",
-        memberships: [],
-        splits: [],
       },
     ]);
 
@@ -129,7 +136,7 @@ describe("PATCH /api/users", () => {
     expect(data.error).toBe("PHONE_IN_USE");
   });
 
-  it("updates profile and auto-claims placeholder accounts matching mobile number", async () => {
+  it("updates profile and bulk auto-claims placeholder accounts matching mobile number", async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({
       id: "u1",
       name: "Rahul",
@@ -140,22 +147,20 @@ describe("PATCH /api/users", () => {
     mockPrisma.user.findMany.mockResolvedValueOnce([
       {
         id: "placeholder-1",
-        name: "Member 9876543210",
         email: "9876543210@splitrupee.in",
-        phone: "9876543210",
         passwordHash: null,
-        memberships: [{ id: "mem-1", groupId: "group-trip", userId: "placeholder-1" }],
-        splits: [{ id: "spl-1", expenseId: "exp-1", userId: "placeholder-1", amount: 400 }],
       },
     ]);
 
-    // Active user is not already member in group-trip
-    mockPrisma.groupMember.findUnique.mockResolvedValueOnce(null);
-    // Active user has no existing split on exp-1
-    mockPrisma.expenseSplit.findUnique.mockResolvedValueOnce(null);
+    // 1st groupMember.findMany -> placeholder memberships; 2nd -> existing target memberships
+    mockPrisma.groupMember.findMany
+      .mockResolvedValueOnce([{ id: "mem-1", groupId: "group-trip", userId: "placeholder-1" }])
+      .mockResolvedValueOnce([]);
 
-    // Mock payments
-    mockPrisma.payment.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    // 1st expenseSplit.findMany -> placeholder splits; 2nd -> existing target splits
+    mockPrisma.expenseSplit.findMany
+      .mockResolvedValueOnce([{ id: "spl-1", expenseId: "exp-1", userId: "placeholder-1", amount: 400, percentage: 50 }])
+      .mockResolvedValueOnce([]);
 
     // Mock final update
     mockPrisma.user.update.mockResolvedValueOnce({
@@ -188,22 +193,77 @@ describe("PATCH /api/users", () => {
     expect(data.user.phone).toBe("9876543210");
     expect(data.user.upiId).toBe("rahul@ybl");
 
-    // Verified membership reassigned to active user
-    expect(mockPrisma.groupMember.update).toHaveBeenCalledWith({
-      where: { id: "mem-1" },
+    // Verified memberships bulk reassigned to active user
+    expect(mockPrisma.groupMember.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["mem-1"] } },
       data: { userId: "u1" },
     });
 
-    // Verified split reassigned
-    expect(mockPrisma.expenseSplit.update).toHaveBeenCalledWith({
-      where: { id: "spl-1" },
+    // Verified splits bulk reassigned
+    expect(mockPrisma.expenseSplit.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["spl-1"] } },
       data: { userId: "u1" },
     });
 
-    // Verified placeholder user was deleted
-    expect(mockPrisma.user.delete).toHaveBeenCalledWith({
-      where: { id: "placeholder-1" },
+    // Verified activity logs batched
+    expect(mockPrisma.activityLog.createMany).toHaveBeenCalled();
+
+    // Verified placeholder user was bulk deleted
+    expect(mockPrisma.user.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["placeholder-1"] } },
     });
+  });
+
+  it("retries once and recovers if auto-claim hits transient Transaction not found error", async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      id: "u1",
+      name: "Rahul",
+      email: "rahul@gmail.com",
+    });
+
+    mockPrisma.user.findMany.mockResolvedValueOnce([
+      {
+        id: "placeholder-1",
+        email: "9876543210@splitrupee.in",
+        passwordHash: null,
+      },
+    ]);
+
+    mockPrisma.$transaction
+      .mockRejectedValueOnce(
+        Object.assign(
+          new Error(
+            "Transaction API error: Transaction not found. Transaction ID is invalid, refers to an old closed transaction Prisma doesn't have information about anymore, or was obtained before disconnecting."
+          ),
+          { code: "P2028" }
+        )
+      )
+      .mockImplementationOnce(async (callback: any) => callback(mockPrisma));
+
+    mockPrisma.groupMember.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    mockPrisma.expenseSplit.findMany.mockResolvedValueOnce([]);
+
+    mockPrisma.user.update.mockResolvedValueOnce({
+      id: "u1",
+      name: "Rahul",
+      email: "rahul@gmail.com",
+      phone: "9876543210",
+      upiId: null,
+      avatarColor: "#10b981",
+      isPro: false,
+    });
+
+    const req = new Request("http://localhost/api/users", {
+      method: "PATCH",
+      body: JSON.stringify({ userId: "u1", phone: "9876543210" }),
+    });
+
+    const res = await PATCH(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
   });
 
   it("successfully deletes/clears UPI ID when upiId is null or empty string", async () => {

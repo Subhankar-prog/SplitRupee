@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runResilientTransaction } from "@/lib/dbTransaction";
 
 export const dynamic = "force-dynamic";
 
@@ -131,9 +132,10 @@ export async function PATCH(req: Request) {
             { email: `${cleanPhone}@splitrupee.in` },
           ],
         },
-        include: {
-          memberships: true,
-          splits: true,
+        select: {
+          id: true,
+          email: true,
+          passwordHash: true,
         },
       });
 
@@ -157,121 +159,187 @@ export async function PATCH(req: Request) {
 
       // If placeholders exist, run transactional auto-claim into currentUser
       if (collisions.length > 0) {
-        await prisma.$transaction(async (tx) => {
-          for (const placeholder of collisions) {
-            // 1. Group Memberships
-            for (const membership of placeholder.memberships) {
-              const userAlreadyMember = await tx.groupMember.findUnique({
-                where: {
-                  groupId_userId: {
-                    groupId: membership.groupId,
-                    userId,
-                  },
-                },
+        const placeholderIds = collisions.map((c) => c.id);
+
+        const claimStats = await runResilientTransaction(async (tx) => {
+          let txClaimedGroups = 0;
+          let txClaimedExpenses = 0;
+
+          // 1. Group Memberships (bulk check + transfer/delete + activity logs)
+          const placeholderMemberships = await tx.groupMember.findMany({
+            where: { userId: { in: placeholderIds } },
+          });
+
+          if (placeholderMemberships.length > 0) {
+            const allGroupIds = Array.from(new Set(placeholderMemberships.map((m) => m.groupId)));
+            const existingTargetMemberships = await tx.groupMember.findMany({
+              where: {
+                userId,
+                groupId: { in: allGroupIds },
+              },
+              select: { groupId: true },
+            });
+
+            const seenGroupIds = new Set(existingTargetMemberships.map((m) => m.groupId));
+            const transferMembershipIds: string[] = [];
+            const deleteMembershipIds: string[] = [];
+
+            for (const m of placeholderMemberships) {
+              if (seenGroupIds.has(m.groupId)) {
+                deleteMembershipIds.push(m.id);
+              } else {
+                seenGroupIds.add(m.groupId);
+                transferMembershipIds.push(m.id);
+              }
+            }
+
+            if (deleteMembershipIds.length > 0) {
+              await tx.groupMember.deleteMany({
+                where: { id: { in: deleteMembershipIds } },
               });
+            }
 
-              if (userAlreadyMember) {
-                // Delete placeholder membership to avoid duplicate
-                await tx.groupMember.delete({ where: { id: membership.id } });
-              } else {
-                // Reassign membership to active user
-                await tx.groupMember.update({
-                  where: { id: membership.id },
-                  data: { userId },
-                });
-                claimedGroupsCount++;
-              }
-
-              // Activity Log in the group
-              await tx.activityLog.create({
-                data: {
-                  groupId: membership.groupId,
-                  userId,
-                  action: "MEMBER_ADDED",
-                  entityTitle: currentUser.name,
-                  details: `${currentUser.name} linked mobile number and connected past expenses`,
-                },
+            if (transferMembershipIds.length > 0) {
+              await tx.groupMember.updateMany({
+                where: { id: { in: transferMembershipIds } },
+                data: { userId },
               });
+              txClaimedGroups = transferMembershipIds.length;
             }
 
-            // 2. Expenses paid by placeholder
-            await tx.expense.updateMany({
-              where: { paidById: placeholder.id },
-              data: { paidById: userId },
+            await tx.activityLog.createMany({
+              data: allGroupIds.map((gid) => ({
+                groupId: gid,
+                userId,
+                action: "MEMBER_ADDED",
+                entityTitle: currentUser.name,
+                details: `${currentUser.name} linked mobile number and connected past expenses`,
+              })),
             });
-
-            // 3. Recurring expenses
-            await tx.recurringExpense.updateMany({
-              where: { paidById: placeholder.id },
-              data: { paidById: userId },
-            });
-
-            // 4. Expense splits
-            for (const split of placeholder.splits) {
-              const existingTargetSplit = await tx.expenseSplit.findUnique({
-                where: {
-                  expenseId_userId: {
-                    expenseId: split.expenseId,
-                    userId,
-                  },
-                },
-              });
-
-              if (existingTargetSplit) {
-                await tx.expenseSplit.update({
-                  where: { id: existingTargetSplit.id },
-                  data: {
-                    amount: existingTargetSplit.amount + split.amount,
-                    percentage:
-                      existingTargetSplit.percentage !== null || split.percentage !== null
-                        ? (existingTargetSplit.percentage || 0) + (split.percentage || 0)
-                        : null,
-                  },
-                });
-                await tx.expenseSplit.delete({ where: { id: split.id } });
-              } else {
-                await tx.expenseSplit.update({
-                  where: { id: split.id },
-                  data: { userId },
-                });
-                claimedExpensesCount++;
-              }
-            }
-
-            // 5. Payments (Payer)
-            const payerPayments = await tx.payment.findMany({
-              where: { payerId: placeholder.id },
-            });
-            for (const p of payerPayments) {
-              if (p.receiverId === userId) {
-                await tx.payment.delete({ where: { id: p.id } });
-              } else {
-                await tx.payment.update({
-                  where: { id: p.id },
-                  data: { payerId: userId },
-                });
-              }
-            }
-
-            // 6. Payments (Receiver)
-            const receiverPayments = await tx.payment.findMany({
-              where: { receiverId: placeholder.id },
-            });
-            for (const p of receiverPayments) {
-              if (p.payerId === userId) {
-                await tx.payment.delete({ where: { id: p.id } });
-              } else {
-                await tx.payment.update({
-                  where: { id: p.id },
-                  data: { receiverId: userId },
-                });
-              }
-            }
-
-            // 7. Delete the placeholder account
-            await tx.user.delete({ where: { id: placeholder.id } });
           }
+
+          // 2. Expenses paid by placeholders (bulk)
+          await tx.expense.updateMany({
+            where: { paidById: { in: placeholderIds } },
+            data: { paidById: userId },
+          });
+
+          // 3. Recurring expenses (bulk)
+          await tx.recurringExpense.updateMany({
+            where: { paidById: { in: placeholderIds } },
+            data: { paidById: userId },
+          });
+
+          // 4. Expense splits (bulk fetch + consolidate overlapping + bulk reassign/delete)
+          const placeholderSplits = await tx.expenseSplit.findMany({
+            where: { userId: { in: placeholderIds } },
+          });
+
+          if (placeholderSplits.length > 0) {
+            const splitExpenseIds = Array.from(new Set(placeholderSplits.map((s) => s.expenseId)));
+            const existingTargetSplits = await tx.expenseSplit.findMany({
+              where: {
+                userId,
+                expenseId: { in: splitExpenseIds },
+              },
+            });
+            const targetSplitByExpenseId = new Map(existingTargetSplits.map((s) => [s.expenseId, s]));
+
+            // Track placeholder splits per expense so multiple placeholders on same expense also merge cleanly
+            const splitsByExpense = new Map<string, typeof placeholderSplits>();
+            for (const s of placeholderSplits) {
+              const list = splitsByExpense.get(s.expenseId) || [];
+              list.push(s);
+              splitsByExpense.set(s.expenseId, list);
+            }
+
+            const directTransferSplitIds: string[] = [];
+            const deleteSplitIds: string[] = [];
+
+            for (const [expenseId, groupSplits] of splitsByExpense.entries()) {
+              const targetSplit = targetSplitByExpenseId.get(expenseId);
+              if (targetSplit) {
+                const addedAmount = groupSplits.reduce((sum, s) => sum + s.amount, 0);
+                const hasPct =
+                  targetSplit.percentage !== null || groupSplits.some((s) => s.percentage !== null);
+                const addedPct = groupSplits.reduce((sum, s) => sum + (s.percentage || 0), 0);
+
+                await tx.expenseSplit.update({
+                  where: { id: targetSplit.id },
+                  data: {
+                    amount: targetSplit.amount + addedAmount,
+                    percentage: hasPct ? (targetSplit.percentage || 0) + addedPct : null,
+                  },
+                });
+                deleteSplitIds.push(...groupSplits.map((s) => s.id));
+              } else if (groupSplits.length === 1) {
+                directTransferSplitIds.push(groupSplits[0].id);
+                txClaimedExpenses++;
+              } else {
+                // Multiple placeholders had splits on the same expense while user had none:
+                // keep the first split, merge amounts from the rest, delete duplicates
+                const [first, ...rest] = groupSplits;
+                const totalAmount = groupSplits.reduce((sum, s) => sum + s.amount, 0);
+                const hasPct = groupSplits.some((s) => s.percentage !== null);
+                const totalPct = groupSplits.reduce((sum, s) => sum + (s.percentage || 0), 0);
+                await tx.expenseSplit.update({
+                  where: { id: first.id },
+                  data: {
+                    userId,
+                    amount: totalAmount,
+                    percentage: hasPct ? totalPct : null,
+                  },
+                });
+                deleteSplitIds.push(...rest.map((s) => s.id));
+                txClaimedExpenses += groupSplits.length;
+              }
+            }
+
+            if (directTransferSplitIds.length > 0) {
+              await tx.expenseSplit.updateMany({
+                where: { id: { in: directTransferSplitIds } },
+                data: { userId },
+              });
+            }
+
+            if (deleteSplitIds.length > 0) {
+              await tx.expenseSplit.deleteMany({
+                where: { id: { in: deleteSplitIds } },
+              });
+            }
+          }
+
+          // 5. Payments (delete redundant self-payments + bulk reassign payer/receiver)
+          await tx.payment.deleteMany({
+            where: {
+              OR: [
+                { payerId: { in: placeholderIds }, receiverId: userId },
+                { payerId: userId, receiverId: { in: placeholderIds } },
+                { payerId: { in: placeholderIds }, receiverId: { in: placeholderIds } },
+              ],
+            },
+          });
+
+          await tx.payment.updateMany({
+            where: { payerId: { in: placeholderIds } },
+            data: { payerId: userId },
+          });
+
+          await tx.payment.updateMany({
+            where: { receiverId: { in: placeholderIds } },
+            data: { receiverId: userId },
+          });
+
+          // 6. Delete placeholder accounts in bulk
+          await tx.user.deleteMany({
+            where: { id: { in: placeholderIds } },
+          });
+
+          return { claimedGroups: txClaimedGroups, claimedExpenses: txClaimedExpenses };
         });
+
+        claimedGroupsCount = claimStats.claimedGroups;
+        claimedExpensesCount = claimStats.claimedExpenses;
       }
     }
 

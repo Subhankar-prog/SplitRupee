@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runResilientTransaction } from "@/lib/dbTransaction";
 import { computeNetBalances } from "@/lib/debt";
 import { toPaise, roundFigure } from "@/lib/money";
 
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Atomic Transaction execution with row locking, idempotency check, and ledger validation
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runResilientTransaction(async (tx) => {
       // Row lock on group record to serialize concurrent settlements in PostgreSQL
       await tx.group.update({
         where: { id: groupId },
@@ -106,17 +107,15 @@ export async function POST(req: Request) {
         }
       }
 
-      // Query live expenses and payments INSIDE the transaction lock
-      const [expenses, existingPayments] = await Promise.all([
-        tx.expense.findMany({
-          where: { groupId, isDeleted: false },
-          select: { paidById: true, splits: { select: { userId: true, amount: true } } },
-        }),
-        tx.payment.findMany({
-          where: { groupId },
-          select: { payerId: true, receiverId: true, amount: true, notes: true },
-        }),
-      ]);
+      // Query live expenses and payments sequentially inside the transaction lock
+      const expenses = await tx.expense.findMany({
+        where: { groupId, isDeleted: false },
+        select: { paidById: true, splits: { select: { userId: true, amount: true } } },
+      });
+      const existingPayments = await tx.payment.findMany({
+        where: { groupId },
+        select: { payerId: true, receiverId: true, amount: true, notes: true },
+      });
 
       const netBalances = computeNetBalances(
         expenses,
@@ -206,7 +205,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runResilientTransaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
         include: {

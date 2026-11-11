@@ -139,6 +139,27 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   const [copied, setCopied] = useState(false);
   const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutsideClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowExportMenu(false);
+    }
+    if (showExportMenu) {
+      document.addEventListener("mousedown", handleOutsideClick);
+      document.addEventListener("keydown", handleEscape);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showExportMenu]);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -334,7 +355,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   function handleDownloadCSV() {
     if (!group) return;
     const csvContent = buildGroupLedgerCSV(
-      group.name,
+      group,
       members,
       expenses,
       payments,
@@ -403,7 +424,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       {/* Group Header Card */}
-      <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-4 sm:p-6 backdrop-blur-xl max-w-full overflow-hidden">
+      <div className="relative z-20 rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-4 sm:p-6 backdrop-blur-xl max-w-full overflow-visible">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 min-w-0 max-w-full flex-1">
             <span className="grid h-10 w-10 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-lg shadow-emerald-500/10 mt-0.5">
@@ -577,29 +598,89 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               <span className="rounded bg-purple-500/30 px-1 py-0.2 text-[9px] font-extrabold text-purple-200 uppercase tracking-wider">PRO</span>
             </button>
           )}
-          <button
-            onClick={handleShareWhatsApp}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Share2 className="h-3.5 w-3.5" />}
-            <span>{copied ? "Copied!" : "WhatsApp"}</span>
-          </button>
-          <button
-            onClick={handleDownloadPDF}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition"
-            title="Download Theme-Based Financial Statement PDF"
-          >
-            <FileText className="h-3.5 w-3.5 text-emerald-400" />
-            <span>PDF</span>
-          </button>
-          <button
-            onClick={handleDownloadCSV}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
-            title="Download Standard Excel / CSV Ledger"
-          >
-            <Download className="h-3.5 w-3.5 text-sky-400" />
-            <span>Excel/CSV</span>
-          </button>
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowExportMenu((prev) => !prev)}
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer"
+              aria-expanded={showExportMenu}
+              aria-haspopup="menu"
+              title="Export financial statement or share summary"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Download className="h-3.5 w-3.5 text-emerald-400" />
+              )}
+              <span>{copied ? "Copied!" : "Export"}</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-150 ${
+                  showExportMenu ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showExportMenu && (
+              <div
+                role="menu"
+                className="absolute right-0 sm:left-0 mt-2 w-56 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-1.5 z-50 space-y-1"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    handleShareWhatsApp();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/10 transition cursor-pointer"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <div>
+                    <div>WhatsApp</div>
+                    <div className="text-[10px] font-normal text-slate-400">
+                      Copy balances &amp; transfer summary
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    handleDownloadPDF();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/10 transition cursor-pointer"
+                >
+                  <FileText className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                  <div>
+                    <div>PDF Statement</div>
+                    <div className="text-[10px] font-normal text-slate-400">
+                      Print-ready 4-section ledger
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    handleDownloadCSV();
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/10 transition cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                  <div>
+                    <div>Excel / CSV</div>
+                    <div className="text-[10px] font-normal text-slate-400">
+                      Matching spreadsheet ledger
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Summary Stats */}

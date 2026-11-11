@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runResilientTransaction } from "@/lib/dbTransaction";
 import { computeSplits } from "@/lib/split";
 import { broadcastEvent } from "@/lib/eventBus";
 import { roundFigure } from "@/lib/money";
@@ -70,7 +71,7 @@ async function processDueRecurringExpenses(groupId: string) {
         memberIds.map((uid) => ({ userId: uid }))
       );
 
-      const created = await prisma.$transaction(async (tx) => {
+      const created = await runResilientTransaction(async (tx) => {
         const exp = await tx.expense.create({
           data: {
             groupId: item.groupId,

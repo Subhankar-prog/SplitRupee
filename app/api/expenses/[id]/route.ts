@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runResilientTransaction } from "@/lib/dbTransaction";
 import { expensePayloadSchema } from "@/lib/validation";
 import { computeSplits, SplitValidationError } from "@/lib/split";
 import { broadcastEvent } from "@/lib/eventBus";
@@ -52,7 +53,7 @@ export async function PUT(req: Request, { params }: Params) {
   // Check if restore action
   if (body.action === "RESTORE") {
     try {
-      const restored = await prisma.$transaction(async (tx) => {
+      const restored = await runResilientTransaction(async (tx) => {
         const exp = await tx.expense.update({
           where: { id },
           data: { isDeleted: false, deletedAt: null },
@@ -103,7 +104,7 @@ export async function PUT(req: Request, { params }: Params) {
   const { totalPaise, splits } = computed;
 
   try {
-    const updated = await prisma.$transaction(
+    const updated = await runResilientTransaction(
       async (tx) => {
         const oldExpense = await tx.expense.findUnique({
           where: { id },
@@ -167,7 +168,7 @@ export async function PUT(req: Request, { params }: Params) {
 
         return exp;
       },
-      { maxWait: 5_000, timeout: 10_000 }
+      { maxWait: 15_000, timeout: 30_000 }
     );
 
     broadcastEvent({ type: "EXPENSE_UPDATED", payload: updated });

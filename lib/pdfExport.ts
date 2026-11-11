@@ -4,6 +4,7 @@ import type { Transfer } from "./debt";
 import { roundFigure } from "./money";
 import { getDynamicPlaceSections, type PlaceSection } from "./destinationGroundEngine";
 import { exportMagazinePDF, type MagazineItineraryData } from "./magazinePdfExport";
+import { buildGroupStatementData } from "./export";
 
 export { exportMagazinePDF };
 
@@ -703,7 +704,8 @@ export function exportClassicItineraryPDF(itineraryData: ItineraryPdfOptions) {
 }
 
 /**
- * Generates an official, print-ready Group Financial Statement & Expense Ledger PDF.
+ * Generates an official, print-ready Group Financial Statement & Expense Ledger PDF
+ * backed by the exact same canonical data as the Excel/CSV export.
  */
 export function exportGroupLedgerPDF(
   group: { name: string; type: string; currency?: string },
@@ -711,8 +713,10 @@ export function exportGroupLedgerPDF(
   expenses: ExpenseDTO[],
   payments: PaymentDTO[],
   balances: Record<string, number>,
-  transfers: Transfer[]
+  transfers: Transfer[],
+  options: { download?: boolean } = { download: true }
 ) {
+  const data = buildGroupStatementData(group, members, expenses, payments, balances, transfers);
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = 210;
   const pageHeight = 297;
@@ -720,12 +724,21 @@ export function exportGroupLedgerPDF(
   const contentWidth = pageWidth - margin * 2;
   let y = margin;
 
-  const names: Record<string, string> = {};
-  members.forEach((m) => (names[m.id] = m.name));
-  const nm = (id: string) => names[id] ?? "Unknown";
-
-  const totalSpend = expenses.reduce((acc, e) => acc + e.totalAmount, 0);
-  const totalReconciled = payments.reduce((acc, p) => acc + p.amount, 0);
+  function drawRunningHeader() {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(margin, y, contentWidth, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(
+      cleanPdfText(`SPLITRUPEE FINANCIAL LEDGER | ${data.groupName.toUpperCase()}`),
+      margin + 3,
+      y + 4.8
+    );
+    doc.setTextColor(16, 185, 129);
+    doc.text("OFFICIAL EXPENSE STATEMENT", pageWidth - margin - 3, y + 4.8, { align: "right" });
+    y += 11;
+  }
 
   function checkPageBreak(spaceNeeded: number) {
     if (y + spaceNeeded > pageHeight - 18) {
@@ -735,19 +748,7 @@ export function exportGroupLedgerPDF(
     }
   }
 
-  function drawRunningHeader() {
-    doc.setFillColor(15, 23, 42);
-    doc.rect(margin, y, contentWidth, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(255, 255, 255);
-    doc.text(`SPLITRUPEE FINANCIAL LEDGER • ${group.name.toUpperCase()}`, margin + 3, y + 4.8);
-    doc.setTextColor(16, 185, 129);
-    doc.text("OFFICIAL EXPENSE STATEMENT", pageWidth - margin - 3, y + 4.8, { align: "right" });
-    y += 11;
-  }
-
-  // 1. HEADER BANNER
+  // 1. HERO HEADER BANNER
   doc.setFillColor(15, 23, 42);
   doc.roundedRect(margin, y, contentWidth, 32, 2.5, 2.5, "F");
 
@@ -759,245 +760,379 @@ export function exportGroupLedgerPDF(
   doc.text("INR", margin + 4.8, y + 10.5);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
+  doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
-  doc.text(group.name, margin + 16, y + 10);
+  doc.text(cleanPdfText(data.groupName), margin + 16, y + 9.8);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
-  const today = new Date().toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  doc.text(`Category: ${group.type}  •  ${members.length} Members  •  Exported on ${today}`, margin + 16, y + 15);
+  doc.text(
+    cleanPdfText(
+      `Category: ${data.groupType} | ${data.memberCount} Members | Exported on ${data.exportDate}`
+    ),
+    margin + 16,
+    y + 15.2
+  );
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8.2);
   doc.setTextColor(52, 211, 153);
-  doc.text(`SplitRupee Mathematical Debt Minimization Engine`, margin + 4, y + 26);
+  doc.text("SPLITRUPEE FINANCIAL STATEMENT & EXPENSE LEDGER", margin + 4, y + 25.5);
 
   y += 36;
 
-  // 2. FINANCIAL STATS CARDS
+  // 2. SUMMARY STATS CARDS (Matches CSV header summary metadata)
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(margin, y, contentWidth, 18, 2, 2, "FD");
 
-  const statW = contentWidth / 3;
+  const statW = contentWidth / 4;
 
-  // Total Spend
+  // Col 1: Total Spend
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(15, 23, 42);
-  doc.text(`INR ${roundFigure(totalSpend)}`, margin + 4, y + 8);
-  doc.setFontSize(7.5);
+  doc.text(`INR ${data.totalSpend}`, margin + 3.5, y + 7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Total Group Expenses (${expenses.length})`, margin + 4, y + 13);
+  doc.text(`Total Group Spend (${data.expenseCount})`, margin + 3.5, y + 13);
 
-  // Total Reconciled
+  // Col 2: Reconciled Paid
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(5, 150, 105);
-  doc.text(`INR ${roundFigure(totalReconciled)}`, margin + statW + 4, y + 8);
-  doc.setFontSize(7.5);
+  doc.text(`INR ${data.totalReconciled}`, margin + statW + 3.5, y + 7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Direct Settlements Paid (${payments.length})`, margin + statW + 4, y + 13);
+  doc.text(`Reconciled Paid (${data.paymentCount})`, margin + statW + 3.5, y + 13);
 
-  // Health
+  // Col 3: Pending Transfers
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setTextColor(13, 148, 136);
-  doc.text(transfers.length === 0 ? "All Square (0 Owings)" : `${transfers.length} Transfers Required`, margin + statW * 2 + 4, y + 8);
-  doc.setFontSize(7.5);
+  doc.text(cleanPdfText(data.transferSummary), margin + statW * 2 + 3.5, y + 7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text("Ledger Health Status", margin + statW * 2 + 4, y + 13);
+  doc.text("Settlement Plan", margin + statW * 2 + 3.5, y + 13);
 
-  y += 22;
-
-  // 3. MEMBER BALANCES TABLE
+  // Col 4: Group Ledger Health
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("MEMBER BALANCES & FAIR SHARE", margin, y + 2);
+  doc.text(cleanPdfText(data.ledgerHealth), margin + statW * 3 + 3.5, y + 7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text("Group Ledger Health", margin + statW * 3 + 3.5, y + 13);
+
+  y += 23;
+
+  // 3. SECTION 1: MEMBER BALANCES & FAIR SHARE
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text("1. MEMBER BALANCES & FAIR SHARE", margin, y + 2);
   y += 5;
 
-  // Table Header
   doc.setFillColor(15, 23, 42);
   doc.rect(margin, y, contentWidth, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(7.3);
   doc.setTextColor(255, 255, 255);
-  doc.text("Traveler / Member", margin + 3, y + 4.8);
-  doc.text("Total Paid", margin + 65, y + 4.8);
-  doc.text("Fair Share", margin + 105, y + 4.8);
-  doc.text("Net Balance", margin + 145, y + 4.8);
+  doc.text("Member Name", margin + 3, y + 4.8);
+  doc.text("Total Paid (INR)", margin + 58, y + 4.8);
+  doc.text("Fair Share (INR)", margin + 88, y + 4.8);
+  doc.text("Net Balance (INR)", margin + 118, y + 4.8);
   doc.text("Status", pageWidth - margin - 3, y + 4.8, { align: "right" });
   y += 7;
 
-  // Compute individual shares
-  const memberPaid: Record<string, number> = {};
-  const memberShare: Record<string, number> = {};
-  members.forEach((m) => {
-    memberPaid[m.id] = 0;
-    memberShare[m.id] = 0;
-  });
-  expenses.forEach((e) => {
-    memberPaid[e.paidById] = (memberPaid[e.paidById] || 0) + e.totalAmount;
-    e.splits.forEach((s) => {
-      memberShare[s.userId] = (memberShare[s.userId] || 0) + s.amount;
-    });
-  });
-
-  members.forEach((m, idx) => {
+  data.memberBalances.forEach((m, idx) => {
     checkPageBreak(7);
-    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+    doc.setFillColor(
+      idx % 2 === 0 ? 255 : 248,
+      idx % 2 === 0 ? 255 : 250,
+      idx % 2 === 0 ? 255 : 252
+    );
     doc.rect(margin, y, contentWidth, 6.5, "F");
     doc.setDrawColor(241, 245, 249);
     doc.line(margin, y + 6.5, pageWidth - margin, y + 6.5);
 
-    const netPaise = balances[m.id] || 0;
-    const netINR = netPaise / 100;
-
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(m.name, margin + 3, y + 4.5);
+    doc.text(cleanPdfText(m.name).slice(0, 28), margin + 3, y + 4.5);
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(51, 65, 85);
-    doc.text(`INR ${roundFigure(memberPaid[m.id] || 0)}`, margin + 65, y + 4.5);
-    doc.text(`INR ${roundFigure(memberShare[m.id] || 0)}`, margin + 105, y + 4.5);
+    doc.text(`INR ${m.totalPaid}`, margin + 58, y + 4.5);
+    doc.text(`INR ${m.fairShare}`, margin + 88, y + 4.5);
 
     doc.setFont("helvetica", "bold");
-    if (netINR > 0) {
+    if (m.netBalance > 0) {
       doc.setTextColor(5, 150, 105);
-      doc.text(`+INR ${roundFigure(netINR)}`, margin + 145, y + 4.5);
-      doc.text("Gets Back", pageWidth - margin - 3, y + 4.5, { align: "right" });
-    } else if (netINR < 0) {
-      doc.setTextColor(225, 29, 72); // rose-600
-      doc.text(`-INR ${roundFigure(Math.abs(netINR))}`, margin + 145, y + 4.5);
-      doc.text("Owes", pageWidth - margin - 3, y + 4.5, { align: "right" });
+      doc.text(`+INR ${m.netBalance}`, margin + 118, y + 4.5);
+    } else if (m.netBalance < 0) {
+      doc.setTextColor(225, 29, 72);
+      doc.text(`-INR ${Math.abs(m.netBalance)}`, margin + 118, y + 4.5);
     } else {
       doc.setTextColor(100, 116, 139);
-      doc.text("INR 0", margin + 145, y + 4.5);
-      doc.text("Settled", pageWidth - margin - 3, y + 4.5, { align: "right" });
+      doc.text("INR 0", margin + 118, y + 4.5);
     }
+    doc.text(cleanPdfText(m.status), pageWidth - margin - 3, y + 4.5, { align: "right" });
 
     y += 6.5;
   });
 
-  y += 5;
-
-  // 4. DEBT MINIMIZATION TRANSFERS (WHO PAYS WHOM)
-  checkPageBreak(25);
+  // Member Balances Total Row
+  checkPageBreak(8);
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(margin, y, contentWidth, 6.8, "FD");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("OPTIMIZED SETTLEMENT TRANSFERS (WHO PAYS WHOM)", margin, y + 2);
+  doc.text("Total", margin + 3, y + 4.6);
+  doc.text(`INR ${data.totalSpend}`, margin + 58, y + 4.6);
+  doc.text(`INR ${data.totalSpend}`, margin + 88, y + 4.6);
+  doc.text(`INR ${data.variance}`, margin + 118, y + 4.6);
+  doc.setTextColor(5, 150, 105);
+  doc.text("Balanced", pageWidth - margin - 3, y + 4.6, { align: "right" });
+  y += 12;
+
+  // 4. SECTION 2: OPTIMIZED SETTLEMENT PLAN (WHO PAYS WHOM)
+  checkPageBreak(22);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text("2. OPTIMIZED SETTLEMENT PLAN (WHO PAYS WHOM)", margin, y + 2);
   y += 5;
 
-  if (transfers.length === 0) {
+  doc.setFillColor(15, 23, 42);
+  doc.rect(margin, y, contentWidth, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.3);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Debtor (Pays)", margin + 3, y + 4.8);
+  doc.text("Creditor (Receives)", margin + 60, y + 4.8);
+  doc.text("Amount (INR)", margin + 120, y + 4.8);
+  doc.text("Recommended Method", pageWidth - margin - 3, y + 4.8, { align: "right" });
+  y += 7;
+
+  if (data.settlementPlan.length === 0) {
+    checkPageBreak(10);
     doc.setFillColor(240, 253, 244);
     doc.setDrawColor(187, 247, 208);
-    doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, "FD");
+    doc.rect(margin, y, contentWidth, 8, "FD");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(22, 101, 52);
-    doc.text("All Square! Everyone has settled their balances.", margin + 4, y + 6);
-    y += 14;
+    doc.text("All Square - Everyone is settled up (INR 0)", margin + 3, y + 5.2);
+    y += 13;
   } else {
-    transfers.forEach((t) => {
-      checkPageBreak(9);
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(margin, y, contentWidth, 8, 1, 1, "FD");
+    data.settlementPlan.forEach((t, idx) => {
+      checkPageBreak(7);
+      doc.setFillColor(
+        idx % 2 === 0 ? 255 : 248,
+        idx % 2 === 0 ? 255 : 250,
+        idx % 2 === 0 ? 255 : 252
+      );
+      doc.rect(margin, y, contentWidth, 6.8, "F");
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, y + 6.8, pageWidth - margin, y + 6.8);
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(15, 23, 42);
-      doc.text(`${nm(t.from)}`, margin + 4, y + 5);
+      doc.text(cleanPdfText(t.fromName).slice(0, 28), margin + 3, y + 4.6);
+      doc.text(cleanPdfText(t.toName).slice(0, 28), margin + 60, y + 4.6);
 
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 116, 139);
-      doc.text("pays", margin + 50, y + 5);
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(15, 23, 42);
-      doc.text(`${nm(t.to)}`, margin + 65, y + 5);
-
-      doc.setFont("helvetica", "bold");
       doc.setTextColor(5, 150, 105);
-      doc.text(`INR ${roundFigure(t.amountPaise / 100)}`, margin + 130, y + 5);
+      doc.text(`INR ${t.amount}`, margin + 120, y + 4.6);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
       doc.setTextColor(100, 116, 139);
-      doc.text("via 1-Tap UPI / Cash", pageWidth - margin - 3, y + 5, { align: "right" });
+      doc.text(cleanPdfText(t.method), pageWidth - margin - 3, y + 4.6, { align: "right" });
 
-      y += 9.5;
+      y += 6.8;
     });
-    y += 4;
+    y += 6;
   }
 
-  // 5. ITEMIZED EXPENSES REGISTER
-  checkPageBreak(25);
+  // 5. SECTION 3: ITEMIZED EXPENSES REGISTER (Same 8 columns + Total Row as CSV)
+  checkPageBreak(22);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(`ITEMIZED EXPENSES REGISTER (${expenses.length})`, margin, y + 2);
+  doc.text(`3. ITEMIZED EXPENSES REGISTER (${data.expenseCount})`, margin, y + 2);
   y += 5;
 
   doc.setFillColor(15, 23, 42);
   doc.rect(margin, y, contentWidth, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
-  doc.text("Date", margin + 3, y + 4.8);
-  doc.text("Expense Title", margin + 28, y + 4.8);
-  doc.text("Category", margin + 85, y + 4.8);
-  doc.text("Paid By", margin + 115, y + 4.8);
-  doc.text("Amount (INR)", pageWidth - margin - 3, y + 4.8, { align: "right" });
+  doc.text("Date", margin + 2, y + 4.8);
+  doc.text("Expense Title", margin + 22, y + 4.8);
+  doc.text("Category", margin + 62, y + 4.8);
+  doc.text("Paid By", margin + 83, y + 4.8);
+  doc.text("Split Type", margin + 115, y + 4.8);
+  doc.text("Splits", margin + 141, y + 4.8, { align: "right" });
+  doc.text("Per Person", margin + 162, y + 4.8, { align: "right" });
+  doc.text("Total (INR)", pageWidth - margin - 2, y + 4.8, { align: "right" });
   y += 7;
 
-  expenses.forEach((e, idx) => {
-    checkPageBreak(7);
-    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
-    doc.rect(margin, y, contentWidth, 6.5, "F");
-    doc.setDrawColor(241, 245, 249);
-    doc.line(margin, y + 6.5, pageWidth - margin, y + 6.5);
-
-    const dStr = new Date(e.date || e.createdAt).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-    });
-
+  if (data.itemizedExpenses.length === 0) {
+    checkPageBreak(8);
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y, contentWidth, 7, "F");
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    doc.text(dStr, margin + 3, y + 4.5);
-
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
-    doc.setTextColor(15, 23, 42);
-    const title = e.title.length > 32 ? e.title.slice(0, 30) + "..." : e.title;
-    doc.text(title, margin + 28, y + 4.5);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
-    doc.text(e.category, margin + 85, y + 4.5);
-    doc.text(nm(e.paidById), margin + 115, y + 4.5);
+    doc.text("No expenses recorded yet", margin + 3, y + 4.8);
+    y += 7;
+  } else {
+    data.itemizedExpenses.forEach((e, idx) => {
+      const titleLines = doc.splitTextToSize(cleanPdfText(e.title), 38);
+      const paidByLines = doc.splitTextToSize(cleanPdfText(e.paidBy), 30);
+      const lineCount = Math.max(titleLines.length, paidByLines.length, 1);
+      const rowH = Math.max(6.5, lineCount * 3.6 + 2.8);
 
-    doc.setFont("helvetica", "bold");
+      checkPageBreak(rowH);
+      doc.setFillColor(
+        idx % 2 === 0 ? 255 : 248,
+        idx % 2 === 0 ? 255 : 250,
+        idx % 2 === 0 ? 255 : 252
+      );
+      doc.rect(margin, y, contentWidth, rowH, "F");
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, y + rowH, pageWidth - margin, y + rowH);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(e.date, margin + 2, y + 4.3);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.2);
+      doc.setTextColor(15, 23, 42);
+      doc.text(titleLines, margin + 22, y + 4.3);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(cleanPdfText(e.category).slice(0, 14), margin + 62, y + 4.3);
+      doc.text(paidByLines, margin + 83, y + 4.3);
+      doc.text(cleanPdfText(e.splitType), margin + 115, y + 4.3);
+      doc.text(String(e.splitsCount), margin + 141, y + 4.3, { align: "right" });
+      doc.text(`INR ${e.sharePerPerson}`, margin + 162, y + 4.3, { align: "right" });
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.2);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`INR ${e.totalAmount}`, pageWidth - margin - 2, y + 4.3, { align: "right" });
+
+      y += rowH;
+    });
+  }
+
+  // Expenses Total Row
+  checkPageBreak(8);
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(margin, y, contentWidth, 6.8, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Total Expenses (${data.expenseCount})`, margin + 2, y + 4.6);
+  doc.text(`INR ${data.totalSpend}`, pageWidth - margin - 2, y + 4.6, { align: "right" });
+  y += 12;
+
+  // 6. SECTION 4: DIRECT RECONCILED SETTLEMENTS (Matches CSV Section 4 identically)
+  checkPageBreak(22);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`4. DIRECT RECONCILED SETTLEMENTS (${data.paymentCount})`, margin, y + 2);
+  y += 5;
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(margin, y, contentWidth, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Date", margin + 2, y + 4.8);
+  doc.text("Sender (Payer)", margin + 22, y + 4.8);
+  doc.text("Receiver (Paid To)", margin + 57, y + 4.8);
+  doc.text("Amount (INR)", margin + 94, y + 4.8);
+  doc.text("Notes", margin + 118, y + 4.8);
+  y += 7;
+
+  if (data.directSettlements.length === 0) {
+    checkPageBreak(8);
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y, contentWidth, 7, "F");
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text(`INR ${roundFigure(e.totalAmount)}`, pageWidth - margin - 3, y + 4.5, { align: "right" });
+    doc.setTextColor(100, 116, 139);
+    doc.text("No direct settlements recorded yet", margin + 2, y + 4.8);
+    y += 7;
+  } else {
+    data.directSettlements.forEach((p, idx) => {
+      const payerLines = doc.splitTextToSize(cleanPdfText(p.payer), 32);
+      const receiverLines = doc.splitTextToSize(cleanPdfText(p.receiver), 34);
+      const noteLines = doc.splitTextToSize(cleanPdfText(p.notes), 62);
+      const lineCount = Math.max(payerLines.length, receiverLines.length, noteLines.length, 1);
+      const rowH = Math.max(6.5, lineCount * 3.6 + 2.8);
 
-    y += 6.5;
-  });
+      checkPageBreak(rowH);
+      doc.setFillColor(
+        idx % 2 === 0 ? 255 : 248,
+        idx % 2 === 0 ? 255 : 250,
+        idx % 2 === 0 ? 255 : 252
+      );
+      doc.rect(margin, y, contentWidth, rowH, "F");
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, y + rowH, pageWidth - margin, y + rowH);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(p.date, margin + 2, y + 4.3);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.2);
+      doc.setTextColor(15, 23, 42);
+      doc.text(payerLines, margin + 22, y + 4.3);
+      doc.text(receiverLines, margin + 57, y + 4.3);
+
+      doc.setTextColor(5, 150, 105);
+      doc.text(`INR ${p.amount}`, margin + 94, y + 4.3);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(noteLines, margin + 118, y + 4.3);
+
+      y += rowH;
+    });
+  }
+
+  // Direct Settlements Total Row
+  checkPageBreak(8);
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(margin, y, contentWidth, 6.8, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Total Reconciled Settlements (${data.paymentCount})`, margin + 2, y + 4.6);
+  doc.setTextColor(5, 150, 105);
+  doc.text(`INR ${data.totalReconciled}`, margin + 94, y + 4.6);
 
   // FOOTER ON ALL PAGES
   const totalPages = doc.getNumberOfPages();
@@ -1009,10 +1144,17 @@ export function exportGroupLedgerPDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(148, 163, 184);
-    doc.text("Official Group Statement • SplitRupee (splitrupee.vercel.app)", margin, pageHeight - 8);
+    doc.text(
+      cleanPdfText("Official Group Statement | SplitRupee (splitrupee.vercel.app)"),
+      margin,
+      pageHeight - 8
+    );
     doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: "right" });
   }
 
-  const filename = `${group.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_statement.pdf`;
-  doc.save(filename);
+  const filename = `${data.groupName.toLowerCase().replace(/[^a-z0-9]/g, "_")}_statement.pdf`;
+  if (options?.download !== false) {
+    doc.save(filename);
+  }
+  return doc;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runResilientTransaction } from "@/lib/dbTransaction";
 
 export const dynamic = "force-dynamic";
 
@@ -113,8 +114,8 @@ export async function POST(req: Request, { params }: Params) {
     const sourceUser = sourceMember.user;
     const targetUser = targetMember.user;
 
-    // Transactional merge
-    await prisma.$transaction(async (tx) => {
+    // Transactional merge (batched queries + resilient retry & extended timeout)
+    await runResilientTransaction(async (tx) => {
       // 1. Reassign Expenses paid by sourceUser in this group
       await tx.expense.updateMany({
         where: {
@@ -137,7 +138,7 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
 
-      // 3. Consolidate ExpenseSplits in this group
+      // 3. Consolidate ExpenseSplits in this group using bulk queries
       const sourceSplits = await tx.expenseSplit.findMany({
         where: {
           userId: sourceUserId,
@@ -145,78 +146,85 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
 
-      for (const split of sourceSplits) {
-        const targetSplit = await tx.expenseSplit.findUnique({
+      if (sourceSplits.length > 0) {
+        const expenseIds = sourceSplits.map((s) => s.expenseId);
+        const targetSplits = await tx.expenseSplit.findMany({
           where: {
-            expenseId_userId: {
-              expenseId: split.expenseId,
-              userId: targetUserId,
-            },
+            userId: targetUserId,
+            expenseId: { in: expenseIds },
           },
         });
+        const targetByExpenseId = new Map(targetSplits.map((ts) => [ts.expenseId, ts]));
 
-        if (targetSplit) {
-          // Both had splits on the same expense -> combine amounts and delete source split
-          await tx.expenseSplit.update({
-            where: { id: targetSplit.id },
-            data: {
-              amount: targetSplit.amount + split.amount,
-              percentage:
-                targetSplit.percentage !== null || split.percentage !== null
-                  ? (targetSplit.percentage || 0) + (split.percentage || 0)
-                  : null,
+        const nonOverlappingExpenseIds: string[] = [];
+        const overlappingSourceSplitIds: string[] = [];
+
+        for (const split of sourceSplits) {
+          const targetSplit = targetByExpenseId.get(split.expenseId);
+          if (targetSplit) {
+            await tx.expenseSplit.update({
+              where: { id: targetSplit.id },
+              data: {
+                amount: targetSplit.amount + split.amount,
+                percentage:
+                  targetSplit.percentage !== null || split.percentage !== null
+                    ? (targetSplit.percentage || 0) + (split.percentage || 0)
+                    : null,
+              },
+            });
+            overlappingSourceSplitIds.push(split.id);
+          } else {
+            nonOverlappingExpenseIds.push(split.expenseId);
+          }
+        }
+
+        if (nonOverlappingExpenseIds.length > 0) {
+          await tx.expenseSplit.updateMany({
+            where: {
+              userId: sourceUserId,
+              expenseId: { in: nonOverlappingExpenseIds },
             },
-          });
-          await tx.expenseSplit.delete({
-            where: { id: split.id },
-          });
-        } else {
-          // Reassign split to targetUserId
-          await tx.expenseSplit.update({
-            where: { id: split.id },
             data: { userId: targetUserId },
+          });
+        }
+
+        if (overlappingSourceSplitIds.length > 0) {
+          await tx.expenseSplit.deleteMany({
+            where: { id: { in: overlappingSourceSplitIds } },
           });
         }
       }
 
-      // 4. Consolidate Payments in this group
-      // Payer payments
-      const sourcePayerPayments = await tx.payment.findMany({
+      // 4. Consolidate Payments in this group in bulk
+      await tx.payment.deleteMany({
+        where: {
+          groupId,
+          OR: [
+            { payerId: sourceUserId, receiverId: targetUserId },
+            { payerId: targetUserId, receiverId: sourceUserId },
+          ],
+        },
+      });
+
+      await tx.payment.updateMany({
         where: {
           groupId,
           payerId: sourceUserId,
         },
+        data: {
+          payerId: targetUserId,
+        },
       });
-      for (const p of sourcePayerPayments) {
-        if (p.receiverId === targetUserId) {
-          // Payment between the two personas -> remove duplicate self-payment
-          await tx.payment.delete({ where: { id: p.id } });
-        } else {
-          await tx.payment.update({
-            where: { id: p.id },
-            data: { payerId: targetUserId },
-          });
-        }
-      }
 
-      // Receiver payments
-      const sourceReceiverPayments = await tx.payment.findMany({
+      await tx.payment.updateMany({
         where: {
           groupId,
           receiverId: sourceUserId,
         },
+        data: {
+          receiverId: targetUserId,
+        },
       });
-      for (const p of sourceReceiverPayments) {
-        if (p.payerId === targetUserId) {
-          // Payment between the two personas -> remove duplicate self-payment
-          await tx.payment.delete({ where: { id: p.id } });
-        } else {
-          await tx.payment.update({
-            where: { id: p.id },
-            data: { receiverId: targetUserId },
-          });
-        }
-      }
 
       // 5. Backfill phone & upiId if targetUser was missing them
       const updateData: { phone?: string; upiId?: string } = {};
@@ -241,18 +249,23 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
 
-      // 7. Check if sourceUser was a placeholder account with no other active records
+      // 7. Sequential short-circuit placeholder cleanup (avoids Promise.all contention inside tx)
       const isPlaceholder =
         sourceUser.passwordHash === null &&
         (sourceUser.email.endsWith("@splitrupee.in") || sourceUser.email.startsWith("member_"));
 
       if (isPlaceholder) {
-        const [otherMemberships, otherExpenses, otherSplits, otherPayments] = await Promise.all([
-          tx.groupMember.count({ where: { userId: sourceUserId } }),
-          tx.expense.count({ where: { paidById: sourceUserId } }),
-          tx.expenseSplit.count({ where: { userId: sourceUserId } }),
-          tx.payment.count({ where: { OR: [{ payerId: sourceUserId }, { receiverId: sourceUserId }] } }),
-        ]);
+        const otherMemberships = await tx.groupMember.count({ where: { userId: sourceUserId } });
+        const otherExpenses =
+          otherMemberships === 0 ? await tx.expense.count({ where: { paidById: sourceUserId } }) : 1;
+        const otherSplits =
+          otherExpenses === 0 ? await tx.expenseSplit.count({ where: { userId: sourceUserId } }) : 1;
+        const otherPayments =
+          otherSplits === 0
+            ? await tx.payment.count({
+                where: { OR: [{ payerId: sourceUserId }, { receiverId: sourceUserId }] },
+              })
+            : 1;
 
         if (
           otherMemberships === 0 &&

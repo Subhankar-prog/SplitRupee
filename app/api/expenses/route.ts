@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { runResilientTransaction } from "@/lib/dbTransaction";
 import { expensePayloadSchema } from "@/lib/validation";
 import { computeSplits, SplitValidationError } from "@/lib/split";
 import { broadcastEvent } from "@/lib/eventBus";
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
   const { totalPaise, splits } = computed;
 
   try {
-    const expense = await prisma.$transaction(
+    const expense = await runResilientTransaction(
       async (tx) => {
         const members = await tx.groupMember.findMany({
           where: { groupId: p.groupId },
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
 
         return created;
       },
-      { maxWait: 5_000, timeout: 10_000 }
+      { maxWait: 15_000, timeout: 30_000 }
     );
 
     // Broadcast SSE
