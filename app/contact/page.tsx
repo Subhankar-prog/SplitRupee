@@ -27,70 +27,70 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 space-y-12 animate-in fade-in duration-300">
+    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 space-y-10">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-400">
-          <MessageSquare className="h-3.5 w-3.5" />
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 py-1 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+          <MessageSquare className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
           <span>Get in Touch</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
-          We're here to help your group
+        <h1 className="font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+          We&apos;re here to help your group
         </h1>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+        <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
           Have a question, feedback, or need help with a group split? Send us a note below.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left Side: Direct Contact Details (5 cols) */}
         <div className="md:col-span-5 space-y-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
-            <h3 className="text-sm font-bold text-white">Direct Support Channels</h3>
+          <div className="rounded-2xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-6 space-y-6 shadow-[var(--shadow-card)]">
+            <h3 className="font-display text-sm font-semibold text-[var(--text-primary)]">Direct Support Channels</h3>
 
             <div className="space-y-4 text-xs">
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[color:var(--border-subtle)] shrink-0">
                   <MessageSquare className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="font-semibold text-white">WhatsApp Support</p>
+                  <p className="font-medium text-[var(--text-primary)]">WhatsApp Support</p>
                   <a 
                     href="https://wa.me/916372466462" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="text-emerald-400 hover:text-emerald-300 text-[11px] font-mono transition"
+                    className="text-[var(--status-positive)] hover:underline text-[11px] font-mono"
                   >
                     +91 6372466462
                   </a>
-                  <p className="text-[10px] text-emerald-400 mt-0.5">Instant reply (10am - 8pm IST)</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Instant reply (10am - 8pm IST)</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--bg-surface-secondary)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border border-[color:var(--border-subtle)] shrink-0">
                   <Mail className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="font-semibold text-white">Email Us</p>
+                  <p className="font-medium text-[var(--text-primary)]">Email Us</p>
                   <a 
                     href="mailto:pandasubhankar24@gmail.com" 
-                    className="text-slate-300 hover:text-teal-300 text-[11px] transition"
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-[11px] transition-colors"
                   >
                     pandasubhankar24@gmail.com
                   </a>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Response within 2 hours</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Response within 2 hours</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-sand)]/15 text-[var(--status-warning)] border border-[color:var(--border-subtle)] shrink-0">
                   <HelpCircle className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="font-semibold text-white">Knowledge Base</p>
-                  <p className="text-slate-400 text-[11px]">Check our comprehensive FAQ</p>
-                  <Link href="/faq" className="text-[11px] text-emerald-400 hover:underline">
+                  <p className="font-medium text-[var(--text-primary)]">Knowledge Base</p>
+                  <p className="text-[var(--text-secondary)] text-[11px]">Check our comprehensive FAQ</p>
+                  <Link href="/faq" className="text-[11px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline">
                     View FAQ articles →
                   </Link>
                 </div>
@@ -101,13 +101,13 @@ export default function ContactPage() {
 
         {/* Right Side: Message Form (7 cols) */}
         <div className="md:col-span-7">
-          <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 sm:p-8 backdrop-blur-2xl shadow-2xl">
+          <div className="rounded-2xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-card)]">
             {sent ? (
               <div className="text-center py-8 space-y-3">
-                <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto" />
-                <h3 className="text-base font-bold text-white">Message Received!</h3>
-                <p className="text-xs text-slate-300 max-w-xs mx-auto">
-                  Thank you <span className="font-semibold text-white">{name}</span>. Our team will review your note and get back to <span className="font-semibold text-white">{email}</span> shortly.
+                <CheckCircle2 className="h-10 w-10 text-[var(--status-positive)] mx-auto" />
+                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Message Received!</h3>
+                <p className="text-xs text-[var(--text-secondary)] max-w-xs mx-auto">
+                  Thank you <span className="font-medium text-[var(--text-primary)]">{name}</span>. Our team will review your note and get back to <span className="font-medium text-[var(--text-primary)]">{email}</span> shortly.
                 </p>
                 <button
                   onClick={() => {
@@ -116,7 +116,7 @@ export default function ContactPage() {
                     setEmail("");
                     setMessage("");
                   }}
-                  className="mt-4 text-xs font-semibold text-emerald-400 hover:underline"
+                  className="mt-4 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
                 >
                   Send another message
                 </button>
@@ -125,7 +125,7 @@ export default function ContactPage() {
               <form onSubmit={handleSubmit} className="space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                    <label className="block font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                       Your Name
                     </label>
                     <input
@@ -134,11 +134,11 @@ export default function ContactPage() {
                       placeholder="Aarav Sharma"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                    <label className="block font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                       Email Address
                     </label>
                     <input
@@ -147,13 +147,13 @@ export default function ContactPage() {
                       placeholder="aarav@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  <label className="block font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                     Topic
                   </label>
                   <ThemeSelect
@@ -169,7 +169,7 @@ export default function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  <label className="block font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                     Message
                   </label>
                   <textarea
@@ -178,13 +178,13 @@ export default function ContactPage() {
                     placeholder="Tell us what's on your mind..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/20 hover:opacity-95 transition"
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] py-3 text-xs font-medium text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                 >
                   <Send className="h-4 w-4" />
                   <span>Send Message</span>

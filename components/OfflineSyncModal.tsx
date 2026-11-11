@@ -9,11 +9,14 @@ import {
   AlertCircle,
   Receipt,
   Calendar,
-  Layers
+  Layers,
+  Trash2,
+  Edit3
 } from "lucide-react";
 import {
   getOfflineQueue,
   syncOfflineQueue,
+  resolveOfflineActionType,
   OfflineExpenseItem
 } from "@/lib/offlineSync";
 
@@ -156,45 +159,64 @@ export default function OfflineSyncModal() {
 
             {/* Confirmation Question */}
             <div className="space-y-3">
-              <p className="text-sm text-slate-300 leading-relaxed">
-                You added or modified <strong className="text-white font-semibold">{queue.length} expense(s)</strong> while offline. Do you want to sync and record them on the server now?
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                You recorded <strong className="text-[var(--text-primary)] font-semibold">{queue.length} offline change(s)</strong>. Do you want to sync and save them to the server now?
               </p>
 
               {/* Items List */}
               <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                {queue.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 text-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="p-1.5 rounded-xl bg-slate-800 text-emerald-400">
-                        <Receipt className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-white truncate">
-                          {item.title}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">
-                          {item.groupName || "Group"} • {item.isEdit ? "Edited" : "New"}
-                        </p>
+                {queue.map((item) => {
+                  const actionType = resolveOfflineActionType(item);
+                  const badge =
+                    actionType === "DELETE_EXPENSE"
+                      ? "Deleted Expense"
+                      : actionType === "UPDATE_EXPENSE"
+                        ? "Edited Expense"
+                        : actionType === "CREATE_PAYMENT"
+                          ? "Cash Settlement"
+                          : "New Expense";
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--brand-primary)]">
+                          {actionType === "DELETE_EXPENSE" ? (
+                            <Trash2 className="h-4 w-4 text-[var(--status-negative)]" />
+                          ) : actionType === "UPDATE_EXPENSE" ? (
+                            <Edit3 className="h-4 w-4 text-[var(--status-warning)]" />
+                          ) : actionType === "CREATE_PAYMENT" ? (
+                            <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)]" />
+                          ) : (
+                            <Receipt className="h-4 w-4" />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[var(--text-primary)] truncate">
+                            {item.title}
+                          </p>
+                          <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                            {item.groupName || "Group"} • {badge}
+                          </p>
+                        </div>
                       </div>
+                      <span className="font-display tabular-nums font-semibold text-[var(--status-positive)] shrink-0 ml-3">
+                        ₹{Math.round(item.totalAmount).toLocaleString()}
+                      </span>
                     </div>
-                    <span className="font-mono font-bold text-emerald-400 shrink-0 ml-3">
-                      ₹{Math.round(item.totalAmount).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 disabled={syncing}
-                className="px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-xs font-semibold text-slate-300 hover:bg-white/10 transition"
+                className="h-9 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
                 Later
               </button>
@@ -203,9 +225,9 @@ export default function OfflineSyncModal() {
                 type="button"
                 onClick={handleSync}
                 disabled={syncing}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-2 px-4 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-semibold text-xs hover:opacity-95 transition-opacity disabled:opacity-50"
               >
-                {syncing && <RotateCw className="h-4 w-4 animate-spin" />}
+                {syncing && <RotateCw className="h-3.5 w-3.5 animate-spin" />}
                 <span>{syncing ? "Syncing..." : "Yes, Sync Now"}</span>
               </button>
             </div>

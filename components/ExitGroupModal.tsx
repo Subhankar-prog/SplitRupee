@@ -32,6 +32,10 @@ export default function ExitGroupModal({
   if (!isOpen) return null;
 
   const handleExit = async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setError("You're offline. Exiting a group requires an internet connection.");
+      return;
+    }
     try {
       setLoading(true);
       setError("");
@@ -41,6 +45,9 @@ export default function ExitGroupModal({
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Exiting a group requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.message || data.error || "Failed to exit group");
       }
@@ -57,90 +64,96 @@ export default function ExitGroupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)] backdrop-blur-sm animate-in fade-in duration-150">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover space-y-5"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <div className="flex items-center justify-between pb-3.5 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-              <LogOut className="h-5 w-5" />
+            <span className="p-2 rounded-xl bg-[var(--status-negative-bg)] text-[var(--status-negative)] border border-[var(--status-negative-border)]">
+              <LogOut className="h-4 w-4" />
             </span>
-            <h3 className="text-lg font-bold text-white">Exit Group</h3>
+            <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Exit Group</h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
             disabled={loading}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
+            aria-label="Close modal"
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Message */}
         <div className="space-y-3 text-sm">
-          <p className="text-slate-300">
-            Are you sure you want to leave <strong className="text-white font-semibold">{groupName}</strong>?
+          <p className="text-[var(--text-secondary)]">
+            Are you sure you want to leave <strong className="text-[var(--text-primary)] font-semibold">{groupName}</strong>?
           </p>
 
           {/* Admin Random Promotion Note */}
           {isAdmin && memberCount > 1 && (
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-amber-400">
+            <div className="p-3.5 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-[var(--status-warning)]">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>Admin Reassignment Notice</span>
               </div>
-              <p className="text-amber-300/90 leading-relaxed">
-                You are currently a Group Admin. When you exit, a remaining member will be <strong>randomly promoted to Group Admin</strong> to keep the group operational.
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                You are currently a Group Admin. When you exit, a remaining member will be <strong className="text-[var(--text-primary)]">randomly promoted to Group Admin</strong> to keep the group operational.
               </p>
             </div>
           )}
 
           {/* Balance Status Warning */}
           {userBalance < -1 && (
-            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-200 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-rose-400">
+            <div className="p-3.5 rounded-xl bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-[var(--status-negative)]">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>Outstanding Debt Warning</span>
               </div>
-              <p className="text-rose-300/90 leading-relaxed">
-                You currently owe <strong className="text-white font-mono">₹{Math.abs(Math.round(userBalance)).toLocaleString()}</strong> in this group. It is strongly recommended to settle up with your group before leaving.
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                You currently owe <strong className="text-[var(--text-primary)] font-display tabular-nums">₹{Math.abs(Math.round(userBalance)).toLocaleString()}</strong> in this group. It is strongly recommended to settle up with your group before leaving.
               </p>
             </div>
           )}
 
           {userBalance > 1 && (
-            <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-200 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-cyan-400">
+            <div className="p-3.5 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-[var(--status-positive)]">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 <span>Receivable Balance Warning</span>
               </div>
-              <p className="text-cyan-300/90 leading-relaxed">
-                You are owed <strong className="text-white font-mono">₹{Math.round(userBalance).toLocaleString()}</strong> by other members. Exiting will remove your access to live balance tracking.
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                You are owed <strong className="text-[var(--text-primary)] font-display tabular-nums">₹{Math.round(userBalance).toLocaleString()}</strong> by other members. Exiting will remove your access to live balance tracking.
               </p>
             </div>
           )}
 
           {Math.abs(userBalance) <= 1 && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+            <div className="p-3 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] text-xs flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>All settled up! You have zero outstanding debts in this group.</span>
             </div>
           )}
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
+          <div className="p-3 rounded-xl bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] text-[var(--status-negative)] text-xs">
             {error}
           </div>
         )}
 
         {/* Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-xs font-semibold text-slate-300 hover:bg-white/10 transition"
+            className="h-9 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
             Cancel
           </button>
@@ -148,9 +161,9 @@ export default function ExitGroupModal({
             type="button"
             onClick={handleExit}
             disabled={loading}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/30 disabled:opacity-50"
+            className="inline-flex h-9 items-center justify-center gap-2 px-4 rounded-xl bg-[var(--status-negative)] hover:opacity-95 text-white text-xs font-semibold transition-opacity disabled:opacity-50"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
             <span>Confirm & Exit Group</span>
           </button>
         </div>

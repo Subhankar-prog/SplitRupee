@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/lib/userContext";
 import { ThemeProvider } from "@/lib/themeContext";
@@ -6,9 +7,24 @@ import AppShell from "@/components/AppShell";
 import PwaRegister from "@/components/PwaRegister";
 import Script from "next/script";
 
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "SplitRupee — Indian Split Expenses app",
-  description: "Split expenses, manage group budgets, minimize debts and settle up with friends in India.",
+  title: "SplitRupee — Personal & Group Expense Management",
+  description:
+    "Split expenses, manage group budgets, minimize debts, and settle up via UPI with calm clarity.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon.svg",
@@ -26,7 +42,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#020617",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F4EF" },
+    { media: "(prefers-color-scheme: dark)", color: "#171F1D" },
+  ],
 };
 
 export default function RootLayout({
@@ -35,21 +54,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" data-theme="dark" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`light ${inter.variable} ${manrope.variable}`}
+      data-theme="light"
+      suppressHydrationWarning
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var t = localStorage.getItem('splitrupee_theme');
-                if (t === 'light') {
-                  document.documentElement.classList.add('light');
-                  document.documentElement.classList.remove('dark');
-                  document.documentElement.setAttribute('data-theme', 'light');
-                } else {
+                var saved = localStorage.getItem('splitrupee_theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var resolved = (saved === 'light' || saved === 'dark') ? saved : (prefersDark ? 'dark' : 'light');
+                if (resolved === 'dark') {
                   document.documentElement.classList.add('dark');
                   document.documentElement.classList.remove('light');
                   document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                  document.documentElement.classList.add('light');
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.setAttribute('data-theme', 'light');
                 }
               } catch(e) {}
             `,

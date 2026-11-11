@@ -41,6 +41,11 @@ export default function ForgotPasswordPage() {
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setError("You're offline. Sending a password recovery link requires an internet connection.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
@@ -52,6 +57,9 @@ export default function ForgotPasswordPage() {
       });
       const data = await res.json();
 
+      if (data.offline) {
+        throw new Error("You're offline. Sending a password recovery link requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "No account found matching this email or mobile number.");
       }
@@ -81,34 +89,34 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="w-full max-w-[460px] rounded-[24px] border-2 border-[#10b981] bg-[#0b1329] p-6 sm:p-9 shadow-[0_0_30px_rgba(16,185,129,0.35),0_20px_45px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="w-full max-w-[440px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-popover)] animate-in fade-in duration-150">
         {step === 1 && (
           /* STEP 1: Enter Email or Mobile */
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="text-center">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-bold mb-3 shadow-md shadow-emerald-500/25">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] mb-3">
                 <KeyRound className="h-5 w-5" />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white">
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
                 Forgot Your Password?
               </h1>
-              <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
-                Enter your registered email address or mobile number. We'll send a secure password reset link to your email.
+              <p className="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
+                Enter your registered email address or mobile number. We&apos;ll send a secure password reset link to your email.
               </p>
             </div>
 
             {/* Account Security Notice about 7-Day Limit */}
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-[11.5px] text-slate-300 flex items-start gap-2.5 text-left leading-relaxed">
-              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 text-[11.5px] text-[var(--text-secondary)] flex items-start gap-2.5 text-left leading-relaxed">
+              <ShieldCheck className="h-4 w-4 text-[var(--status-positive)] shrink-0 mt-0.5" />
               <span>
-                For account protection, password reset requests are limited to <strong>once every 7 days</strong>. The secure link sent to your email remains valid for <strong>15 minutes</strong>.
+                For account protection, password reset requests are limited to <strong className="text-[var(--text-primary)]">once every 7 days</strong>. The secure link sent to your email remains valid for <strong className="text-[var(--text-primary)]">15 minutes</strong>.
               </span>
             </div>
 
             {error && (
               <div
                 role="alert"
-                className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 text-center animate-in fade-in leading-relaxed"
+                className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)] text-center leading-relaxed"
               >
                 {error}
               </div>
@@ -130,7 +138,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="submit-button"
+                className="w-full h-11 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -149,15 +157,15 @@ export default function ForgotPasswordPage() {
             <div className="text-center pt-1">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Back to Sign In</span>
               </Link>
             </div>
 
-            <div className="pt-2 border-t border-white/5 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <div className="pt-3 border-t border-[var(--border-subtle)] text-center text-[11px] text-[var(--text-secondary)] flex items-center justify-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-[var(--status-positive)]" />
               <span>Protected by 256-bit encryption · SplitRupee Security</span>
             </div>
           </div>
@@ -165,60 +173,57 @@ export default function ForgotPasswordPage() {
 
         {step === 2 && (
           /* STEP 2: Magic Link Sent Confirmation */
-          <div className="space-y-6 text-center animate-in fade-in duration-300">
-            <div className="relative mx-auto flex h-14 w-14 items-center justify-center">
-              <div className="absolute inset-0 rounded-2xl bg-emerald-500/25 blur-lg animate-pulse" />
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-bold shadow-lg shadow-emerald-500/30">
-                <Mail className="h-6 w-6" />
-              </div>
+          <div className="space-y-5 text-center animate-in fade-in duration-200">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+              <Mail className="h-5 w-5" />
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold tracking-tight text-white">
+              <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
                 Check Your Inbox!
               </h2>
-              <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+              <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed">
                 We sent a secure password reset link to:
               </p>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-300">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-3.5 py-1.5 text-xs font-semibold text-[var(--status-positive)]">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate max-w-[280px]">{sentEmail}</span>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left space-y-2 text-xs text-slate-300">
-              <div className="flex items-center gap-1.5 font-semibold text-white">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 text-left space-y-2 text-xs text-[var(--text-secondary)]">
+              <div className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
+                <Sparkles className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                 <span>Next steps:</span>
               </div>
-              <ol className="list-decimal list-inside space-y-1.5 text-[11.5px] text-slate-400 leading-relaxed pl-1">
+              <ol className="list-decimal list-inside space-y-1.5 text-[11.5px] leading-relaxed pl-1">
                 <li>Open your email inbox (Gmail, Outlook, Yahoo, etc.).</li>
-                <li>Check for an email from <strong>SplitRupee</strong>.</li>
-                <li>Click the <strong>"Reset My Password"</strong> button inside.</li>
-                <li>The link expires in <strong>15 minutes</strong> for your security.</li>
+                <li>Check for an email from <strong className="text-[var(--text-primary)]">SplitRupee</strong>.</li>
+                <li>Click the <strong className="text-[var(--text-primary)]">&ldquo;Reset My Password&rdquo;</strong> button inside.</li>
+                <li>The link expires in <strong className="text-[var(--text-primary)]">15 minutes</strong> for your security.</li>
               </ol>
             </div>
 
             {error && (
               <div
                 role="alert"
-                className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 text-center animate-in fade-in"
+                className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)] text-center"
               >
                 {error}
               </div>
             )}
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-3 pt-1">
               <button
                 type="button"
                 disabled={loading || resendCooldown > 0}
                 onClick={() => handleSendRecovery()}
-                className="w-full h-11 flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.04] text-xs font-semibold text-white hover:bg-white/[0.08] hover:border-emerald-500/40 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-11 flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                  <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-primary)]" />
                 ) : (
-                  <RefreshCw className={`h-3.5 w-3.5 ${resendCooldown > 0 ? "text-slate-500" : "text-emerald-400"}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 ${resendCooldown > 0 ? "text-[var(--text-secondary)]" : "text-[var(--brand-primary)]"}`} />
                 )}
                 <span>
                   {resendCooldown > 0
@@ -230,7 +235,7 @@ export default function ForgotPasswordPage() {
               <div>
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span>Back to Sign In</span>
@@ -238,7 +243,7 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-white/5 text-center text-[11px] text-slate-400">
+            <div className="pt-3 border-t border-[var(--border-subtle)] text-center text-[11px] text-[var(--text-secondary)]">
               For security, password reset requests are limited to once every 7 days
             </div>
           </div>

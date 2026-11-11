@@ -23,7 +23,7 @@ export default function PasswordInput({
   return (
     <div className="w-full space-y-1.5">
       <div className="flex items-center justify-between">
-        <label htmlFor={id} className="block text-xs font-semibold text-slate-300">
+        <label htmlFor={id} className="block text-xs font-medium text-[var(--text-secondary)]">
           {label}
         </label>
         {rightLabelAction}
@@ -32,10 +32,10 @@ export default function PasswordInput({
         <input
           id={id}
           type={showPassword ? "text" : "password"}
-          className={`w-full h-12 rounded-xl border bg-white/[0.04] pl-3.5 pr-11 text-xs text-white placeholder-slate-500 outline-none transition ${
+          className={`w-full h-11 rounded-xl border bg-[var(--bg-surface-secondary)] pl-3.5 pr-11 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none transition-colors ${
             error
-              ? "border-rose-500/80 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
-              : "border-white/10 hover:border-white/20 focus:border-emerald-500 focus:bg-white/[0.07] focus:ring-1 focus:ring-emerald-500"
+              ? "border-[var(--status-negative)] focus:ring-2 focus:ring-[var(--status-negative-bg)]"
+              : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus:ring-2 focus:ring-[var(--status-positive-bg)]"
           } ${className}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
@@ -44,7 +44,7 @@ export default function PasswordInput({
         <button
           type="button"
           onClick={() => setShowPassword((prev) => !prev)}
-          className="absolute right-3.5 p-1 text-slate-400 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded transition"
+          className="absolute right-3.5 p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] rounded transition-colors"
           aria-label={showPassword ? "Hide password" : "Show password"}
           tabIndex={0}
         >
@@ -56,7 +56,7 @@ export default function PasswordInput({
         </button>
       </div>
       {error && (
-        <p id={`${id}-error`} className="text-[11px] font-medium text-rose-400">
+        <p id={`${id}-error`} className="text-[11px] font-medium text-[var(--status-negative)]">
           {error}
         </p>
       )}

@@ -7,6 +7,7 @@ import { ACTION_TYPES } from "@/lib/types";
 import { Activity, Clock, Filter, Sparkles } from "lucide-react";
 import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import { getCachedActivities, saveCachedActivities } from "@/lib/offlineSync";
 
 export default function ActivityPage() {
   const { currentUser, isLoading: usersLoading } = useUser();
@@ -16,21 +17,36 @@ export default function ActivityPage() {
 
   const loadActivities = useCallback(async (isInitial = false) => {
     if (!currentUser?.id) {
+      const cached = getCachedActivities();
+      if (cached.length > 0) setActivities(cached);
       if (!usersLoading) setLoading(false);
       return;
     }
+    const cachedInitial = getCachedActivities(currentUser.id);
+    if (isInitial && cachedInitial.length > 0) {
+      setActivities(cachedInitial);
+      setLoading(false);
+    }
     try {
-      if (isInitial) setLoading(true);
+      if (isInitial && cachedInitial.length === 0) setLoading(true);
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
       const res = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=100&_t=${Date.now()}`, {
         cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+        signal: controller?.signal,
       });
+      if (timeoutId) clearTimeout(timeoutId);
       const data = await res.json();
       if (data.ok && Array.isArray(data.activities)) {
-        setActivities(data.activities);
+        saveCachedActivities(currentUser.id, data.activities);
+        setActivities(getCachedActivities(currentUser.id));
+      } else {
+        setActivities(getCachedActivities(currentUser.id));
       }
     } catch (e) {
-      console.error("Failed to load activities", e);
+      console.warn("Failed to load activities (offline fallback active):", e);
+      setActivities(getCachedActivities(currentUser.id));
     } finally {
       setLoading(false);
     }
@@ -39,9 +55,14 @@ export default function ActivityPage() {
   useEffect(() => {
     loadActivities(true);
     const handleRefresh = () => loadActivities(false);
+    const handleQueueChanged = () => setActivities(getCachedActivities(currentUser?.id));
     window.addEventListener("splitrupee_refresh", handleRefresh);
-    return () => window.removeEventListener("splitrupee_refresh", handleRefresh);
-  }, [loadActivities]);
+    window.addEventListener("splitrupee_offline_queue_changed", handleQueueChanged);
+    return () => {
+      window.removeEventListener("splitrupee_refresh", handleRefresh);
+      window.removeEventListener("splitrupee_offline_queue_changed", handleQueueChanged);
+    };
+  }, [loadActivities, currentUser?.id]);
 
   const filtered = actionFilter === "ALL"
     ? activities
@@ -58,35 +79,36 @@ export default function ActivityPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Activity className="h-6 w-6 text-emerald-400" />
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5">
+            <Activity className="h-6 w-6 text-[var(--brand-primary)]" />
             Recent Activity & History
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
             Real-time record of all expense creations, edits, deletions, and settlements across your groups
           </p>
         </div>
 
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 font-semibold w-fit">
+        <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1 text-xs text-[var(--text-secondary)] font-semibold tabular-nums w-fit shadow-[var(--shadow-card)]">
           {filtered.length} total events
         </span>
       </div>
 
       {/* Action Filter Pills */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.02] p-2">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5 shadow-[var(--shadow-card)]">
+        <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider px-2 flex items-center gap-1">
           <Filter className="h-3 w-3" /> Filter:
         </span>
         <button
+          type="button"
           onClick={() => setActionFilter("ALL")}
-          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             actionFilter === "ALL"
-              ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-              : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
+              ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
+              : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
           All Actions
@@ -94,11 +116,12 @@ export default function ActivityPage() {
         {ACTION_TYPES.map((act) => (
           <button
             key={act}
+            type="button"
             onClick={() => setActionFilter(act)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
               actionFilter === act
-                ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
+                ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
+                : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             {act.replace("_", " ").toLowerCase()}
@@ -107,7 +130,7 @@ export default function ActivityPage() {
       </div>
 
       {/* Activity Log List */}
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 sm:p-5">
         <ActivityLogList activities={filtered} showGroupName={true} />
       </div>
     </div>

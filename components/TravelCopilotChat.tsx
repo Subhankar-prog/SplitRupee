@@ -157,6 +157,19 @@ export default function TravelCopilotChat({
 
     setMessages((prev) => [...prev, userMsg]);
     if (!textToSend) setInputQuery("");
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const offlineMsg: ChatMessage = {
+        id: "offline-" + Date.now(),
+        role: "assistant",
+        content:
+          "📡 You're currently offline. AI Travel Guide replies require an internet connection — you can continue browsing your saved itinerary, budgets, checklists, and export PDF/ICS files offline!",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, offlineMsg]);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -195,7 +208,16 @@ export default function TravelCopilotChat({
       });
 
       const data = await res.json();
-      if (data.ok && data.reply) {
+      if (data.offline) {
+        const offlineMsg: ChatMessage = {
+          id: "offline-" + Date.now(),
+          role: "assistant",
+          content:
+            "📡 You're currently offline. AI Travel Guide replies require an internet connection — your saved itinerary and notes stay available offline.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((prev) => [...prev, offlineMsg]);
+      } else if (data.ok && data.reply) {
         const assistantMsg: ChatMessage = {
           id: "ast-" + Date.now(),
           role: "assistant",
@@ -298,26 +320,23 @@ export default function TravelCopilotChat({
   };
 
   return (
-    <div className="travel-copilot-modal-card flex flex-col h-[600px] max-h-[88vh] w-full rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
+    <div className="travel-copilot-modal-card flex flex-col h-[600px] max-h-[88vh] w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-popover)] overflow-hidden">
       {/* Header */}
-      <div className="travel-copilot-header flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/60">
+      <div className="travel-copilot-header flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]">
         <div className="travel-copilot-header-info flex items-center gap-3">
-          <div className="travel-copilot-avatar-icon relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20">
+          <div className="travel-copilot-avatar-icon relative flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]">
             <Bot className="h-5 w-5" />
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 rounded-full bg-[var(--status-positive)] ring-2 ring-[var(--bg-surface)]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="travel-copilot-title font-bold text-white text-base">Personal Travel Guide</h3>
-              <span className="travel-copilot-badge rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+              <h3 className="travel-copilot-title font-display font-semibold text-[var(--text-primary)] text-base">Personal Travel Guide</h3>
+              <span className="travel-copilot-badge rounded-full bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-positive)]">
                 Verified Local Guide
               </span>
             </div>
-            <p className="travel-copilot-subtitle text-xs text-slate-400">
-              Trip route: <span className="text-white font-medium">{origin} → {destination}</span>
+            <p className="travel-copilot-subtitle text-xs text-[var(--text-secondary)]">
+              Trip route: <span className="text-[var(--text-primary)] font-medium">{origin} &rarr; {destination}</span>
             </p>
           </div>
         </div>
@@ -328,7 +347,7 @@ export default function TravelCopilotChat({
               type="button"
               onClick={onSavePlan}
               disabled={isSaving}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-semibold transition disabled:opacity-50 cursor-pointer shadow-sm"
+              className="flex h-8 items-center gap-1.5 px-3 rounded-lg bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
               title="Save updated itinerary & travel notes"
             >
               {isSaving ? (
@@ -348,10 +367,12 @@ export default function TravelCopilotChat({
 
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
-              className="travel-copilot-close-button rounded-xl bg-white/5 p-2 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              aria-label="Close modal"
+              className="travel-copilot-close-button rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -359,32 +380,33 @@ export default function TravelCopilotChat({
 
       {/* Friendly Trip Comfort Ribbon */}
       {auditReview && (
-        <div className="flex items-center justify-between px-6 py-2 bg-gradient-to-r from-emerald-950/50 via-slate-900/60 to-teal-950/50 border-b border-emerald-500/20 text-xs">
-          <div className="flex items-center gap-2 text-emerald-400 font-medium">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
+        <div className="flex items-center justify-between px-5 sm:px-6 py-2 bg-[var(--status-positive-bg)] border-b border-[var(--status-positive-border)] text-xs">
+          <div className="flex items-center gap-2 text-[var(--status-positive)] font-medium">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
             <span>Checked by Your Travel Guide</span>
-            <span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+            <span className="bg-[var(--bg-surface)] border border-[var(--status-positive-border)] text-[var(--status-positive)] text-[10px] px-2 py-0.5 rounded-full font-semibold">
               Comfort Score: {auditReview.auditScore || 98}%
             </span>
           </div>
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
-            Relaxed Pacing • Real-World Timings
+          <span className="text-[11px] text-[var(--text-secondary)] hidden sm:inline">
+            Relaxed Pacing · Real-World Timings
           </span>
         </div>
       )}
 
       {/* Suggested Chips Bar */}
-      <div className="travel-copilot-suggested-chips-bar flex items-center gap-2 px-4 py-2.5 overflow-x-auto border-b border-white/5 bg-slate-950/30 scrollbar-none">
+      <div className="travel-copilot-suggested-chips-bar flex items-center gap-2 px-4 py-2.5 overflow-x-auto border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] scrollbar-none">
         {SUGGESTED_PROMPTS.map((prompt, idx) => {
           const Icon = prompt.icon;
           return (
             <button
+              type="button"
               key={idx}
               onClick={() => handleSendMessage(prompt.query)}
               disabled={loading}
-              className="travel-copilot-suggested-chip flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-white/5 hover:bg-emerald-500/20 hover:border-emerald-500/30 border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-emerald-400 transition disabled:opacity-50 shrink-0"
+              className="travel-copilot-suggested-chip flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[var(--bg-surface)] hover:border-[var(--brand-primary)] border border-[var(--border-subtle)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50 shrink-0"
             >
-              <Icon className="h-3.5 w-3.5 text-emerald-400" />
+              <Icon className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
               <span>{prompt.label}</span>
             </button>
           );
@@ -399,7 +421,7 @@ export default function TravelCopilotChat({
             className={`travel-copilot-message-row flex gap-3 ${msg.role === "user" ? "travel-copilot-user-row justify-end" : "travel-copilot-assistant-row justify-start"}`}
           >
             {msg.role === "assistant" && (
-              <div className="travel-copilot-assistant-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+              <div className="travel-copilot-assistant-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
                 <Bot className="h-4 w-4" />
               </div>
             )}
@@ -407,8 +429,8 @@ export default function TravelCopilotChat({
             <div
               className={`travel-copilot-message-bubble max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-sm ${
                 msg.role === "user"
-                  ? "travel-copilot-user-bubble bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-medium rounded-tr-none shadow-lg shadow-emerald-500/10"
-                  : "travel-copilot-assistant-bubble bg-slate-800/80 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md"
+                  ? "travel-copilot-user-bubble bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-medium rounded-tr-none"
+                  : "travel-copilot-assistant-bubble bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-tl-none"
               }`}
             >
               <div className="travel-copilot-message-text whitespace-pre-wrap leading-relaxed">
@@ -417,38 +439,38 @@ export default function TravelCopilotChat({
 
               {/* Customer Approval Card for proposed modification */}
               {msg.proposedModification && (
-                <div className="mt-3 p-3.5 bg-emerald-950/70 border border-emerald-500/40 rounded-2xl shadow-lg">
-                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-                    <Sparkles className="h-3.5 w-3.5" /> Suggested Itinerary Update (Review & Apply)
+                <div className="mt-3 p-3.5 bg-[var(--bg-surface)] border border-[var(--status-positive-border)] rounded-xl">
+                  <div className="flex items-center gap-1.5 text-[var(--status-positive)] font-semibold text-xs uppercase tracking-wider">
+                    <Sparkles className="h-3.5 w-3.5" /> Suggested Itinerary Update (Review &amp; Apply)
                   </div>
-                  <div className="text-white text-sm font-semibold mt-1">
+                  <div className="text-[var(--text-primary)] text-sm font-semibold mt-1">
                     {msg.proposedModification.summary}
                   </div>
                   {Array.isArray(msg.proposedModification.changes) && msg.proposedModification.changes.length > 0 && (
-                    <ul className="text-xs text-slate-300 space-y-1 mt-2">
+                    <ul className="text-xs text-[var(--text-secondary)] space-y-1 mt-2">
                       {msg.proposedModification.changes.map((c: string, cIdx: number) => (
                         <li key={cIdx} className="flex items-start gap-1.5">
-                          <span className="text-emerald-400 font-bold">•</span>
+                          <span className="text-[var(--status-positive)] font-bold">•</span>
                           <span>{c}</span>
                         </li>
                       ))}
                     </ul>
                   )}
-                  <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                  <div className="mt-3 pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between">
                     {!msg.isApplied ? (
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleApproveModification(msg.id, msg.proposedModification)}
-                          className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-md shadow-emerald-500/20 cursor-pointer"
+                          className="flex items-center gap-1.5 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-semibold px-3 py-1.5 rounded-lg text-xs hover:opacity-95 transition-opacity cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5" /> Apply to Itinerary
                         </button>
-                        <span className="text-[11px] text-slate-400">Click to apply this update</span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">Click to apply this update</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-semibold">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      <div className="flex items-center gap-1.5 text-[var(--status-positive)] text-xs font-semibold">
+                        <CheckCircle2 className="h-4 w-4" />
                         <span>Updated! Your itinerary has been refreshed.</span>
                       </div>
                     )}
@@ -457,7 +479,7 @@ export default function TravelCopilotChat({
               )}
               <div
                 className={`travel-copilot-message-timestamp mt-1.5 text-[10px] text-right ${
-                  msg.role === "user" ? "text-slate-900/70 font-semibold" : "text-slate-400"
+                  msg.role === "user" ? "opacity-75 font-medium" : "text-[var(--text-secondary)]"
                 }`}
               >
                 {msg.timestamp}
@@ -465,7 +487,7 @@ export default function TravelCopilotChat({
             </div>
 
             {msg.role === "user" && (
-              <div className="travel-copilot-user-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 border border-teal-500/30 text-teal-400">
+              <div className="travel-copilot-user-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)]">
                 <User className="h-4 w-4" />
               </div>
             )}
@@ -474,12 +496,12 @@ export default function TravelCopilotChat({
 
         {loading && (
           <div className="travel-copilot-loading-row flex gap-3 justify-start">
-            <div className="travel-copilot-loading-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+            <div className="travel-copilot-loading-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)]">
               <Bot className="h-4 w-4" />
             </div>
-            <div className="travel-copilot-loading-bubble rounded-2xl rounded-tl-none bg-slate-800/80 border border-white/10 p-4 backdrop-blur-md flex items-center gap-2 text-slate-400 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-              <span>Checking verified routes, trains & local stays...</span>
+            <div className="travel-copilot-loading-bubble rounded-2xl rounded-tl-none bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] p-4 flex items-center gap-2 text-[var(--text-secondary)] text-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-primary)]" />
+              <span>Checking verified routes, trains &amp; local stays...</span>
             </div>
           </div>
         )}
@@ -488,7 +510,7 @@ export default function TravelCopilotChat({
       </div>
 
       {/* Input Bar */}
-      <div className="travel-copilot-input-bar p-4 border-t border-white/10 bg-slate-950/80 backdrop-blur-xl">
+      <div className="travel-copilot-input-bar p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -502,15 +524,16 @@ export default function TravelCopilotChat({
             onChange={(e) => setInputQuery(e.target.value)}
             placeholder={`Ask anything about your trip from ${origin} to ${destination}...`}
             disabled={loading}
-            className="travel-copilot-input flex-1 rounded-2xl bg-slate-900 border border-white/10 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none disabled:opacity-50"
+            className="travel-copilot-input flex-1 h-11 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none disabled:opacity-50"
           />
 
           <button
             type="submit"
             disabled={loading || !inputQuery.trim()}
-            className="travel-copilot-send-button flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition disabled:opacity-50 shrink-0"
+            aria-label="Send message"
+            className="travel-copilot-send-button flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity disabled:opacity-50 shrink-0"
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
       </div>

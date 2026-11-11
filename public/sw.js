@@ -1,8 +1,26 @@
-// SplitRupee Production Service Worker (PWA Offline Engine v7 - Zero-Stale-Cache Policy)
-const CACHE_NAME = "splitrupee-pwa-v7";
+// SplitRupee Production Service Worker (PWA Offline Engine v9)
+const CACHE_NAME = "splitrupee-pwa-v9";
+const RSC_CACHE_NAME = "splitrupee-rsc-v9";
 
 const PRECACHE_URLS = [
+  "/",
   "/offline",
+  "/dashboard",
+  "/groups",
+  "/expenses",
+  "/activity",
+  "/calculator",
+  "/itinerary",
+  "/profile",
+  "/faq",
+  "/pro",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/blog",
+  "/login",
+  "/signup",
   "/manifest.json",
   "/icon.svg"
 ];
@@ -51,7 +69,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name !== CACHE_NAME && name !== RSC_CACHE_NAME)
           .map((name) => caches.delete(name))
       );
     }).then(() => self.clients.claim())
@@ -63,7 +81,17 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // When a mutation (POST, PUT, DELETE, PATCH) happens, invalidate cached API responses immediately
+  // Skip cross-origin requests cleanly
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Handle non-http requests
+  if (!url.protocol.startsWith("http")) {
+    return;
+  }
+
+  // Non-GET API mutations: let browser fail cleanly or execute normally
   if (request.method !== "GET") {
     if (url.pathname.startsWith("/api/")) {
       event.waitUntil(
@@ -80,19 +108,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Handle non-http requests
-  if (!url.protocol.startsWith("http")) {
-    return;
-  }
-
-  // A. Static Assets (_next/static, fonts, icons, images): Cache-First / Stale-While-Revalidate
+  // A. Static Assets (_next/static, fonts, icons, images): Stale-While-Revalidate
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.endsWith(".svg") ||
     url.pathname.endsWith(".png") ||
     url.pathname.endsWith(".jpg") ||
+    url.pathname.endsWith(".jpeg") ||
+    url.pathname.endsWith(".webp") ||
     url.pathname.endsWith(".ico") ||
-    url.pathname.endsWith(".woff2")
+    url.pathname.endsWith(".woff2") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".js")
   ) {
     event.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
@@ -122,67 +149,97 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // B. Next.js RSC Prefetch & Data Requests (?_rsc=... or /_next/data/...)
-  if (url.searchParams.has("_rsc") || url.pathname.startsWith("/_next/data/")) {
+  // B. Next.js RSC Prefetch & Data Requests (?_rsc=... or RSC: 1 or /_next/data/...)
+  // CRITICAL: Keep RSC Flight payloads in RSC_CACHE_NAME, NEVER in HTML CACHE_NAME under bare page URLs!
+  const isRscRequest =
+    url.searchParams.has("_rsc") ||
+    url.pathname.startsWith("/_next/data/") ||
+    request.headers.get("rsc") === "1";
+
+  if (isRscRequest) {
     event.respondWith(
       fetch(request)
         .then((networkRes) => {
           if (networkRes && networkRes.status === 200) {
             const clone = networkRes.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
+            const cloneNorm = networkRes.clone();
+            caches.open(RSC_CACHE_NAME).then((rscCache) => {
+              rscCache.put(request, clone);
               const norm = new URL(request.url);
               norm.searchParams.delete("_rsc");
-              cache.put(norm.toString(), networkRes.clone());
+              rscCache.put(norm.toString(), cloneNorm);
             });
           }
           return networkRes;
         })
         .catch(async () => {
+          const rscCache = await caches.open(RSC_CACHE_NAME);
           const norm = new URL(request.url);
           norm.searchParams.delete("_rsc");
           const cached =
-            (await caches.match(request)) ||
-            (await caches.match(norm.toString()));
+            (await rscCache.match(request)) ||
+            (await rscCache.match(norm.toString()));
           if (cached) return cached;
-          return new Response("", {
-            status: 200,
-            headers: { "Content-Type": "text/x-component" }
-          });
+          // Return network error so Next.js App Router gracefully triggers navigate fallback
+          return Response.error();
         })
     );
     return;
   }
 
-  // C. API Requests (/api/): Strict Network-Only, NEVER cache dynamic API responses in CacheStorage!
+  // C. API Requests (/api/): Strict Network-Only, NEVER cache dynamic API responses in CacheStorage
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request, { cache: "no-store" })
-        .catch(async () => {
-          return new Response(
-            JSON.stringify({
-              ok: false,
-              offline: true,
-              message: "Network unavailable. SplitRupee offline mode is active."
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" }
-            }
-          );
-        })
+      fetch(request, { cache: "no-store" }).catch(async () => {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            offline: true,
+            message: "Network unavailable. SplitRupee offline mode is active."
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      })
     );
     return;
   }
 
-  // D. HTML Page Navigation (request.mode === "navigate"): Always Fresh from Network
+  // D. HTML Page Navigation (request.mode === "navigate"): Network-First + App-Shell Cache Fallback
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
+        .then((networkRes) => {
+          const ct = networkRes?.headers?.get("content-type") || "";
+          if (networkRes && networkRes.status === 200 && ct.includes("text/html")) {
+            const cacheCopy = networkRes.clone();
+            const shellCopy = networkRes.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              const canonical = getCanonicalUrl(request.url);
+              cache.put(canonical, cacheCopy);
+              // Cache dynamic group & join shell templates so unvisited dynamic links load on refresh
+              if (url.pathname.startsWith("/groups/") && url.pathname !== "/groups/") {
+                cache.put("/__shell__/group", shellCopy);
+              } else if (url.pathname.startsWith("/join/") && url.pathname !== "/join/") {
+                cache.put("/__shell__/join", shellCopy);
+              }
+            });
+          }
+          return networkRes;
+        })
         .catch(async () => {
-          // Fallback to offline page when completely disconnected from network
-          const offlinePage = await caches.match("/offline");
-          if (offlinePage) return offlinePage;
+          const cache = await caches.open(CACHE_NAME);
+          const canonical = getCanonicalUrl(request.url);
+          const cachedPage =
+            (await cache.match(canonical)) ||
+            (await cache.match(url.pathname)) ||
+            (url.pathname.startsWith("/groups/") ? await cache.match("/__shell__/group") : null) ||
+            (url.pathname.startsWith("/join/") ? await cache.match("/__shell__/join") : null) ||
+            (await cache.match("/offline"));
+
+          if (cachedPage) return cachedPage;
 
           return new Response(
             "<!DOCTYPE html><html><head><title>SplitRupee Offline</title></head><body style='background:#020617;color:#fff;font-family:sans-serif;text-align:center;padding:50px;'><h2>You are offline</h2><p>Please connect to the internet or reload once online.</p></body></html>",
@@ -195,6 +252,9 @@ self.addEventListener("fetch", (event) => {
 
   // E. Default fallback for other GET requests
   event.respondWith(
-    fetch(request).catch(() => caches.match(request))
+    fetch(request).catch(async () => {
+      const cache = await caches.open(CACHE_NAME);
+      return (await cache.match(request)) || Response.error();
+    })
   );
 });

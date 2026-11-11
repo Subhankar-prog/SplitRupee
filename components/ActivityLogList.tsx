@@ -17,37 +17,37 @@ const ACTION_CONFIG = {
   EXPENSE_CREATED: {
     icon: PlusCircle,
     label: "Added expense",
-    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    color: "text-[var(--status-positive)] bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]",
   },
   EXPENSE_UPDATED: {
     icon: Edit3,
     label: "Updated expense",
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    color: "text-[var(--status-warning)] bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]",
   },
   EXPENSE_DELETED: {
     icon: Trash2,
     label: "Deleted expense",
-    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+    color: "text-[var(--status-negative)] bg-[var(--status-negative-bg)] border-[var(--status-negative-border)]",
   },
   PAYMENT_SETTLED: {
     icon: CheckCircle2,
     label: "Settled up payment",
-    color: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+    color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]",
   },
   MEMBER_ADDED: {
     icon: UserPlus,
     label: "Added member",
-    color: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+    color: "text-[var(--brand-primary)] bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]",
   },
   MEMBER_REMOVED: {
     icon: UserMinus,
     label: "Removed member",
-    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+    color: "text-[var(--status-negative)] bg-[var(--status-negative-bg)] border-[var(--status-negative-border)]",
   },
   GROUP_CREATED: {
     icon: Users,
     label: "Created group",
-    color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    color: "text-[var(--status-warning)] bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]",
   },
 };
 
@@ -72,10 +72,12 @@ export default function ActivityLogList({
 }) {
   if (activities.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
-        <Clock className="mx-auto h-8 w-8 text-slate-500" />
-        <p className="mt-2 text-sm font-medium text-slate-300">No activity yet</p>
-        <p className="mt-1 text-xs text-slate-500">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
+        <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)]">
+          <Clock className="h-5 w-5" />
+        </div>
+        <p className="mt-2.5 text-sm font-medium text-[var(--text-primary)]">No activity yet</p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)] max-w-xs mx-auto">
           Every time an expense is created, edited, deleted, or settled, an audit log will appear here.
         </p>
       </div>
@@ -83,7 +85,7 @@ export default function ActivityLogList({
   }
 
   return (
-    <div className="relative space-y-3 before:absolute before:left-5 before:top-3 before:bottom-3 before:w-0.5 before:bg-white/10">
+    <div className="relative space-y-2.5 before:absolute before:left-[26px] before:top-5 before:bottom-5 before:w-px before:bg-[var(--border-subtle)]">
       {activities.map((log) => {
         const conf = ACTION_CONFIG[log.action] || ACTION_CONFIG.EXPENSE_CREATED;
         const Icon = conf.icon;
@@ -91,11 +93,11 @@ export default function ActivityLogList({
         return (
           <div
             key={log.id}
-            className="relative flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 backdrop-blur-xl hover:border-white/20 hover:bg-white/[0.05] transition"
+            className="relative flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors"
           >
             {/* Action Icon Badge */}
             <div
-              className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${conf.color} shadow`}
+              className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${conf.color}`}
             >
               <Icon className="h-4 w-4" />
             </div>
@@ -103,34 +105,39 @@ export default function ActivityLogList({
             {/* Content */}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: log.user.avatarColor || "#10b981" }}
+                    style={{ background: log.user.avatarColor || "#739B83" }}
                   />
-                  <span className="text-xs font-bold text-slate-200 truncate">
+                  <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
                     {log.user.name}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-[var(--text-secondary)]">
                     {conf.label.toLowerCase()}
                   </span>
                   {showGroupName && log.group && (
-                    <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                    <span className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
                       in {log.group.name}
                     </span>
                   )}
+                  {(log as any).isOfflinePending && (
+                    <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
+                      Pending Sync
+                    </span>
+                  )}
                 </div>
-                <span className="text-[11px] text-slate-500 shrink-0">
+                <span className="text-[11px] text-[var(--text-secondary)] shrink-0 tabular-nums">
                   {formatTimeAgo(log.createdAt)}
                 </span>
               </div>
 
-              <p className="mt-1 text-xs font-medium text-white truncate">
+              <p className="mt-1 text-xs font-medium text-[var(--text-primary)] truncate">
                 {log.entityTitle}
               </p>
 
               {log.details && (
-                <p className="mt-0.5 text-[11px] text-slate-400 break-words">
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)] break-words">
                   {log.details}
                 </p>
               )}

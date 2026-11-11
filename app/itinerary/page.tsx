@@ -15,6 +15,12 @@ import {
 } from "@/lib/calendarExport";
 import { useUser } from "@/lib/userContext";
 import {
+  saveCachedItineraries,
+  getCachedItineraries,
+  saveCachedItineraryDraft,
+  getCachedGroupsList,
+} from "@/lib/offlineSync";
+import {
   Loader2,
   ArrowRight,
   MapPin,
@@ -449,6 +455,13 @@ export default function ItineraryPage() {
       }
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setError(
+        "You're offline. Generating a new AI itinerary requires an internet connection — you can still open your Saved Itineraries, view plans, or export PDF/ICS files offline."
+      );
+      return;
+    }
+
     setLoading(true);
     setApiReady(false);
     setPendingPlan(null);
@@ -491,7 +504,10 @@ export default function ItineraryPage() {
         })
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) {
+      if (data.offline) {
+        setError("You're offline. Generating a new AI itinerary requires an internet connection.");
+        setLoading(false);
+      } else if (!res.ok || !data.ok) {
         setError(data.error || "Failed to create your travel plan");
       } else {
         setPendingPlan(data.plan);
@@ -508,6 +524,12 @@ export default function ItineraryPage() {
   const handleLoaderComplete = () => {
     if (pendingPlan) {
       setResult(pendingPlan);
+      saveCachedItineraryDraft({
+        form,
+        result: pendingPlan,
+        savedItineraryId,
+        chatMessages,
+      });
     }
     if (pendingFinancial) {
       setFinancialSummary(pendingFinancial);
@@ -655,6 +677,63 @@ export default function ItineraryPage() {
     setIsSaving(true);
     setSaveToast(null);
 
+    const saveOfflineCopy = () => {
+      const localId = savedItineraryId || `offline_itin_${Date.now()}`;
+      const offlineItin = {
+        id: localId,
+        userId: currentUser?.id || null,
+        groupId: linkedGroup?.id || null,
+        group: linkedGroup || null,
+        title: `Trip: ${form.origin} ➔ ${form.destination} (${form.nights}N / ${Number(form.nights) + 1}D)`,
+        origin: form.origin,
+        destination: form.destination,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        days: Number(form.nights) + 1,
+        groupSize: Number(form.travellers) || 1,
+        totalBudget: Number(form.budget) || 0,
+        preferences: {
+          stayBudget: form.stayBudget,
+          stayPreference: form.stayPreference,
+          groupType: form.groupType,
+          trainClass: form.trainClass,
+          busClass: form.busClass,
+          flightClass: form.flightClass,
+          transport: {
+            train: form.transportTrain,
+            bus: form.transportBus,
+            flight: form.transportFlight,
+            road: form.transportRoad,
+          },
+        },
+        planData: result,
+        chatSession: chatMessages,
+        isOfflinePending: true,
+        updatedAt: new Date().toISOString(),
+      };
+      setSavedItineraryId(localId);
+      setSavedTripsList((prev) => {
+        const filtered = prev.filter((item) => item.id !== localId);
+        const updated = [offlineItin, ...filtered];
+        saveCachedItineraries(currentUser?.id, updated);
+        return updated;
+      });
+      saveCachedItineraryDraft({
+        form,
+        result,
+        savedItineraryId: localId,
+        chatMessages,
+      });
+      setSaveToast("✓ Saved locally offline for instant viewing! Re-save once online to sync to cloud.");
+      setTimeout(() => setSaveToast(null), 3500);
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      saveOfflineCopy();
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/itinerary", {
         method: "POST",
@@ -665,7 +744,7 @@ export default function ItineraryPage() {
           "Pragma": "no-cache"
         },
         body: JSON.stringify({
-          id: savedItineraryId || undefined,
+          id: savedItineraryId && !savedItineraryId.startsWith("offline_itin_") ? savedItineraryId : undefined,
           userId: currentUser?.id || null,
           groupId: linkedGroup?.id || null,
           title: `Trip: ${form.origin} ➔ ${form.destination} (${form.nights}N / ${Number(form.nights) + 1}D)`,
@@ -696,22 +775,27 @@ export default function ItineraryPage() {
       });
 
       const json = await res.json();
-      if (json.ok && json.itinerary?.id) {
+      if (json.offline) {
+        saveOfflineCopy();
+      } else if (json.ok && json.itinerary?.id) {
+        const prevId = savedItineraryId;
         setSavedItineraryId(json.itinerary.id);
         setSaveToast("✓ Itinerary & Travel Guide notes saved successfully!");
         setTimeout(() => setSaveToast(null), 3000);
 
         if (json.itinerary) {
           setSavedTripsList((prev) => {
-            const filtered = prev.filter((item) => item.id !== json.itinerary.id);
-            return [json.itinerary, ...filtered];
+            const filtered = prev.filter((item) => item.id !== json.itinerary.id && item.id !== prevId);
+            const updated = [json.itinerary, ...filtered];
+            saveCachedItineraries(currentUser?.id, updated);
+            return updated;
           });
         }
       } else {
         setSaveToast(`Error: ${json.error || "Could not save itinerary"}`);
       }
-    } catch (e: any) {
-      setSaveToast(`Error: ${e.message || "Failed to save"}`);
+    } catch {
+      saveOfflineCopy();
     } finally {
       setIsSaving(false);
     }
@@ -720,7 +804,11 @@ export default function ItineraryPage() {
   // 2. Open Saved Trips Drawer / Modal
   const handleOpenSavedTrips = async () => {
     setIsSavedTripsModalOpen(true);
-    setIsLoadingSavedTrips(true);
+    const cachedInitial = getCachedItineraries(currentUser?.id);
+    if (cachedInitial.length > 0) {
+      setSavedTripsList(cachedInitial);
+    }
+    setIsLoadingSavedTrips(cachedInitial.length === 0);
     try {
       const baseUrl = currentUser?.id ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}` : "/api/itinerary";
       const url = `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}_t=${Date.now()}`;
@@ -733,10 +821,17 @@ export default function ItineraryPage() {
       });
       const json = await res.json();
       if (json.ok && Array.isArray(json.itineraries)) {
-        setSavedTripsList(json.itineraries);
+        const serverIds = new Set(json.itineraries.map((i: any) => i.id));
+        const localOnly = cachedInitial.filter((i: any) => String(i.id || "").startsWith("offline_itin_") && !serverIds.has(i.id));
+        const merged = [...localOnly, ...json.itineraries];
+        setSavedTripsList(merged);
+        saveCachedItineraries(currentUser?.id, merged);
+      } else {
+        setSavedTripsList(getCachedItineraries(currentUser?.id));
       }
     } catch (err) {
       console.warn("Failed to load saved trips:", err);
+      setSavedTripsList(getCachedItineraries(currentUser?.id));
     } finally {
       setIsLoadingSavedTrips(false);
     }
@@ -859,6 +954,22 @@ export default function ItineraryPage() {
   // Delete a Saved Itinerary
   const handleDeleteSavedItinerary = async (itId: string) => {
     if (!confirm("Are you sure you want to delete this saved itinerary?")) return;
+    if (itId.startsWith("offline_itin_")) {
+      setSavedTripsList((prev) => {
+        const updated = prev.filter((item) => item.id !== itId);
+        saveCachedItineraries(currentUser?.id, updated);
+        return updated;
+      });
+      if (savedItineraryId === itId) {
+        handleResetToNewPlan();
+      }
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setSaveToast("You're offline. Deleting cloud-synced trips requires an internet connection.");
+      setTimeout(() => setSaveToast(null), 3000);
+      return;
+    }
     try {
       const url = currentUser?.id
         ? `/api/itinerary?id=${encodeURIComponent(itId)}&userId=${encodeURIComponent(currentUser.id)}`
@@ -873,7 +984,11 @@ export default function ItineraryPage() {
       });
       const json = await res.json();
       if (json.ok) {
-        setSavedTripsList((prev) => prev.filter((item) => item.id !== itId));
+        setSavedTripsList((prev) => {
+          const updated = prev.filter((item) => item.id !== itId);
+          saveCachedItineraries(currentUser?.id, updated);
+          return updated;
+        });
         if (savedItineraryId === itId) {
           handleResetToNewPlan();
         }
@@ -905,7 +1020,11 @@ export default function ItineraryPage() {
     }
 
     const fetchInitialSavedTrips = async () => {
-      setIsLoadingSavedTrips(true);
+      const cached = getCachedItineraries(currentUser?.id);
+      if (!isCancelled && cached.length > 0) {
+        setSavedTripsList(cached);
+      }
+      setIsLoadingSavedTrips(cached.length === 0);
       try {
         const baseUrl = currentUser?.id
           ? `/api/itinerary?userId=${encodeURIComponent(currentUser.id)}`
@@ -920,7 +1039,11 @@ export default function ItineraryPage() {
         });
         const json = await res.json();
         if (!isCancelled && json.ok && Array.isArray(json.itineraries)) {
-          setSavedTripsList(json.itineraries);
+          const serverIds = new Set(json.itineraries.map((i: any) => i.id));
+          const localOnly = cached.filter((i: any) => String(i.id || "").startsWith("offline_itin_") && !serverIds.has(i.id));
+          const merged = [...localOnly, ...json.itineraries];
+          setSavedTripsList(merged);
+          saveCachedItineraries(currentUser?.id, merged);
           // Never auto-load or prefill past data on page refresh/visit!
           // The page stays completely blank so the user can plan a new trip or choose from the saved trips list.
         }
@@ -943,6 +1066,10 @@ export default function ItineraryPage() {
     setIsForwardModalOpen(true);
     setIsLoadingGroups(true);
     setForwardFeedback(null);
+    const cachedGroups = getCachedGroupsList();
+    if (cachedGroups.length > 0) {
+      setUserGroups(cachedGroups);
+    }
     try {
       const baseUrl = currentUser?.id ? `/api/groups?userId=${encodeURIComponent(currentUser.id)}` : "/api/groups";
       const url = `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}_t=${Date.now()}`;
@@ -977,6 +1104,13 @@ export default function ItineraryPage() {
   // Confirm Forward to Group (enforces Admin check)
   const handleConfirmForward = async () => {
     if (!selectedGroupId || !result) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setForwardFeedback({
+        ok: false,
+        text: "You're offline. Forwarding an itinerary to a shared group requires an internet connection.",
+      });
+      return;
+    }
     setIsForwarding(true);
     setForwardFeedback(null);
 
@@ -1106,18 +1240,18 @@ export default function ItineraryPage() {
   const getLegIcon = (mode: string = "") => {
     const m = mode.toLowerCase();
     if (m.includes("flight") || m.includes("plane") || m.includes("air")) {
-      return <Plane className="h-5 w-5 text-sky-400 print:text-black" />;
+      return <Plane className="h-5 w-5 text-[var(--brand-dark)] dark:text-[var(--brand-primary)] print:text-black" />;
     }
     if (m.includes("train") || m.includes("rail") || m.includes("express")) {
-      return <Train className="h-5 w-5 text-cyan-400 print:text-black" />;
+      return <Train className="h-5 w-5 text-[var(--brand-primary)] print:text-black" />;
     }
     if (m.includes("bus") || m.includes("volvo") || m.includes("coach")) {
-      return <Bus className="h-5 w-5 text-amber-400 print:text-black" />;
+      return <Bus className="h-5 w-5 text-[var(--status-warning)] print:text-black" />;
     }
     if (m.includes("taxi") || m.includes("cab") || m.includes("car") || m.includes("jeep") || m.includes("auto")) {
-      return <Car className="h-5 w-5 text-emerald-400 print:text-black" />;
+      return <Car className="h-5 w-5 text-[var(--status-positive)] print:text-black" />;
     }
-    return <MapPin className="h-5 w-5 text-teal-400 print:text-black" />;
+    return <MapPin className="h-5 w-5 text-[var(--brand-primary)] print:text-black" />;
   };
 
   return (
@@ -1140,14 +1274,14 @@ export default function ItineraryPage() {
         }}
       />
 
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-              <Plane className="h-6 w-6 text-emerald-400" />
+            <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5">
+              <Plane className="h-5 w-5 text-[var(--brand-primary)]" />
               <span>Travel Itinerary Planner</span>
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
               Handcrafted travel itineraries with verified transit, real budgets, and local guidance
             </p>
           </div>
@@ -1157,13 +1291,13 @@ export default function ItineraryPage() {
             <button
               type="button"
               onClick={handleOpenSavedTrips}
-              className="flex items-center gap-2 bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-400 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition backdrop-blur-md shadow-sm w-fit"
+              className="flex items-center gap-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)] text-[var(--text-primary)] px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm w-fit"
               title="Open Saved Itineraries & Guide Notes"
             >
-              <FolderOpen className="h-4 w-4 text-emerald-400" />
+              <FolderOpen className="h-4 w-4 text-[var(--brand-primary)]" />
               <span>Saved Itineraries</span>
               {savedTripsList.length > 0 && (
-                <span className="bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold">
+                <span className="bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold tabular-nums">
                   {savedTripsList.length}
                 </span>
               )}
@@ -1174,33 +1308,30 @@ export default function ItineraryPage() {
                 <button
                   type="button"
                   onClick={handleResetToNewPlan}
-                  className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                  className="flex items-center gap-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                   title="Clear current view and plan a new itinerary"
                 >
-                  <Plus className="h-3.5 w-3.5 text-teal-400" />
+                  <Plus className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                   <span>Plan New</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsCopilotOpen(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition backdrop-blur-md shadow-lg shadow-emerald-500/10 w-fit"
+                  className="flex items-center gap-2 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-opacity shadow-sm w-fit"
                 >
-                  <MessageSquare className="h-4 w-4 text-emerald-400" />
+                  <MessageSquare className="h-4 w-4" />
                   <span>Chat with Travel Guide</span>
-                  <span className="flex h-2 w-2 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
+                  <span className="flex h-2 w-2 rounded-full bg-[var(--accent-sand)]" />
                 </button>
               </>
             )}
           </div>
         </div>
 
-        <div className="itinerary-content-container flex flex-col gap-8">
+        <div className="itinerary-content-container flex flex-col gap-6">
           {/* Top Horizontal Input Console */}
-          <div className="itinerary-form-console-card relative z-20 w-full bg-slate-900/80 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:hidden">
+          <div className="itinerary-form-console-card relative z-20 w-full bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl p-6 md:p-7 shadow-[var(--shadow-card)] print:hidden">
             <form onSubmit={handleGenerate} className="itinerary-generator-form space-y-6">
 
               {/* Row 1: Core Routing, Dates (Start & End), Duration (Days & Nights), Travellers, Group */}
@@ -1208,8 +1339,8 @@ export default function ItineraryPage() {
                 {/* 1. Origin */}
                 <div className="origin-field origin-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="origin-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Origin
+                    <label className="origin-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <MapPin className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Origin
                     </label>
                   </div>
                   <input
@@ -1218,15 +1349,15 @@ export default function ItineraryPage() {
                     onChange={handleChange}
                     required
                     placeholder="e.g. Bhubaneswar, Mumbai"
-                    className="origin-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
+                    className="origin-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
                   />
                 </div>
 
                 {/* 2. Destination */}
                 <div className="destination-field destination-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="destination-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <MapPin className="h-3.5 w-3.5 text-teal-400 shrink-0" /> Destination
+                    <label className="destination-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <MapPin className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Destination
                     </label>
                   </div>
                   <input
@@ -1235,15 +1366,15 @@ export default function ItineraryPage() {
                     onChange={handleChange}
                     required
                     placeholder="e.g. Darjeeling, Goa, Manali"
-                    className="destination-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
+                    className="destination-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
                   />
                 </div>
 
                 {/* 3. Start Date */}
                 <div className="start-date-field start-date-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="start-date-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <Calendar className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Start Date
+                    <label className="start-date-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Start Date
                     </label>
                   </div>
                   <input
@@ -1252,15 +1383,15 @@ export default function ItineraryPage() {
                     value={form.startDate}
                     min={new Date().toISOString().split("T")[0]}
                     onChange={handleChange}
-                    className="start-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]"
+                    className="start-date-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors"
                   />
                 </div>
 
                 {/* 4. End Date (Return Date) */}
                 <div className="end-date-field end-date-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="end-date-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <Calendar className="h-3.5 w-3.5 text-teal-400 shrink-0" /> End Date (Return)
+                    <label className="end-date-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> End Date (Return)
                     </label>
                   </div>
                   <input
@@ -1269,16 +1400,16 @@ export default function ItineraryPage() {
                     value={form.endDate}
                     min={form.startDate ? new Date(new Date(form.startDate).getTime() + 86400000).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]}
                     onChange={handleChange}
-                    className="end-date-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition [color-scheme:dark]"
+                    className="end-date-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors"
                   />
                 </div>
 
                 {/* 5. Duration (Days & Nights) */}
                 <div className="duration-days-nights-field duration-days-nights-container">
-                  <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="duration-days-nights-label text-xs font-semibold text-slate-300">Days & Nights</label>
-                    <span className="duration-days-nights-badge text-[10px] text-emerald-400 font-mono font-medium">
-                      {form.nights ? `${form.nights}N / ${Number(form.nights) + 1}D` : "e.g. 5N / 6D"}
+                  <div className="h-7 flex items-center justify-between gap-1.5 mb-1.5">
+                    <label className="duration-days-nights-label text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">Days &amp; Nights</label>
+                    <span className="duration-days-nights-badge text-[10px] text-[var(--status-positive)] font-mono font-medium tabular-nums whitespace-nowrap">
+                      {form.nights ? `${form.nights}N / ${Number(form.nights) + 1}D` : "e.g. 5N/6D"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1290,17 +1421,17 @@ export default function ItineraryPage() {
                       placeholder="e.g. 5"
                       value={form.nights}
                       onChange={handleChange}
-                      className="nights-count-input duration-nights-input h-11 w-full bg-slate-950/70 rounded-xl px-3 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition placeholder:text-slate-500"
+                      className="nights-count-input duration-nights-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] tabular-nums text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
                     />
-                    <span className="duration-nights-unit text-xs text-slate-400 font-mono whitespace-nowrap">Nights</span>
+                    <span className="duration-nights-unit text-xs text-[var(--text-secondary)] font-mono whitespace-nowrap">Nights</span>
                   </div>
                 </div>
 
                 {/* 6. Travellers & Group Type */}
                 <div className="travellers-group-field travellers-group-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="travellers-group-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <Users className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Travellers & Group
+                    <label className="travellers-group-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <Users className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Travellers &amp; Group
                     </label>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -1311,7 +1442,7 @@ export default function ItineraryPage() {
                       placeholder="e.g. 2"
                       value={form.travellers}
                       onChange={handleChange}
-                      className="travellers-count-input h-11 w-full bg-slate-950/70 rounded-xl px-2.5 text-white text-sm border border-white/10 focus:border-emerald-500/60 outline-none transition text-center placeholder:text-slate-500"
+                      className="travellers-count-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-2.5 text-[var(--text-primary)] tabular-nums text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors text-center placeholder:text-[var(--text-secondary)]/65"
                     />
                     <ThemeSelect
                       semanticName="group-type"
@@ -1326,14 +1457,14 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 2: Budgeting (Total Budget, Stay Budget/Night, Stay Preference, Trip Pace) */}
-              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 relative z-40">
+              <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-[color:var(--border-subtle)] relative z-40">
                 {/* Total Budget */}
                 <div className="total-group-budget-field total-group-budget-container">
                   <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="total-group-budget-label flex items-center gap-1.5 text-xs font-semibold text-emerald-400 truncate">
+                    <label className="total-group-budget-label flex items-center gap-1.5 text-xs font-medium text-[var(--status-positive)] truncate">
                       <Wallet className="h-3.5 w-3.5 shrink-0" /> Group Budget (INR)
                     </label>
-                    <span className="budget-per-person-indicator text-[10px] text-slate-400 font-mono shrink-0 ml-1">
+                    <span className="budget-per-person-indicator text-[10px] text-[var(--text-secondary)] font-mono tabular-nums shrink-0 ml-1">
                       {form.budget && form.travellers
                         ? `~₹${Math.round(Number(form.budget) / (Number(form.travellers) || 1)).toLocaleString()}/person`
                         : "e.g. ~₹15,000/person"}
@@ -1346,17 +1477,17 @@ export default function ItineraryPage() {
                     placeholder="e.g. 30000"
                     value={form.budget}
                     onChange={handleChange}
-                    className="total-group-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-emerald-400 font-bold border border-emerald-500/30 focus:border-emerald-500 outline-none transition text-sm placeholder:text-slate-500"
+                    className="total-group-budget-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 font-display text-[var(--status-positive)] font-semibold tabular-nums border border-[color:var(--border-strong)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors text-sm placeholder:text-[var(--text-secondary)]/65"
                   />
                 </div>
 
                 {/* Nightly Stay Budget Limit */}
                 <div className="nightly-stay-limit-field nightly-stay-limit-container">
                   <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="nightly-stay-limit-label flex items-center gap-1.5 text-xs font-semibold text-teal-400 truncate">
+                    <label className="nightly-stay-limit-label flex items-center gap-1.5 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] truncate">
                       <Hotel className="h-3.5 w-3.5 shrink-0" /> Stay Limit / Night (INR)
                     </label>
-                    <span className="stay-budget-customizable-tag text-[10px] text-teal-300 shrink-0 ml-1">Customizable</span>
+                    <span className="stay-budget-customizable-tag text-[10px] text-[var(--text-secondary)] shrink-0 ml-1">Customizable</span>
                   </div>
                   <input
                     type="number"
@@ -1365,14 +1496,14 @@ export default function ItineraryPage() {
                     placeholder="e.g. 2500"
                     value={form.stayBudget}
                     onChange={handleChange}
-                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-teal-300 font-bold border border-teal-500/30 focus:border-teal-400 outline-none transition text-sm placeholder:text-slate-500"
+                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 font-display text-[var(--text-primary)] font-semibold tabular-nums border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors text-sm placeholder:text-[var(--text-secondary)]/65"
                   />
                 </div>
 
                 {/* Accommodation Style */}
                 <div className="accommodation-style-field accommodation-style-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="accommodation-style-label block text-xs font-semibold text-slate-300">Accommodation Style</label>
+                    <label className="accommodation-style-label block text-xs font-medium text-[var(--text-secondary)]">Accommodation Style</label>
                   </div>
                   <ThemeSelect
                     semanticName="accommodation-style"
@@ -1392,8 +1523,8 @@ export default function ItineraryPage() {
                 {/* Trip Pace */}
                 <div className="trip-pace-field trip-pace-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="trip-pace-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <Activity className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> Trip Pace
+                    <label className="trip-pace-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <Activity className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Trip Pace
                     </label>
                   </div>
                   <ThemeSelect
@@ -1412,28 +1543,28 @@ export default function ItineraryPage() {
               </div>
 
               {/* Row 3: Transit Modes & Detailed Classes (Train with 2S/SL/3A/etc., Bus Coach Options, Flight, Cab) */}
-              <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-white/5 space-y-3 relative z-30">
-                <div className="transit-mode-coach-preferences-heading text-xs font-semibold text-slate-300 flex items-center gap-2">
-                  <Train className="h-4 w-4 text-emerald-400" />
-                  <span>Transit Mode & Coach Preferences:</span>
+              <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-[color:var(--border-subtle)] space-y-3 relative z-30">
+                <div className="transit-mode-coach-preferences-heading text-xs font-medium text-[var(--text-secondary)] flex items-center gap-2">
+                  <Train className="h-4 w-4 text-[var(--brand-primary)]" />
+                  <span>Transit Mode &amp; Coach Preferences:</span>
                 </div>
 
                 <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-30">
                   {/* Train */}
-                  <div className="transit-train-card train-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-40 focus-within:z-50">
-                    <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                  <div className="transit-train-card train-preference-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] space-y-2 relative z-40 focus-within:z-50">
+                    <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
                       <input
                         type="checkbox"
                         name="transportTrain"
                         checked={form.transportTrain}
                         onChange={handleChange}
-                        className="transit-train-checkbox accent-emerald-500"
+                        className="transit-train-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Train className="h-4 w-4 text-cyan-500 dark:text-cyan-400" /> Train
+                      <Train className="h-4 w-4 text-[var(--brand-primary)]" /> Train
                     </label>
                     {form.transportTrain && (
                       <div className="train-coach-field train-coach-container">
-                        <label className="train-coach-label block text-[10px] text-slate-600 dark:text-slate-400 mb-1">Train Coach / Class:</label>
+                        <label className="train-coach-label block text-[10px] text-[var(--text-secondary)] mb-1">Train Coach / Class:</label>
                         <ThemeSelect
                           semanticName="train-coach-class"
                           id="train-coach-select"
@@ -1450,27 +1581,27 @@ export default function ItineraryPage() {
                             { value: "EC", label: "EC — Executive Chair Car" },
                             { value: "Vistadome", label: "Vistadome — Panoramic Glass Coach" },
                           ]}
-                          buttonClassName="py-2 px-2.5 text-xs font-mono text-cyan-700 dark:text-cyan-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10"
+                          buttonClassName="py-2 px-2.5 text-xs font-mono"
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Bus / Coach */}
-                  <div className="transit-bus-card bus-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-30 focus-within:z-50">
-                    <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                  <div className="transit-bus-card bus-preference-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] space-y-2 relative z-30 focus-within:z-50">
+                    <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
                       <input
                         type="checkbox"
                         name="transportBus"
                         checked={form.transportBus}
                         onChange={handleChange}
-                        className="transit-bus-checkbox accent-emerald-500"
+                        className="transit-bus-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Bus className="h-4 w-4 text-amber-500 dark:text-amber-400" /> Bus / Coach
+                      <Bus className="h-4 w-4 text-[var(--status-warning)]" /> Bus / Coach
                     </label>
                     {form.transportBus && (
                       <div className="bus-coach-field bus-coach-container">
-                        <label className="bus-coach-label block text-[10px] text-slate-600 dark:text-slate-400 mb-1">Bus Coach Type:</label>
+                        <label className="bus-coach-label block text-[10px] text-[var(--text-secondary)] mb-1">Bus Coach Type:</label>
                         <ThemeSelect
                           semanticName="bus-coach-type"
                           id="bus-coach-select"
@@ -1484,27 +1615,27 @@ export default function ItineraryPage() {
                             { value: "State RTC Superfast Express", label: "State RTC Superfast Express (KSRTC / HRTC / MSRTC)" },
                             { value: "Luxury Mercedes / Scania Semi-Sleeper", label: "Luxury Mercedes / Scania Semi-Sleeper" },
                           ]}
-                          buttonClassName="py-2 px-2.5 text-xs font-mono text-amber-700 dark:text-amber-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10"
+                          buttonClassName="py-2 px-2.5 text-xs font-mono"
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Flight */}
-                  <div className="transit-flight-card flight-preference-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 space-y-2 shadow-sm relative z-20 focus-within:z-50">
-                    <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                  <div className="transit-flight-card flight-preference-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] space-y-2 relative z-20 focus-within:z-50">
+                    <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
                       <input
                         type="checkbox"
                         name="transportFlight"
                         checked={form.transportFlight}
                         onChange={handleChange}
-                        className="transit-flight-checkbox accent-emerald-500"
+                        className="transit-flight-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Plane className="h-4 w-4 text-sky-500 dark:text-sky-400" /> Flight
+                      <Plane className="h-4 w-4 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" /> Flight
                     </label>
                     {form.transportFlight && (
                       <div className="flight-cabin-field flight-cabin-container">
-                        <label className="flight-cabin-label block text-[10px] text-slate-600 dark:text-slate-400 mb-1">Flight Cabin:</label>
+                        <label className="flight-cabin-label block text-[10px] text-[var(--text-secondary)] mb-1">Flight Cabin:</label>
                         <ThemeSelect
                           semanticName="flight-cabin-class"
                           id="flight-cabin-select"
@@ -1515,38 +1646,38 @@ export default function ItineraryPage() {
                             { value: "Premium Economy", label: "Premium Economy" },
                             { value: "Business", label: "Business Class" },
                           ]}
-                          buttonClassName="py-2 px-2.5 text-xs font-mono text-sky-700 dark:text-sky-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-white/10"
+                          buttonClassName="py-2 px-2.5 text-xs font-mono"
                         />
                       </div>
                     )}
                   </div>
 
                   {/* Cab / Road */}
-                  <div className="transit-cab-rental-card cab-rental-card p-3 bg-white dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between shadow-sm relative z-10 focus-within:z-50">
-                    <label className="transit-cab-rental-label flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                  <div className="transit-cab-rental-card cab-rental-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] flex flex-col justify-between relative z-10 focus-within:z-50">
+                    <label className="transit-cab-rental-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
                       <input
                         type="checkbox"
                         name="transportRoad"
                         checked={form.transportRoad}
                         onChange={handleChange}
-                        className="transit-cab-rental-checkbox accent-emerald-500"
+                        className="transit-cab-rental-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Car className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /> Cab / Rental / Shared Jeep
+                      <Car className="h-4 w-4 text-[var(--status-positive)]" /> Cab / Rental / Shared Jeep
                     </label>
-                    <p className="transit-cab-rental-description text-[10px] text-slate-600 dark:text-slate-400 mt-2">
-                      Local syndicate taxis, shared mountain jeeps & prepaid regional booths.
+                    <p className="transit-cab-rental-description text-[10px] text-[var(--text-secondary)] mt-2">
+                      Local syndicate taxis, shared mountain jeeps &amp; prepaid regional booths.
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Row 4: Interests & Remarks Customization */}
-              <div className="itinerary-customization-row pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-10">
+              <div className="itinerary-customization-row pt-4 border-t border-[color:var(--border-subtle)] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 relative z-10">
                 {/* Interests */}
                 <div className="interests-activities-field interests-activities-container lg:col-span-5">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="interests-activities-label flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                      <Sparkles className="h-3.5 w-3.5 text-amber-400 shrink-0" /> Interests & Activities
+                    <label className="interests-activities-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+                      <Sparkles className="h-3.5 w-3.5 text-[var(--accent-sand)] shrink-0" /> Interests &amp; Activities
                     </label>
                   </div>
                   <input
@@ -1554,43 +1685,43 @@ export default function ItineraryPage() {
                     value={form.interests}
                     onChange={handleChange}
                     placeholder="e.g. Culture, Scenery, Trekking, Cafes, Local Food"
-                    className="interests-activities-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500"
+                    className="interests-activities-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
                   />
                 </div>
 
                 {/* Remarks & Special Instructions */}
                 <div className="remarks-special-instructions-field remarks-special-instructions-container lg:col-span-7">
                   <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="remarks-special-instructions-label flex items-center gap-1.5 text-xs font-semibold text-slate-300 truncate">
-                      <Info className="h-3.5 w-3.5 text-cyan-400 shrink-0" /> Remarks & Special Instructions
+                    <label className="remarks-special-instructions-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] truncate">
+                      <Info className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Remarks &amp; Special Instructions
                     </label>
-                    <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">Dietary, senior citizens, views...</span>
+                    <span className="text-[10px] text-[var(--text-secondary)] font-normal shrink-0 ml-1">Dietary, senior citizens, views...</span>
                   </div>
                   <input
                     name="specialNotes"
                     value={form.specialNotes}
                     onChange={handleChange}
                     placeholder="e.g. Early departure, pure vegetarian food, senior-friendly stairs, mountain/beach view..."
-                    className="remarks-special-instructions-input h-11 w-full bg-slate-950/70 rounded-xl px-3.5 text-white text-sm border border-white/10 focus:border-emerald-500/50 outline-none transition placeholder:text-slate-500"
+                    className="remarks-special-instructions-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
                   />
                 </div>
               </div>
 
               {/* Row 5: Action Button at Bottom */}
-              <div className="itinerary-bottom-cta-section pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-0">
-                <div className="flex items-center gap-2.5 text-xs text-slate-400">
-                  <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+              <div className="itinerary-bottom-cta-section pt-5 border-t border-[color:var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-4 relative z-0">
+                <div className="flex items-center gap-2.5 text-xs text-[var(--text-secondary)]">
+                  <div className="p-1.5 rounded-lg bg-[var(--status-positive-bg)] border border-[color:var(--border-subtle)] text-[var(--status-positive)] shrink-0">
                     <Compass className="h-4 w-4" />
                   </div>
                   <span>
-                    Compiles verified IRCTC berths, state RTC/Volvo coaches, stay caps & day-wise plan.
+                    Compiles verified IRCTC berths, state RTC/Volvo coaches, stay caps &amp; day-wise plan.
                   </span>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="generate-elite-itinerary-button w-full sm:w-auto min-w-[260px] flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-8 rounded-xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 text-sm tracking-wide shrink-0"
+                  className="generate-elite-itinerary-button w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-medium py-3 px-7 rounded-lg transition-opacity shadow-sm disabled:opacity-50 text-sm shrink-0"
                 >
                   <Sparkles className="h-4 w-4" />
                   <span>Generate Itinerary</span>
@@ -1600,32 +1731,32 @@ export default function ItineraryPage() {
             </form>
 
             {error && (
-              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-2xl text-sm flex items-start gap-3 backdrop-blur-md">
-                <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="mt-4 p-4 bg-[var(--status-negative-bg)] border border-[var(--status-negative)]/30 text-[var(--status-negative)] rounded-xl text-sm flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-[var(--status-negative)] shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
-                  <span className="font-bold text-red-300 block text-xs uppercase tracking-wider font-mono">Validation Warning</span>
-                  <p className="text-xs sm:text-sm text-red-200 leading-relaxed">{error}</p>
+                  <span className="font-semibold block text-xs uppercase tracking-wider font-mono">Validation Warning</span>
+                  <p className="text-xs sm:text-sm leading-relaxed">{error}</p>
                 </div>
               </div>
             )}
           </div>
 
           {/* Results Column (Full Width directly below on the bottom) */}
-          <div className="itinerary-results-canvas-card w-full relative z-10 bg-slate-900/60 border border-white/10 rounded-3xl p-6 md:p-8 backdrop-blur-xl min-h-[500px] flex flex-col shadow-2xl shadow-black/50 print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
+          <div className="itinerary-results-canvas-card w-full relative z-10 bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl p-6 md:p-8 min-h-[480px] flex flex-col shadow-[var(--shadow-card)] print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
             {!result && !loading && (
               <div className="flex-1 flex flex-col py-6 px-2 sm:px-4 print:hidden">
                 {savedTripsList.length > 0 ? (
-                  <div className="space-y-6 animate-in fade-in duration-300">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[color:var(--border-subtle)] gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <FolderOpen className="h-5 w-5 text-emerald-400" />
-                          <h3 className="text-xl font-bold text-white">Your Saved Itineraries</h3>
-                          <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-bold">
+                          <FolderOpen className="h-5 w-5 text-[var(--brand-primary)]" />
+                          <h3 className="font-display text-xl font-semibold text-[var(--text-primary)]">Your Saved Itineraries</h3>
+                          <span className="text-xs bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2 py-0.5 rounded-full font-mono font-semibold tabular-nums">
                             {savedTripsList.length} saved
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
                           Click any saved trip below to open, inspect schedules, or forward to your group.
                         </p>
                       </div>
@@ -1636,7 +1767,7 @@ export default function ItineraryPage() {
                           const formConsole = document.querySelector(".itinerary-form-console-card");
                           formConsole?.scrollIntoView({ behavior: "smooth" });
                         }}
-                        className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition w-fit"
+                        className="flex items-center gap-1.5 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] px-3 py-1.5 rounded-lg border border-[color:var(--border-subtle)] transition-colors w-fit"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         <span>Plan a Brand New Trip</span>
@@ -1647,66 +1778,66 @@ export default function ItineraryPage() {
                       {savedTripsList.map((it) => (
                         <div
                           key={it.id}
-                          className="p-5 rounded-2xl bg-slate-950/80 border border-white/10 hover:border-emerald-500/40 transition flex flex-col justify-between shadow-xl shadow-black/40 group hover:shadow-emerald-500/10"
+                          className="p-5 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)] transition-colors flex flex-col justify-between group"
                         >
                           <div className="space-y-3">
                             <div className="flex items-start justify-between gap-2">
-                              <h4 className="font-bold text-white text-base group-hover:text-emerald-300 transition line-clamp-1">
+                              <h4 className="font-display font-semibold text-[var(--text-primary)] text-base group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors line-clamp-1">
                                 {it.title || `${it.origin} ➔ ${it.destination}`}
                               </h4>
                               {it.group && (
-                                <span className="shrink-0 text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-medium">
+                                <span className="shrink-0 text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2 py-0.5 rounded-full font-medium">
                                   {it.group.name}
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                            <div className="flex items-center gap-2 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
                               <span>{it.origin}</span>
                               <ArrowRight className="h-3.5 w-3.5" />
                               <span>{it.destination}</span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-[11px] bg-white/[0.03] p-2.5 rounded-xl border border-white/5">
+                            <div className="grid grid-cols-2 gap-2 text-[11px] bg-[var(--bg-surface)] p-2.5 rounded-lg border border-[color:var(--border-subtle)]">
                               <div>
-                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Trip Duration</span>
-                                <span className="font-medium text-slate-200">{it.days} Days ({Math.max(1, it.days - 1)}N)</span>
+                                <span className="block text-[10px] text-[var(--text-secondary)] uppercase font-mono">Trip Duration</span>
+                                <span className="font-medium text-[var(--text-primary)] tabular-nums">{it.days} Days ({Math.max(1, it.days - 1)}N)</span>
                               </div>
                               <div>
-                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Travellers</span>
-                                <span className="font-medium text-slate-200">{it.groupSize} Guests</span>
+                                <span className="block text-[10px] text-[var(--text-secondary)] uppercase font-mono">Travellers</span>
+                                <span className="font-medium text-[var(--text-primary)] tabular-nums">{it.groupSize} Guests</span>
                               </div>
                               <div>
-                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Total Budget</span>
-                                <span className="font-medium text-emerald-400">₹{Number(it.totalBudget).toLocaleString()}</span>
+                                <span className="block text-[10px] text-[var(--text-secondary)] uppercase font-mono">Total Budget</span>
+                                <span className="font-medium tabular-nums text-[var(--status-positive)]">₹{Number(it.totalBudget).toLocaleString()}</span>
                               </div>
                               <div>
-                                <span className="block text-[10px] text-slate-500 uppercase font-mono">Travel Dates</span>
-                                <span className="font-medium text-slate-200 truncate block">{it.startDate}</span>
+                                <span className="block text-[10px] text-[var(--text-secondary)] uppercase font-mono">Travel Dates</span>
+                                <span className="font-medium text-[var(--text-primary)] truncate block">{it.startDate}</span>
                               </div>
                             </div>
 
                             {it.chatSession && it.chatSession.length > 0 && (
-                              <div className="flex items-center gap-1.5 text-[11px] text-cyan-400 font-mono">
-                                <MessageSquare className="h-3.5 w-3.5" />
+                              <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] font-mono">
+                                <MessageSquare className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                                 <span>{it.chatSession.length} guide notes saved</span>
                               </div>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2 pt-4 border-t border-white/5 mt-4">
+                          <div className="flex items-center gap-2 pt-4 border-t border-[color:var(--border-subtle)] mt-4">
                             <button
                               type="button"
                               onClick={() => handleLoadSavedItinerary(it, true)}
-                              className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5"
+                              className="flex-1 bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium py-2 px-3 rounded-lg transition-opacity flex items-center justify-center gap-1.5"
                             >
-                              <span>Open & View Plan</span>
+                              <span>Open &amp; View Plan</span>
                               <ArrowRight className="h-3.5 w-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteSavedItinerary(it.id)}
-                              className="p-2.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition border border-white/5"
+                              className="p-2 text-[var(--text-secondary)] hover:text-[var(--status-negative)] hover:bg-[var(--status-negative-bg)] rounded-lg transition-colors border border-[color:var(--border-subtle)]"
                               title="Delete this saved itinerary"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1717,51 +1848,50 @@ export default function ItineraryPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm py-16 px-4">
-                    <div className="relative mb-6">
-                      <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 rounded-full blur-xl opacity-70 animate-pulse"></div>
-                      <div className="relative p-5 bg-slate-950/80 rounded-2xl border border-emerald-500/30 shadow-xl shadow-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                        <Compass className="h-10 w-10" />
+                  <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] text-sm py-16 px-4">
+                    <div className="mb-5">
+                      <div className="p-4 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] text-[var(--brand-primary)] flex items-center justify-center">
+                        <Compass className="h-9 w-9" />
                       </div>
                     </div>
 
                     <div className="text-center max-w-xl space-y-2.5">
-                      <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                      <h3 className="font-display text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
                         Smart Travel Itinerary Planner
                       </h3>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
-                        Set your destinations, dates, and budget preferences above, then click <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
+                      <p className="text-[var(--text-secondary)] text-sm sm:text-base leading-relaxed">
+                        Set your destinations, dates, and budget preferences above, then click <strong className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold">Generate Itinerary</strong> to create a verified, comfortable day-by-day travel plan.
                       </p>
                     </div>
 
                     {/* Feature highlight cards */}
                     <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-4xl w-full text-left">
-                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-cyan-500/30 transition shadow-sm">
-                        <Train className="h-5 w-5 text-cyan-500 dark:text-cyan-400 shrink-0 mt-0.5" />
+                      <div className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] flex items-start gap-3">
+                        <Train className="h-5 w-5 text-[var(--brand-primary)] shrink-0 mt-0.5" />
                         <div>
-                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Verified Rail & Transit</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches & cab rates.</div>
+                          <div className="text-xs font-semibold text-[var(--text-primary)]">Verified Rail &amp; Transit</div>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">Berth classes (1A/2A/3A/SL), Volvo coaches &amp; cab rates.</div>
                         </div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-emerald-500/30 transition shadow-sm">
-                        <Wallet className="h-5 w-5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] flex items-start gap-3">
+                        <Wallet className="h-5 w-5 text-[var(--status-positive)] shrink-0 mt-0.5" />
                         <div>
-                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Real Budget Allocation</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Stay limits, daily food allowances & per-person splits.</div>
+                          <div className="text-xs font-semibold text-[var(--text-primary)]">Real Budget Allocation</div>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">Stay limits, daily food allowances &amp; per-person splits.</div>
                         </div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-teal-500/30 transition shadow-sm">
-                        <MapPin className="h-5 w-5 text-teal-500 dark:text-teal-400 shrink-0 mt-0.5" />
+                      <div className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] flex items-start gap-3">
+                        <MapPin className="h-5 w-5 text-[var(--brand-dark)] dark:text-[var(--brand-primary)] shrink-0 mt-0.5" />
                         <div>
-                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Hour-by-Hour Schedules</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Scenic viewpoints, monuments & local cuisine spots.</div>
+                          <div className="text-xs font-semibold text-[var(--text-primary)]">Hour-by-Hour Schedules</div>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">Scenic viewpoints, monuments &amp; local cuisine spots.</div>
                         </div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 flex items-start gap-3 hover:border-amber-500/30 transition shadow-sm">
-                        <Users className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] flex items-start gap-3">
+                        <Users className="h-5 w-5 text-[var(--status-warning)] shrink-0 mt-0.5" />
                         <div>
-                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Group Customization</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
+                          <div className="text-xs font-semibold text-[var(--text-primary)]">Group Customization</div>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">Paced for friends, couples, solo, or seniors.</div>
                         </div>
                       </div>
                     </div>
@@ -1773,18 +1903,18 @@ export default function ItineraryPage() {
             {result && (
               <div className="flex-1 flex flex-col">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-4 mb-6 print:hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[color:var(--border-subtle)] gap-4 mb-6 print:hidden">
                   <div>
-                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <h3 className="font-display text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
                       <span>{form.origin}</span>
-                      <ArrowRight className="h-5 w-5 text-emerald-400" />
+                      <ArrowRight className="h-5 w-5 text-[var(--brand-primary)]" />
                       <span>{form.destination}</span>
                     </h3>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">
                       {form.nights} Nights ({form.startDate} to {form.endDate}) • {form.travellers} Travellers ({form.groupType})
                       {linkedGroup && (
-                        <span className="ml-2 inline-flex items-center gap-1 text-[11px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-medium">
-                          <Crown className="h-3 w-3 text-amber-400" /> Linked to {linkedGroup.name}
+                        <span className="ml-2 inline-flex items-center gap-1 text-[11px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2 py-0.5 rounded-full font-medium">
+                          <Crown className="h-3 w-3 text-[var(--accent-sand)]" /> Linked to {linkedGroup.name}
                         </span>
                       )}
                     </p>
@@ -1793,10 +1923,10 @@ export default function ItineraryPage() {
                     {/* View Saved Trips */}
                     <button
                       onClick={handleOpenSavedTrips}
-                      className="flex items-center gap-1.5 bg-slate-850 hover:bg-slate-800 border border-white/10 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                      className="flex items-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] text-[var(--text-primary)] px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                       title="Open Saved Itineraries & Guide Notes"
                     >
-                      <FolderOpen className="h-4 w-4 text-emerald-400" />
+                      <FolderOpen className="h-4 w-4 text-[var(--brand-primary)]" />
                       <span>Saved Itineraries</span>
                     </button>
 
@@ -1804,7 +1934,7 @@ export default function ItineraryPage() {
                     <button
                       onClick={handleSaveItinerary}
                       disabled={isSaving}
-                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm"
+                      className="flex items-center gap-1.5 bg-[var(--brand-dark)] hover:opacity-95 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-opacity shadow-sm"
                       title="Save this Itinerary & Travel Guide Notes"
                     >
                       {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
@@ -1814,17 +1944,17 @@ export default function ItineraryPage() {
                     {/* Forward to Travel Group (Admin-Only) */}
                     <button
                       onClick={handleOpenForwardModal}
-                      className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm"
+                      className="flex items-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] text-[var(--text-primary)] px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                       title="Forward to Travel Group (Admin-Only Feature)"
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className="h-4 w-4 text-[var(--brand-primary)]" />
                       <span>Forward to Group</span>
                     </button>
 
                     {/* Travel Guide Chat */}
                     <button
                       onClick={() => setIsCopilotOpen(true)}
-                      className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition"
+                      className="flex items-center gap-1.5 bg-[var(--status-positive-bg)] hover:opacity-90 border border-[var(--status-positive)]/25 text-[var(--status-positive)] px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-opacity"
                       title="Chat with Personal Travel Guide"
                     >
                       <MessageSquare className="h-4 w-4" />
@@ -1835,13 +1965,13 @@ export default function ItineraryPage() {
                     <button
                       onClick={() => handleDownloadPDF("magazine")}
                       disabled={!!pdfProgress}
-                      className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 hover:opacity-95 transition disabled:opacity-60"
+                      className="flex items-center gap-1.5 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
                       title="Download Travel Guide (Magazine Edition)"
                     >
                       {pdfProgress ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Download className="h-4 w-4 stroke-[2.5]" />
+                        <Download className="h-4 w-4" />
                       )}
                       <span>{pdfProgress ? "Exporting..." : "PDF"}</span>
                     </button>
@@ -1850,20 +1980,20 @@ export default function ItineraryPage() {
 
                 {/* PDF Generation Progress Floating Banner */}
                 {pdfProgress && (
-                  <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-emerald-500/50 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3.5 backdrop-blur-lg animate-in fade-in slide-in-from-bottom-3">
-                    <Loader2 className="h-5 w-5 text-emerald-400 animate-spin shrink-0" />
+                  <div className="fixed bottom-6 right-6 z-50 bg-[var(--bg-surface)] border border-[color:var(--border-strong)] text-[var(--text-primary)] px-5 py-3.5 rounded-xl shadow-[var(--shadow-popover)] flex items-center gap-3.5">
+                    <Loader2 className="h-5 w-5 text-[var(--brand-primary)] animate-spin shrink-0" />
                     <div>
-                      <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Generating Travel Magazine PDF</div>
-                      <div className="text-sm font-medium text-slate-200">{pdfProgress}</div>
+                      <div className="text-xs font-semibold text-[var(--status-positive)] uppercase tracking-wider">Generating Travel Magazine PDF</div>
+                      <div className="text-sm font-medium text-[var(--text-primary)]">{pdfProgress}</div>
                     </div>
                   </div>
                 )}
 
                 {/* Save Toast Notification */}
                 {saveToast && (
-                  <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs sm:text-sm font-medium flex items-center justify-between shadow-lg">
+                  <div className="mb-4 p-3 bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/30 rounded-lg text-[var(--status-positive)] text-xs sm:text-sm font-medium flex items-center justify-between">
                     <span>{saveToast}</span>
-                    <button onClick={() => setSaveToast(null)} className="text-emerald-400 hover:text-white">
+                    <button onClick={() => setSaveToast(null)} className="text-[var(--status-positive)] hover:opacity-75">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -1871,21 +2001,18 @@ export default function ItineraryPage() {
 
                 {/* UPFRONT LIVE ROUTE & TRAVEL SITUATION BULLETIN */}
                 {result && (
-                  <div className="mb-6 p-5 bg-gradient-to-r from-slate-900/95 via-slate-950/90 to-teal-950/40 border border-teal-500/30 rounded-2xl shadow-xl backdrop-blur-md print:hidden">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-white/10 gap-3">
+                  <div className="mb-6 p-5 bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] rounded-xl print:hidden">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-[color:var(--border-subtle)] gap-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="flex h-3 w-3 relative">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                        </span>
+                        <span className="flex h-2.5 w-2.5 rounded-full bg-[var(--status-positive)]" />
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-white text-base">Live Route & Travel Situation</h4>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                            <h4 className="font-display font-semibold text-[var(--text-primary)] text-base">Live Route &amp; Travel Situation</h4>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25">
                               Real-Time Bulletin
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                             Corridor status for {form.origin} ➔ {form.destination} • Updated today
                           </p>
                         </div>
@@ -1895,7 +2022,7 @@ export default function ItineraryPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleShareLiveWhatsApp}
-                          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition shadow-sm"
+                          className="flex items-center gap-1.5 bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-opacity"
                           title="Share Current Situation via WhatsApp"
                         >
                           <Share2 className="h-3.5 w-3.5" />
@@ -1903,13 +2030,13 @@ export default function ItineraryPage() {
                         </button>
                         <button
                           onClick={handleCopyLiveSituation}
-                          className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs px-3 py-1.5 rounded-xl transition border border-white/10"
+                          className="flex items-center gap-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs px-3 py-1.5 rounded-lg transition-colors border border-[color:var(--border-subtle)]"
                           title="Copy Situation Summary"
                         >
                           {copiedSituation ? (
                             <>
-                              <Check className="h-3.5 w-3.5 text-emerald-400" />
-                              <span className="text-emerald-400">Copied!</span>
+                              <Check className="h-3.5 w-3.5 text-[var(--status-positive)]" />
+                              <span className="text-[var(--status-positive)]">Copied!</span>
                             </>
                           ) : (
                             <>
@@ -1924,34 +2051,34 @@ export default function ItineraryPage() {
                     {/* Live situation grid cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 text-xs">
                       {/* 1. Road Status */}
-                      <div className="p-3.5 bg-slate-950/70 rounded-xl border border-white/5 space-y-1">
-                        <div className="text-slate-400 font-semibold flex items-center gap-1.5 text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Road & Transit Flow
+                      <div className="p-3.5 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] space-y-1">
+                        <div className="font-medium flex items-center gap-1.5 text-[var(--status-positive)]">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Road &amp; Transit Flow
                         </div>
-                        <div className="text-white font-medium">Open & Normal Speed</div>
-                        <div className="text-slate-400 text-[11px] leading-relaxed">
+                        <div className="text-[var(--text-primary)] font-medium">Open &amp; Normal Speed</div>
+                        <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
                           Mountain transit operating at safe 20–35 km/h. No active road closures reported along main corridor.
                         </div>
                       </div>
 
                       {/* 2. Weather & Daylight */}
-                      <div className="p-3.5 bg-slate-950/70 rounded-xl border border-white/5 space-y-1">
-                        <div className="text-slate-400 font-semibold flex items-center gap-1.5 text-cyan-400">
-                          <Compass className="h-3.5 w-3.5 shrink-0" /> Weather & Daylight
+                      <div className="p-3.5 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] space-y-1">
+                        <div className="font-medium flex items-center gap-1.5 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+                          <Compass className="h-3.5 w-3.5 shrink-0" /> Weather &amp; Daylight
                         </div>
-                        <div className="text-white font-medium">Clear Skies • Daylight Transit</div>
-                        <div className="text-slate-400 text-[11px] leading-relaxed">
+                        <div className="text-[var(--text-primary)] font-medium">Clear Skies • Daylight Transit</div>
+                        <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
                           Sun sets by 5:15–5:30 PM. Depart early in morning to arrive at stays before dark mountain cold sets in.
                         </div>
                       </div>
 
                       {/* 3. Formalities & Border */}
-                      <div className="p-3.5 bg-slate-950/70 rounded-xl border border-white/5 space-y-1">
-                        <div className="text-slate-400 font-semibold flex items-center gap-1.5 text-teal-400">
-                          <ShieldCheck className="h-3.5 w-3.5 shrink-0" /> Border & Formalities
+                      <div className="p-3.5 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] space-y-1">
+                        <div className="font-medium flex items-center gap-1.5 text-[var(--status-warning)]">
+                          <ShieldCheck className="h-3.5 w-3.5 shrink-0" /> Border &amp; Formalities
                         </div>
-                        <div className="text-white font-medium">ID & Currency Preparedness</div>
-                        <div className="text-slate-400 text-[11px] leading-relaxed">
+                        <div className="text-[var(--text-primary)] font-medium">ID &amp; Currency Preparedness</div>
+                        <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
                           Carry physical Voter ID or Passport. Indian ₹100/₹200 notes accepted; ₹500 prohibited in Nepal.
                         </div>
                       </div>
@@ -1960,16 +2087,16 @@ export default function ItineraryPage() {
                 )}
 
                 {/* Compact Top Quick-Link to Comprehensive Budget at Bottom */}
-                <div className="mb-6 px-4 sm:px-5 py-3 bg-gradient-to-r from-slate-900/80 via-emerald-950/30 to-slate-900/80 border border-emerald-500/25 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md shadow-md print:hidden">
+                <div className="mb-6 px-4 sm:px-5 py-3 bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs print:hidden">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 shrink-0">
+                    <div className="p-1.5 rounded-lg bg-[var(--status-positive-bg)] border border-[color:var(--border-subtle)] text-[var(--status-positive)] shrink-0">
                       <Receipt className="h-4 w-4" />
                     </div>
                     <div>
-                      <span className="text-slate-300">
-                        Total Group Budget: <strong className="text-white font-mono font-bold text-sm">₹{Number(result?.budgetBreakdown?.totalGroupCost || result?.targetBudget || form.budget || 120000).toLocaleString()}</strong>
+                      <span className="text-[var(--text-secondary)]">
+                        Total Group Budget: <strong className="font-display text-[var(--text-primary)] tabular-nums font-bold text-sm">₹{Number(result?.budgetBreakdown?.totalGroupCost || result?.targetBudget || form.budget || 120000).toLocaleString()}</strong>
                       </span>
-                      <span className="text-slate-400 text-[11px] block sm:inline sm:ml-2">
+                      <span className="text-[var(--text-secondary)] text-[11px] tabular-nums block sm:inline sm:ml-2">
                         (~₹{Math.round(Number(result?.budgetBreakdown?.totalGroupCost || result?.targetBudget || form.budget || 120000) / (Number(form.travellers) || 8)).toLocaleString()} / person for {form.travellers || 8} travellers)
                       </span>
                     </div>
@@ -1981,7 +2108,7 @@ export default function ItineraryPage() {
                       const el = document.getElementById("comprehensive-group-budget");
                       el?.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="flex items-center gap-1.5 font-bold text-emerald-400 hover:text-emerald-300 transition bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl cursor-pointer self-start sm:self-auto shrink-0 shadow-sm"
+                    className="flex items-center gap-1.5 font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] px-3.5 py-1.5 rounded-lg cursor-pointer self-start sm:self-auto shrink-0 transition-colors"
                   >
                     <span>View itemized breakdown</span>
                     <span className="text-sm">↓</span>
@@ -1990,27 +2117,27 @@ export default function ItineraryPage() {
 
                 {/* Trip Comfort & Friendly Guide Check */}
                 {result?.auditReview && (
-                  <div className="mb-6 p-5 bg-gradient-to-r from-teal-950/40 via-slate-900/70 to-emerald-950/40 border border-teal-500/30 rounded-2xl shadow-lg backdrop-blur-md print:border-black/20 print:bg-gray-50">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                  <div className="mb-6 p-5 bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] rounded-xl print:border-black/20 print:bg-gray-50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[color:var(--border-subtle)]">
                       <div className="flex items-center gap-2.5">
-                        <div className="p-2 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-400">
+                        <div className="p-2 bg-[var(--status-positive-bg)] border border-[color:var(--border-subtle)] rounded-lg text-[var(--status-positive)]">
                           <ShieldCheck className="h-5 w-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-white text-base">Your Trip Comfort & Safety Check</h4>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <h4 className="font-display font-semibold text-[var(--text-primary)] text-base">Your Trip Comfort &amp; Safety Check</h4>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25">
                               {result.auditReview.status === 'MODIFIED_FOR_SAFETY' ? '✓ Adjusted for Comfort' : '✓ Verified & Relaxed'}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                             Double-checked by your travel guide • Realistic travel times, plenty of rest, and zero rush
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 self-start sm:self-auto">
-                        <span className="text-xs text-slate-400">Comfort Score:</span>
-                        <span className="text-base font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-xl">
+                        <span className="text-xs text-[var(--text-secondary)]">Comfort Score:</span>
+                        <span className="font-display text-base font-bold tabular-nums text-[var(--status-positive)] bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/25 px-3 py-1 rounded-lg">
                           {result.auditReview.auditScore || 98}%
                         </span>
                       </div>
@@ -2019,13 +2146,13 @@ export default function ItineraryPage() {
                     {/* Comfort checks bullet points */}
                     {result.auditReview.realityChecks?.length > 0 && (
                       <div className="mt-3.5 space-y-2">
-                        <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                          Why this plan is easy & relaxing:
+                        <div className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                          Why this plan is easy &amp; relaxing:
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {result.auditReview.realityChecks.map((check: string, idx: number) => (
-                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-300 bg-slate-950/40 p-2.5 rounded-xl border border-white/5">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                            <div key={idx} className="flex items-start gap-2 text-xs text-[var(--text-primary)] bg-[var(--bg-surface)] p-2.5 rounded-lg border border-[color:var(--border-subtle)]">
+                              <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)] shrink-0 mt-0.5" />
                               <span>{check}</span>
                             </div>
                           ))}
@@ -2035,10 +2162,10 @@ export default function ItineraryPage() {
 
                     {/* Friendly tips if any */}
                     {result.auditReview.warnings?.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-white/5 flex items-start gap-2 text-xs text-amber-300/90 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
-                        <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="mt-3 pt-3 flex items-start gap-2 text-xs text-[var(--status-warning)] bg-[var(--accent-sand)]/15 p-2.5 rounded-lg border border-[var(--accent-sand)]/30">
+                        <AlertCircle className="h-4 w-4 text-[var(--status-warning)] shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-amber-300">Helpful Travel Tip: </span>
+                          <span className="font-semibold">Helpful Travel Tip: </span>
                           {result.auditReview.warnings.join(" • ")}
                         </div>
                       </div>
@@ -2054,22 +2181,22 @@ export default function ItineraryPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-white/10 mb-6 print:hidden">
+                <div className="flex border-b border-[color:var(--border-subtle)] mb-6 overflow-x-auto print:hidden">
                   <button
                     onClick={() => setActiveTab('itinerary')}
-                    className={`px-6 py-3 font-semibold transition ${activeTab === 'itinerary' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'itinerary' ? 'text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border-b-2 border-[var(--brand-dark)] dark:border-[var(--brand-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                   >
                     Detailed Itinerary
                   </button>
                   <button
                     onClick={() => setActiveTab('equipments')}
-                    className={`px-6 py-3 font-semibold transition ${activeTab === 'equipments' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'equipments' ? 'text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border-b-2 border-[var(--brand-dark)] dark:border-[var(--brand-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                   >
                     Equipments ({totalEquipmentsCount})
                   </button>
                   <button
                     onClick={() => setActiveTab('tips')}
-                    className={`px-6 py-3 font-semibold transition ${activeTab === 'tips' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'tips' ? 'text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border-b-2 border-[var(--brand-dark)] dark:border-[var(--brand-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                   >
                     Travel Tips ({totalTipsCount})
                   </button>
@@ -2077,13 +2204,13 @@ export default function ItineraryPage() {
 
                 {/* Tab Content: Itinerary */}
                 {activeTab === 'itinerary' && (
-                  <div className="space-y-8 flex-1 overflow-auto pr-4 print:overflow-visible">
+                  <div className="space-y-6 flex-1 overflow-auto pr-2 print:overflow-visible">
                     {result.days?.map((day: any, i: number) => (
-                      <div key={i} className="bg-slate-950/50 rounded-2xl p-6 border border-white/5 print:bg-gray-100 print:text-black print:break-inside-avoid">
-                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-4 border-b border-white/5 print:border-black/10">
+                      <div key={i} className="bg-[var(--bg-surface-secondary)] rounded-xl p-5 sm:p-6 border border-[color:var(--border-subtle)] print:bg-gray-100 print:text-black print:break-inside-avoid">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-4 border-b border-[color:var(--border-subtle)] print:border-black/10">
                           <div className="flex items-center gap-3">
-                            <h4 className="text-xl font-bold text-emerald-400 print:text-black">Day {day.day}</h4>
-                            <span className="text-sm px-3 py-1 bg-emerald-500/10 text-emerald-300 rounded-full print:bg-transparent print:border print:border-black">
+                            <h4 className="font-display text-xl font-bold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] print:text-black">Day {day.day}</h4>
+                            <span className="text-xs px-3 py-1 bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[color:var(--border-subtle)] rounded-full print:bg-transparent print:border print:border-black">
                               Stay: {day.stay}
                             </span>
                           </div>
@@ -2092,10 +2219,10 @@ export default function ItineraryPage() {
                           <div className="print:hidden">
                             <button
                               onClick={() => handleOpenDayCalendar(day)}
-                              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-300 hover:text-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm"
+                              className="flex items-center gap-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                               title={`Add Day ${day.day} Schedule to Calendar & Dispatch to Group Members`}
                             >
-                              <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+                              <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                               <span>Add Day {day.day} to Calendar</span>
                             </button>
                           </div>
@@ -2103,37 +2230,37 @@ export default function ItineraryPage() {
 
                         {/* Legs */}
                         {day.legs && day.legs.length > 0 && (
-                          <div className="mb-6 space-y-4">
-                            <h5 className="text-sm font-semibold text-slate-400 uppercase tracking-wider print:text-gray-600">Transfers & Legs</h5>
+                          <div className="mb-5 space-y-3">
+                            <h5 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider print:text-gray-600">Transfers &amp; Legs</h5>
                             {day.legs.map((leg: any, lIdx: number) => (
-                              <div key={lIdx} className="flex gap-4 items-start p-4 bg-slate-900 rounded-xl border border-slate-800 print:bg-white print:border-gray-300">
+                              <div key={lIdx} className="flex gap-4 items-start p-4 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] print:bg-white print:border-gray-300">
                                 <div className="mt-1">
                                   {getLegIcon(leg.mode)}
                                 </div>
                                 <div className="flex-1">
-                                  <p className="font-semibold text-white text-lg print:text-black">{leg.from} <ArrowRight className="inline h-4 w-4 mx-2 text-emerald-400" /> {leg.to}</p>
-                                  <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm text-slate-300 print:text-gray-700">
-                                    <span className="flex items-center gap-1"><strong>Mode:</strong> {leg.mode}</span>
-                                    <span className="flex items-center gap-1 text-emerald-300"><strong>Depart:</strong> {leg.depart}</span>
-                                    <span className="flex items-center gap-1 text-teal-300"><strong>Arrive:</strong> {leg.arrive}</span>
+                                  <p className="font-display font-semibold text-[var(--text-primary)] text-base print:text-black">{leg.from} <ArrowRight className="inline h-4 w-4 mx-1.5 text-[var(--brand-primary)]" /> {leg.to}</p>
+                                  <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-2 text-xs text-[var(--text-secondary)] print:text-gray-700">
+                                    <span className="flex items-center gap-1"><strong className="text-[var(--text-primary)]">Mode:</strong> {leg.mode}</span>
+                                    <span className="flex items-center gap-1 text-[var(--status-positive)]"><strong>Depart:</strong> {leg.depart}</span>
+                                    <span className="flex items-center gap-1 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"><strong>Arrive:</strong> {leg.arrive}</span>
                                     {leg.distance_km ? (
-                                      <span className="flex items-center gap-1 text-sky-300"><strong>Distance:</strong> ~{leg.distance_km} km</span>
+                                      <span className="flex items-center gap-1 tabular-nums"><strong>Distance:</strong> ~{leg.distance_km} km</span>
                                     ) : null}
                                     {leg.duration_hours ? (
-                                      <span className="flex items-center gap-1 text-indigo-300"><strong>Duration:</strong> {leg.duration_hours}h</span>
+                                      <span className="flex items-center gap-1 tabular-nums"><strong>Duration:</strong> {leg.duration_hours}h</span>
                                     ) : null}
                                     {leg.cost ? (
-                                      <span className="flex items-center gap-1 font-bold text-amber-400 print:text-black">
+                                      <span className="flex items-center gap-1 font-semibold tabular-nums text-[var(--status-warning)] print:text-black">
                                         Cost: ₹{leg.cost} {form.travellers > 1 ? `(total for ${form.travellers})` : ""}
                                       </span>
                                     ) : null}
                                   </div>
                                   {leg.note && (
-                                    <div className="mt-3 text-sm text-slate-400 bg-slate-950 p-3 rounded-lg flex items-center gap-2 print:bg-gray-100 print:text-gray-800">
+                                    <div className="mt-3 text-xs text-[var(--text-secondary)] bg-[var(--bg-surface-secondary)] p-3 rounded-lg flex items-center gap-2 print:bg-gray-100 print:text-gray-800">
                                       {leg.note.match(/(\+?\d[\d -]{6,}\d)/) && !isDemoPhoneNumber(leg.note) ? (
-                                        <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
+                                        <Phone className="h-4 w-4 text-[var(--status-positive)] shrink-0" />
                                       ) : (
-                                        <MapPin className="h-4 w-4 text-cyan-400 shrink-0" />
+                                        <MapPin className="h-4 w-4 text-[var(--brand-primary)] shrink-0" />
                                       )}
                                       <span>{leg.note}</span>
                                     </div>
@@ -2145,12 +2272,12 @@ export default function ItineraryPage() {
                         )}
 
                         {/* Activities */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                           {['morning', 'afternoon', 'evening', 'food'].map((period) => (
                             day.activities?.[period] && (
-                              <div key={period} className="p-4 bg-slate-900/50 rounded-xl border border-white/5 print:bg-transparent print:border print:border-gray-200">
-                                <h5 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 print:text-gray-500">{period}</h5>
-                                <p className="text-slate-200 text-sm print:text-black">{day.activities[period]}</p>
+                              <div key={period} className="p-4 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] print:bg-transparent print:border print:border-gray-200">
+                                <h5 className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5 print:text-gray-500">{period}</h5>
+                                <p className="text-[var(--text-primary)] text-sm leading-relaxed print:text-black">{day.activities[period]}</p>
                               </div>
                             )
                           ))}
@@ -2158,51 +2285,51 @@ export default function ItineraryPage() {
 
                         {/* Hotel Details */}
                         {day.hotelDetails && (
-                          <div className="mt-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl print:bg-transparent print:border-gray-400 print:border">
+                          <div className="mt-4 p-4 bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-lg print:bg-transparent print:border-gray-400 print:border">
                             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                              <h5 className="text-sm font-bold text-emerald-400 flex items-center gap-2 print:text-black">
-                                <Hotel className="h-4 w-4" /> Accommodation & Night Stay
+                              <h5 className="text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] flex items-center gap-2 uppercase tracking-wider print:text-black">
+                                <Hotel className="h-4 w-4" /> Accommodation &amp; Night Stay
                               </h5>
                               <div className="flex items-center gap-2">
                                 {day.hotelDetails.roomType && (
-                                  <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-medium">
+                                  <span className="text-[11px] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] border border-[color:var(--border-subtle)] px-2.5 py-0.5 rounded-full font-medium">
                                     {day.hotelDetails.roomType}
                                   </span>
                                 )}
                                 {financialSummary?.targetNightlyStayBudget && day.hotelDetails.costPerNight <= financialSummary.targetNightlyStayBudget * 1.25 ? (
-                                  <span className="text-[10px] bg-emerald-500/10 text-emerald-300/80 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                                  <span className="text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2 py-0.5 rounded-full font-medium">
                                     ✓ Within Budget
                                   </span>
                                 ) : null}
                               </div>
                             </div>
-                            <div className="flex justify-between items-start text-sm print:text-black gap-2">
+                            <div className="flex justify-between items-start text-sm print:text-black gap-3">
                               <div>
-                                <span className="text-white font-semibold print:text-black text-base">{day.hotelDetails.name}</span>
+                                <span className="font-display text-[var(--text-primary)] font-semibold print:text-black text-base">{day.hotelDetails.name}</span>
                                 {day.hotelDetails.breakdownNote && (
-                                  <p className="text-xs text-slate-300 mt-1 print:text-gray-700 leading-relaxed">
+                                  <p className="text-xs text-[var(--text-secondary)] mt-1 print:text-gray-700 leading-relaxed">
                                     {day.hotelDetails.breakdownNote}
                                   </p>
                                 )}
 
                                 {/* 4-5 Verified Hostels & Homestays List */}
                                 {Array.isArray(day.hotelDetails.alternateHostels) && day.hotelDetails.alternateHostels.length > 0 && (
-                                  <div className="mt-3 pt-2.5 border-t border-emerald-500/20">
-                                    <div className="text-[11px] font-bold text-emerald-400 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                                      <Hotel className="h-3.5 w-3.5 text-emerald-400" />
-                                      <span>4–5 Verified Hostels & Homestay Options for this Day:</span>
+                                  <div className="mt-3 pt-2.5 border-t border-[color:var(--border-subtle)]">
+                                    <div className="text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                                      <Hotel className="h-3.5 w-3.5" />
+                                      <span>4–5 Verified Hostels &amp; Homestay Options for this Day:</span>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                                       {day.hotelDetails.alternateHostels.map((h: any, hIdx: number) => (
-                                        <div key={hIdx} className="bg-slate-900/80 border border-emerald-500/20 rounded-xl p-2.5 text-xs shadow-sm">
+                                        <div key={hIdx} className="bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] rounded-lg p-2.5 text-xs">
                                           <div className="flex items-center justify-between gap-1">
-                                            <span className="font-bold text-white text-xs">{h.name}</span>
-                                            <span className="text-emerald-300 font-semibold text-[11px] bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full shrink-0">
+                                            <span className="font-semibold text-[var(--text-primary)] text-xs">{h.name}</span>
+                                            <span className="text-[var(--status-positive)] font-medium tabular-nums text-[11px] bg-[var(--status-positive-bg)] px-2 py-0.5 rounded-full shrink-0">
                                               ₹{h.costPerPerson || 500} / person
                                             </span>
                                           </div>
                                           {h.note && (
-                                            <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                                            <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">
                                               {h.note}
                                             </p>
                                           )}
@@ -2213,23 +2340,23 @@ export default function ItineraryPage() {
                                 )}
                               </div>
                               <div className="text-right shrink-0">
-                                <span className="text-emerald-300 print:text-black font-bold text-base">₹{Number(day.hotelDetails.costPerNight || 0).toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ night</span></span>
+                                <span className="font-display text-[var(--status-positive)] print:text-black font-bold tabular-nums text-base">₹{Number(day.hotelDetails.costPerNight || 0).toLocaleString()} <span className="text-xs text-[var(--text-secondary)] font-normal">/ night</span></span>
                                 {day.hotelDetails.roomCount && day.hotelDetails.ratePerUnit ? (
-                                  <span className="block text-[11px] text-slate-400 font-normal">
+                                  <span className="block text-[11px] text-[var(--text-secondary)] tabular-nums font-normal">
                                     {day.hotelDetails.roomCount} units × ₹{Number(day.hotelDetails.ratePerUnit).toLocaleString()}
                                   </span>
                                 ) : form.travellers > 1 ? (
-                                  <span className="block text-[10px] text-slate-400 font-normal">Room total for {form.travellers} guests</span>
+                                  <span className="block text-[10px] text-[var(--text-secondary)] font-normal">Room total for {form.travellers} guests</span>
                                 ) : null}
                               </div>
                             </div>
                             {day.hotelDetails.contact && !isDemoPhoneNumber(day.hotelDetails.contact) ? (
-                              <p className="text-slate-300 text-xs mt-2.5 print:text-gray-700 flex items-center gap-1.5 bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/20">
-                                <Phone className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                                <span>Verified Reception / Desk: <strong className="text-white font-mono">{day.hotelDetails.contact}</strong></span>
+                              <p className="text-[var(--text-secondary)] text-xs mt-2.5 print:text-gray-700 flex items-center gap-1.5 bg-[var(--bg-surface-secondary)] p-2 rounded-lg border border-[color:var(--border-subtle)]">
+                                <Phone className="h-3.5 w-3.5 text-[var(--status-positive)] shrink-0" />
+                                <span>Verified Reception / Desk: <strong className="text-[var(--text-primary)] font-mono">{day.hotelDetails.contact}</strong></span>
                               </p>
                             ) : (
-                              <p className="text-slate-500 text-xs mt-2 print:text-gray-600">
+                              <p className="text-[var(--text-secondary)] text-xs mt-2 print:text-gray-600">
                                 Reservation via official hostel/hotel front desk or verified travel booking portal
                               </p>
                             )}
@@ -2244,20 +2371,20 @@ export default function ItineraryPage() {
                       if (!fullBudget) return null;
 
                       return (
-                        <div id="comprehensive-group-budget" className="mt-8 bg-gradient-to-b from-slate-900/90 to-slate-950/95 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 print:border-black/30 print:bg-white">
+                        <div id="comprehensive-group-budget" className="mt-8 bg-[var(--bg-surface)] border border-[color:var(--border-strong)] rounded-2xl p-6 sm:p-8 shadow-[var(--shadow-card)] print:border-black/30 print:bg-white">
                           {/* Header */}
-                          <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-white/10 gap-4">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-[color:var(--border-subtle)] gap-4">
                             <div>
-                              <div className="flex items-center gap-2.5">
-                                <div className="p-2.5 bg-gradient-to-tr from-emerald-500/20 to-teal-400/20 border border-emerald-500/30 rounded-2xl text-emerald-400 shadow-md">
-                                  <Receipt className="h-6 w-6" />
+                              <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-[var(--status-positive-bg)] border border-[color:var(--border-subtle)] rounded-xl text-[var(--status-positive)]">
+                                  <Receipt className="h-5 w-5" />
                                 </div>
                                 <div>
-                                  <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight print:text-black">
+                                  <h3 className="font-display text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight print:text-black">
                                     Comprehensive Entire-Trip Group Budget
                                   </h3>
-                                  <p className="text-xs sm:text-sm text-slate-400 mt-0.5 print:text-gray-700">
-                                    Total estimated budget for all <strong className="text-emerald-400 font-semibold">{fullBudget.travellers} travellers</strong> covering the entire {fullBudget.daysCount}-day trip (Transit, Stays, Meals, Permits, Optional Activities & Emergency Buffer).
+                                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 print:text-gray-700">
+                                    Total estimated budget for all <strong className="text-[var(--status-positive)] font-semibold">{fullBudget.travellers} travellers</strong> covering the entire {fullBudget.daysCount}-day trip (Transit, Stays, Meals, Permits, Optional Activities &amp; Emergency Buffer).
                                   </p>
                                 </div>
                               </div>
@@ -2265,7 +2392,7 @@ export default function ItineraryPage() {
 
                             {/* Status Pill */}
                             <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-                              <span className="px-3.5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm">
+                              <span className="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold uppercase tracking-wider bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/25 text-[var(--status-positive)]">
                                 ✓ Entire Trip Group Total
                               </span>
                             </div>
@@ -2273,92 +2400,88 @@ export default function ItineraryPage() {
 
                           {/* Top 4 KPI Metrics */}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 my-6">
-                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
-                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Group Budget</span>
-                              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1 font-mono">
+                            <div className="p-4 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] flex flex-col justify-between">
+                              <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Total Group Budget</span>
+                              <div className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-[var(--status-positive)] mt-1">
                                 ₹{fullBudget.totalGroupCost.toLocaleString()}
                               </div>
-                              <span className="text-[10px] text-slate-500 mt-1">Full 10-day group total</span>
+                              <span className="text-[10px] text-[var(--text-secondary)] mt-1">Full 10-day group total</span>
                             </div>
 
-                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
-                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Per Person Share</span>
-                              <div className="text-2xl sm:text-3xl font-extrabold text-teal-300 mt-1 font-mono">
+                            <div className="p-4 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] flex flex-col justify-between">
+                              <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Per Person Share</span>
+                              <div className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-[var(--brand-dark)] dark:text-[var(--brand-primary)] mt-1">
                                 ₹{fullBudget.costPerPerson.toLocaleString()}
                               </div>
-                              <span className="text-[10px] text-slate-500 mt-1">Per member for {fullBudget.travellers} travellers</span>
+                              <span className="text-[10px] text-[var(--text-secondary)] mt-1">Per member for {fullBudget.travellers} travellers</span>
                             </div>
 
-                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
-                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Target Budget</span>
-                              <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1 font-mono">
+                            <div className="p-4 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] flex flex-col justify-between">
+                              <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Target Budget</span>
+                              <div className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-[var(--text-primary)] mt-1">
                                 ₹{fullBudget.targetBudget.toLocaleString()}
                               </div>
-                              <span className="text-[10px] text-slate-500 mt-1">Max allocated ceiling</span>
+                              <span className="text-[10px] text-[var(--text-secondary)] mt-1">Max allocated ceiling</span>
                             </div>
 
-                            <div className="p-4 bg-slate-950/70 rounded-2xl border border-white/10 flex flex-col justify-between">
-                              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Budget Health</span>
-                              <div className="text-lg sm:text-xl font-extrabold text-emerald-400 mt-1 flex items-center gap-1.5">
-                                <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                            <div className="p-4 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] flex flex-col justify-between">
+                              <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Budget Health</span>
+                              <div className="font-display text-lg sm:text-xl font-bold text-[var(--status-positive)] mt-1 flex items-center gap-1.5">
+                                <CheckCircle2 className="h-5 w-5 text-[var(--status-positive)] shrink-0" />
                                 <span>100% Balanced</span>
                               </div>
-                              <span className="text-[10px] text-emerald-300/80 mt-1">All expenses covered</span>
+                              <span className="text-[10px] text-[var(--status-positive)] mt-1">All expenses covered</span>
                             </div>
                           </div>
 
                           {/* Itemized Categories List */}
-                          <div className="space-y-3.5">
-                            <div className="flex items-center justify-between pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                              <span>Expense Category & What's Covered</span>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                              <span>Expense Category &amp; What&apos;s Covered</span>
                               <span className="text-right">Group Total / Per Person</span>
                             </div>
 
                             {fullBudget.categories.map((cat: any) => (
                               <div
                                 key={cat.id}
-                                className={`p-4 sm:p-5 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                                  cat.isOptional
-                                    ? "bg-slate-950/50 border-emerald-500/20 hover:border-emerald-500/40"
-                                    : "bg-slate-950/80 border-white/10 hover:border-white/20"
-                                }`}
+                                className="p-4 sm:p-5 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                               >
                                 <div className="flex items-start gap-3.5">
-                                  <div className="mt-0.5 p-2 rounded-xl bg-slate-900 border border-white/10 text-emerald-400 shrink-0">
-                                    {cat.id === "transit" && <Train className="h-4 w-4 text-cyan-400" />}
-                                    {cat.id === "stays" && <Hotel className="h-4 w-4 text-teal-400" />}
-                                    {cat.id === "meals" && <Utensils className="h-4 w-4 text-amber-400" />}
-                                    {cat.id === "permits" && <FileCheck className="h-4 w-4 text-purple-400" />}
-                                    {cat.id === "activities" && <Ticket className="h-4 w-4 text-emerald-400" />}
-                                    {cat.id === "buffer" && <ShieldAlert className="h-4 w-4 text-blue-400" />}
+                                  <div className="mt-0.5 p-2 rounded-lg bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] text-[var(--brand-primary)] shrink-0">
+                                    {cat.id === "transit" && <Train className="h-4 w-4 text-[var(--brand-primary)]" />}
+                                    {cat.id === "stays" && <Hotel className="h-4 w-4 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" />}
+                                    {cat.id === "meals" && <Utensils className="h-4 w-4 text-[var(--status-warning)]" />}
+                                    {cat.id === "permits" && <FileCheck className="h-4 w-4 text-[var(--text-secondary)]" />}
+                                    {cat.id === "activities" && <Ticket className="h-4 w-4 text-[var(--status-positive)]" />}
+                                    {cat.id === "buffer" && <ShieldAlert className="h-4 w-4 text-[var(--status-warning)]" />}
                                   </div>
 
                                   <div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <h4 className="text-sm sm:text-base font-bold text-white print:text-black">
+                                      <h4 className="font-display text-sm sm:text-base font-semibold text-[var(--text-primary)] print:text-black">
                                         {cat.name}
                                       </h4>
-                                      <span className="text-[10px] font-medium font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                                      <span className="text-[10px] font-medium font-mono px-2 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] text-[var(--text-secondary)]">
                                         {cat.tag}
                                       </span>
                                       {cat.isOptional && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/25 text-[var(--status-positive)]">
                                           Optional Pass
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-2xl print:text-gray-700">
+                                    <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed max-w-2xl print:text-gray-700">
                                       {cat.description}
                                     </p>
                                   </div>
                                 </div>
 
-                                <div className="text-right shrink-0 sm:pl-4 sm:border-l sm:border-white/10">
-                                  <div className="text-lg sm:text-xl font-bold text-white print:text-black font-mono">
+                                <div className="text-right shrink-0 sm:pl-4 sm:border-l sm:border-[color:var(--border-subtle)]">
+                                  <div className="font-display text-lg sm:text-xl font-bold tabular-nums text-[var(--text-primary)] print:text-black">
                                     ₹{cat.groupTotal.toLocaleString()}
                                   </div>
-                                  <div className="text-xs text-slate-400 font-mono mt-0.5">
-                                    ₹{cat.perPerson.toLocaleString()} <span className="text-[10px] text-slate-500">/ person</span>
+                                  <div className="text-xs text-[var(--text-secondary)] tabular-nums font-mono mt-0.5">
+                                    ₹{cat.perPerson.toLocaleString()} <span className="text-[10px]">/ person</span>
                                   </div>
                                 </div>
                               </div>
@@ -2366,17 +2489,17 @@ export default function ItineraryPage() {
                           </div>
 
                           {/* Admin Forward Note */}
-                          <div className="mt-6 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
+                          <div className="mt-6 pt-5 border-t border-[color:var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
                             <div className="flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-emerald-400 shrink-0" />
+                              <Sparkles className="h-4 w-4 text-[var(--brand-primary)] shrink-0" />
                               <span>
-                                <strong>Complete Trip Summary:</strong> Covers all transit, stays, meals, government permits, optional passes, and safety reserve for all {fullBudget.travellers} travellers without hidden surprises.
+                                <strong className="text-[var(--text-primary)]">Complete Trip Summary:</strong> Covers all transit, stays, meals, government permits, optional passes, and safety reserve for all {fullBudget.travellers} travellers without hidden surprises.
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={handleOpenForwardModal}
-                              className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition"
+                              className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium transition-opacity"
                             >
                               <Send className="h-3.5 w-3.5" /> Forward to Travel Group
                             </button>
@@ -2390,27 +2513,27 @@ export default function ItineraryPage() {
                 {/* Tab Content: Equipments or Tips */}
                 {(activeTab === 'equipments' || activeTab === 'tips') && (
                   <div className="space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[color:var(--border-subtle)]">
                       <div>
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <h3 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
                           {activeTab === 'equipments' ? (
                             <>
-                              <ShieldCheck className="h-5 w-5 text-emerald-400" />
-                              <span>Location-Specific Equipment & Packing Checklist</span>
+                              <ShieldCheck className="h-5 w-5 text-[var(--brand-primary)]" />
+                              <span>Location-Specific Equipment &amp; Packing Checklist</span>
                             </>
                           ) : (
                             <>
-                              <Compass className="h-5 w-5 text-teal-400" />
-                              <span>Place-by-Place Ground Travel Tips & Local Advisories</span>
+                              <Compass className="h-5 w-5 text-[var(--brand-primary)]" />
+                              <span>Place-by-Place Ground Travel Tips &amp; Local Advisories</span>
                             </>
                           )}
                         </h3>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
                           Tailored precisely for your route through {currentPlaceSections.map((s) => s.location).slice(0, 4).join(', ')}
                         </p>
                       </div>
 
-                      <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full self-start sm:self-auto">
+                      <span className="text-xs font-mono font-medium text-[var(--status-positive)] bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/25 px-3 py-1 rounded-full self-start sm:self-auto">
                         ✓ {currentPlaceSections.length} Specific Route Locations
                       </span>
                     </div>
@@ -2419,17 +2542,17 @@ export default function ItineraryPage() {
                       {currentPlaceSections.map((sec, secIdx) => (
                         <div
                           key={secIdx}
-                          className="rounded-2xl border border-white/10 bg-slate-950/60 p-5 space-y-3.5 backdrop-blur-md hover:border-emerald-500/30 transition shadow-sm"
+                          className="rounded-xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-5 space-y-3.5"
                         >
-                          <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-white/10">
+                          <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-[color:var(--border-subtle)]">
                             <div>
                               <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-bold text-white">{sec.location}</h4>
+                                <h4 className="font-display text-sm font-semibold text-[var(--text-primary)]">{sec.location}</h4>
                               </div>
-                              <span className="text-[11px] font-mono text-emerald-400 mt-0.5 block">{sec.tag}</span>
+                              <span className="text-[11px] font-mono text-[var(--status-positive)] mt-0.5 block">{sec.tag}</span>
                             </div>
                             {sec.altitude && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/5 border border-white/10 text-slate-300 shrink-0">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] text-[var(--text-secondary)] shrink-0">
                                 {sec.altitude}
                               </span>
                             )}
@@ -2438,10 +2561,10 @@ export default function ItineraryPage() {
                           <div className="space-y-2.5">
                             {sec.items.map((item, itemIdx) => (
                               <div key={itemIdx} className="flex items-start gap-2.5 text-xs">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                                <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)] shrink-0 mt-0.5" />
                                 <div className="space-y-0.5">
-                                  <strong className="text-white block font-semibold">{item.name}</strong>
-                                  <p className="text-slate-300 text-[11px] leading-relaxed">{item.desc}</p>
+                                  <strong className="text-[var(--text-primary)] block font-medium">{item.name}</strong>
+                                  <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">{item.desc}</p>
                                 </div>
                               </div>
                             ))}
@@ -2460,7 +2583,7 @@ export default function ItineraryPage() {
       {/* AI Copilot Drawer / Modal */}
       <AnimatePresence>
         {isCopilotOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -2499,21 +2622,21 @@ export default function ItineraryPage() {
       {/* 1. Saved Trips Modal */}
       <AnimatePresence>
         {isSavedTripsModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]"
+              className="w-full max-w-2xl bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl shadow-[var(--shadow-popover)] p-6 overflow-hidden flex flex-col max-h-[85vh]"
             >
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center justify-between pb-4 border-b border-[color:var(--border-subtle)]">
                 <div className="flex items-center gap-2.5">
-                  <FolderOpen className="h-5 w-5 text-emerald-400" />
-                  <h3 className="text-lg font-bold text-white">Saved Travel Itineraries</h3>
+                  <FolderOpen className="h-5 w-5 text-[var(--brand-primary)]" />
+                  <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">Saved Travel Itineraries</h3>
                 </div>
                 <button
                   onClick={() => setIsSavedTripsModalOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2521,37 +2644,37 @@ export default function ItineraryPage() {
 
               <div className="flex-1 overflow-y-auto py-4 space-y-3">
                 {isLoadingSavedTrips ? (
-                  <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3">
-                    <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
+                  <div className="py-12 text-center text-[var(--text-secondary)] flex flex-col items-center gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-primary)]" />
                     <span>Loading your saved itineraries...</span>
                   </div>
                 ) : savedTripsList.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400">
+                  <div className="py-12 text-center text-[var(--text-secondary)]">
                     <p className="text-sm">No saved itineraries found yet.</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Create an itinerary and click <strong className="text-emerald-400">Save Itinerary</strong> to keep it here.
+                    <p className="text-xs mt-1">
+                      Create an itinerary and click <strong className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Save Itinerary</strong> to keep it here.
                     </p>
                   </div>
                 ) : (
                   savedTripsList.map((it) => (
                     <div
                       key={it.id}
-                      className="p-4 rounded-xl bg-slate-950/70 border border-white/5 hover:border-emerald-500/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-white text-base">{it.title}</h4>
+                          <h4 className="font-display font-semibold text-[var(--text-primary)] text-base">{it.title}</h4>
                           {it.group && (
-                            <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-medium">
+                            <span className="text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2 py-0.5 rounded-full font-medium">
                               Group: {it.group.name}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 tabular-nums">
                           {it.origin} ➔ {it.destination} • {it.days} Days • {it.groupSize} Travellers • ₹{Number(it.totalBudget).toLocaleString()} Budget
                         </p>
                         {it.chatSession?.length > 0 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 mt-2 font-mono">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-[var(--status-positive)] mt-2 font-mono">
                             <MessageSquare className="h-3 w-3" /> {it.chatSession.length} chat messages saved
                           </span>
                         )}
@@ -2559,13 +2682,13 @@ export default function ItineraryPage() {
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => handleLoadSavedItinerary(it)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-sm"
+                          className="bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-opacity"
                         >
-                          Open & Load
+                          Open &amp; Load
                         </button>
                         <button
                           onClick={() => handleDeleteSavedItinerary(it.id)}
-                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                          className="p-2 text-[var(--text-secondary)] hover:text-[var(--status-negative)] hover:bg-[var(--status-negative-bg)] rounded-lg transition-colors"
                           title="Delete saved itinerary"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -2583,32 +2706,32 @@ export default function ItineraryPage() {
       {/* 2. Forward to Travel Group Modal */}
       <AnimatePresence>
         {isForwardModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden"
+              className="w-full max-w-lg bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl shadow-[var(--shadow-popover)] p-6 overflow-hidden"
             >
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center justify-between pb-4 border-b border-[color:var(--border-subtle)]">
                 <div className="flex items-center gap-2.5">
-                  <Send className="h-5 w-5 text-teal-400" />
+                  <Send className="h-5 w-5 text-[var(--brand-primary)]" />
                   <div>
-                    <h3 className="text-lg font-bold text-white">Forward to Travel Group</h3>
-                    <p className="text-xs text-slate-400">Share itinerary and travel guide advice with your group</p>
+                    <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">Forward to Travel Group</h3>
+                    <p className="text-xs text-[var(--text-secondary)]">Share itinerary and travel guide advice with your group</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsForwardModalOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Admin Privileges Notice */}
-              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-xs text-amber-300">
-                <Crown className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="mt-4 p-3 bg-[var(--accent-sand)]/15 border border-[var(--accent-sand)]/30 rounded-lg flex items-start gap-2.5 text-xs text-[var(--status-warning)]">
+                <Crown className="h-4 w-4 text-[var(--status-warning)] shrink-0 mt-0.5" />
                 <span>
                   <strong>Admin Privilege:</strong> Only group administrators can forward itineraries, manage member schedules, and dispatch day calendar events.
                 </span>
@@ -2616,12 +2739,12 @@ export default function ItineraryPage() {
 
               <div className="my-4 space-y-2.5 max-h-64 overflow-y-auto pr-1">
                 {isLoadingGroups ? (
-                  <div className="py-8 text-center text-slate-400 flex flex-col items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-teal-400" />
+                  <div className="py-8 text-center text-[var(--text-secondary)] flex flex-col items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-[var(--brand-primary)]" />
                     <span>Loading your groups...</span>
                   </div>
                 ) : userGroups.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 text-xs">
+                  <div className="py-8 text-center text-[var(--text-secondary)] text-xs">
                     No groups found for your account. Please create or join a group first.
                   </div>
                 ) : (
@@ -2636,32 +2759,32 @@ export default function ItineraryPage() {
                         onClick={() => {
                           if (isAdmin) setSelectedGroupId(g.id);
                         }}
-                        className={`p-3.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`p-3.5 rounded-xl border transition-colors cursor-pointer flex items-center justify-between gap-3 ${
                           !isAdmin
-                            ? "opacity-60 bg-slate-950/30 border-white/5 cursor-not-allowed"
+                            ? "opacity-60 bg-[var(--bg-surface-secondary)] border-[color:var(--border-subtle)] cursor-not-allowed"
                             : isSelected
-                            ? "bg-teal-500/15 border-teal-500/50 shadow-sm"
-                            : "bg-slate-950/60 border-white/5 hover:border-teal-500/30"
+                            ? "bg-[var(--status-positive-bg)] border-[var(--brand-primary)]"
+                            : "bg-[var(--bg-surface-secondary)] border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)]"
                         }`}
                       >
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-white text-sm">{g.name}</span>
-                            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono">
+                            <span className="font-semibold text-[var(--text-primary)] text-sm">{g.name}</span>
+                            <span className="text-[10px] bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[color:var(--border-subtle)] px-2 py-0.5 rounded-full font-mono">
                               {g.type}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                             {g.members?.length || 0} members • Currency: {g.currency}
                           </p>
                         </div>
                         <div>
                           {isAdmin ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-semibold">
-                              <Crown className="h-3 w-3 text-amber-400" /> Admin
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2.5 py-1 rounded-full font-medium">
+                              <Crown className="h-3 w-3 text-[var(--accent-sand)]" /> Admin
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] bg-slate-800 text-slate-400 border border-white/10 px-2.5 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[color:var(--border-subtle)] px-2.5 py-1 rounded-full">
                               <Lock className="h-3 w-3" /> Member Only
                             </span>
                           )}
@@ -2674,30 +2797,30 @@ export default function ItineraryPage() {
 
               {forwardFeedback && (
                 <div
-                  className={`mb-4 p-3 rounded-xl text-xs font-medium ${
+                  className={`mb-4 p-3 rounded-lg text-xs font-medium ${
                     forwardFeedback.ok
-                      ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300"
-                      : "bg-rose-500/20 border border-rose-500/30 text-rose-300"
+                      ? "bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/30 text-[var(--status-positive)]"
+                      : "bg-[var(--status-negative-bg)] border border-[var(--status-negative)]/30 text-[var(--status-negative)]"
                   }`}
                 >
                   {forwardFeedback.text}
                 </div>
               )}
 
-              <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-[color:var(--border-subtle)] flex items-center justify-end gap-3">
                 <button
                   onClick={() => setIsForwardModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmForward}
                   disabled={!selectedGroupId || isForwarding}
-                  className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-sm"
+                  className="bg-[var(--brand-dark)] hover:opacity-95 disabled:opacity-50 text-white text-xs font-medium px-4 py-2 rounded-lg transition-opacity flex items-center gap-2"
                 >
                   {isForwarding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  <span>Forward Itinerary & Chat</span>
+                  <span>Forward Itinerary &amp; Chat</span>
                 </button>
               </div>
             </motion.div>
@@ -2708,57 +2831,57 @@ export default function ItineraryPage() {
       {/* 3. Day-by-Day Calendar Dispatch Modal */}
       <AnimatePresence>
         {activeDayCalendar && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden"
+              className="w-full max-w-lg bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl shadow-[var(--shadow-popover)] p-6 overflow-hidden"
             >
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center justify-between pb-4 border-b border-[color:var(--border-subtle)]">
                 <div className="flex items-center gap-2.5">
-                  <Calendar className="h-5 w-5 text-emerald-400" />
+                  <Calendar className="h-5 w-5 text-[var(--brand-primary)]" />
                   <div>
-                    <h3 className="text-lg font-bold text-white">
+                    <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">
                       Add Day {activeDayCalendar.dayNumber} to Calendar
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[var(--text-secondary)]">
                       Stay: {activeDayCalendar.day.stay || form.destination}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setActiveDayCalendar(null)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Day Details Preview */}
-              <div className="my-4 p-3.5 bg-slate-950/70 border border-white/5 rounded-xl space-y-2 text-xs">
-                <div className="text-slate-300">
-                  <strong className="text-emerald-400">Transit:</strong>{" "}
+              <div className="my-4 p-3.5 bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] rounded-lg space-y-2 text-xs">
+                <div className="text-[var(--text-primary)]">
+                  <strong className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Transit:</strong>{" "}
                   {activeDayCalendar.day.legs?.length
                     ? activeDayCalendar.day.legs.map((l: any) => `${l.from} ➔ ${l.to} (${l.mode})`).join(" • ")
                     : "Local exploration & relaxation"}
                 </div>
                 {activeDayCalendar.day.hotelDetails && (
-                  <div className="text-slate-300">
-                    <strong className="text-emerald-400">Stay:</strong> {activeDayCalendar.day.hotelDetails.name}
+                  <div className="text-[var(--text-primary)]">
+                    <strong className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Stay:</strong> {activeDayCalendar.day.hotelDetails.name}
                     {activeDayCalendar.day.hotelDetails.roomType && ` (${activeDayCalendar.day.hotelDetails.roomType})`}
                   </div>
                 )}
               </div>
 
               {/* Group Member Invite Selection (Admin Feature) */}
-              <div className="mb-4 p-3.5 bg-slate-950/40 border border-white/5 rounded-xl">
+              <div className="mb-4 p-3.5 bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] rounded-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
-                    <Users className="h-3.5 w-3.5 text-teal-400" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-primary)]">
+                    <Users className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                     <span>Invite Group Members (Admin Dispatch)</span>
                   </div>
-                  <span className="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full font-mono">
+                  <span className="text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-2 py-0.5 rounded-full font-mono">
                     Admin Privilege
                   </span>
                 </div>
@@ -2770,7 +2893,7 @@ export default function ItineraryPage() {
                       return (
                         <label
                           key={m.id || m.email}
-                          className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 cursor-pointer text-xs text-slate-300"
+                          className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] cursor-pointer text-xs text-[var(--text-primary)]"
                         >
                           <input
                             type="checkbox"
@@ -2782,32 +2905,32 @@ export default function ItineraryPage() {
                                 setSelectedMemberEmails((prev) => prev.filter((em) => em !== m.email));
                               }
                             }}
-                            className="rounded bg-slate-800 border-white/20 text-emerald-500 focus:ring-0"
+                            className="rounded accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                           />
-                          <span className="font-medium text-white">{m.name}</span>
-                          <span className="text-slate-500 font-mono text-[10px]">{m.email}</span>
+                          <span className="font-medium text-[var(--text-primary)]">{m.name}</span>
+                          <span className="text-[var(--text-secondary)] font-mono text-[10px]">{m.email}</span>
                         </label>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                     Trip is currently personal. You can add Day {activeDayCalendar.dayNumber} to your calendar, or forward this trip to a Travel Group to automatically invite all members!
                   </p>
                 )}
               </div>
 
               {dayCalendarToast && (
-                <div className="mb-4 p-2.5 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-medium">
+                <div className="mb-4 p-2.5 bg-[var(--status-positive-bg)] border border-[var(--status-positive)]/25 rounded-lg text-[var(--status-positive)] text-xs font-medium">
                   {dayCalendarToast}
                 </div>
               )}
 
               {/* Action Buttons for Day X */}
-              <div className="space-y-2.5 pt-2 border-t border-white/10">
+              <div className="space-y-2.5 pt-2 border-t border-[color:var(--border-subtle)]">
                 <button
                   onClick={handleDayWhatsAppShare}
-                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20ba5a] text-slate-950 font-bold text-xs py-2.5 px-4 rounded-xl transition shadow-md"
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--brand-dark)] hover:opacity-95 text-white font-medium text-xs py-2.5 px-4 rounded-lg transition-opacity"
                   title="Share Day schedule to WhatsApp Group with 1-Tap Calendar Add link"
                 >
                   <Share2 className="h-4 w-4" />
@@ -2817,18 +2940,18 @@ export default function ItineraryPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={handleDayGoogleCalendar}
-                    className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs py-2 px-3 rounded-xl border border-white/10 transition"
+                    className="flex items-center justify-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] font-medium text-xs py-2 px-3 rounded-lg border border-[color:var(--border-subtle)] transition-colors"
                     title="Open in Google Calendar with Member Invites"
                   >
-                    <ExternalLink className="h-3.5 w-3.5 text-emerald-400" />
+                    <ExternalLink className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                     <span>Google Calendar</span>
                   </button>
                   <button
                     onClick={handleDayDownloadICS}
-                    className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs py-2 px-3 rounded-xl border border-white/10 transition"
+                    className="flex items-center justify-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] font-medium text-xs py-2 px-3 rounded-lg border border-[color:var(--border-subtle)] transition-colors"
                     title="Download Apple / Outlook .ICS event file"
                   >
-                    <Download className="h-3.5 w-3.5 text-emerald-400" />
+                    <Download className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                     <span>Download .ICS</span>
                   </button>
                 </div>

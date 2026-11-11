@@ -18,23 +18,8 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<MemberDTO[]>([]);
 
-  // Synchronously initialize currentUser from persistent storage (zero logout flicker)
-  const [currentUser, setCurrentUser] = useState<MemberDTO | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("splitrupee_session_user");
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return null;
-  });
-
-  const [isLoading, setIsLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !localStorage.getItem("splitrupee_session_user");
-    }
-    return true;
-  });
+  const [currentUser, setCurrentUser] = useState<MemberDTO | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUsers = useCallback(async () => {
     try {
@@ -50,9 +35,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
-      // If already logged in, initialize active user immediately
+      // Immediately hydrate active user after mount before network round-trip
       if (parsedUser) {
         setCurrentUser((prev) => prev || parsedUser);
+        setIsLoading(false);
       }
 
       const queryUrl = parsedUser?.id

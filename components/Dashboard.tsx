@@ -199,63 +199,63 @@ export default function Dashboard() {
             >
               {sync === "offline" ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
               {sync === "live" ? "Live" : sync === "syncing" ? "Syncing" : "Offline"}
-              {sync !== "offline" && <span className={`h-1.5 w-1.5 rounded-full bg-emerald-400 ${sync === "syncing" ? "animate-pulse" : ""}`} />}
+              {sync !== "offline" && <span className={`h-1.5 w-1.5 rounded-full bg-[var(--status-positive)] ${sync === "syncing" ? "animate-pulse" : ""}`} />}
             </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-400">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
               Viewing as
-              <select value={viewerId} onChange={(e) => setViewerId(e.target.value)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-slate-100">
-                {members.map((m) => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
+              <select value={viewerId} onChange={(e) => setViewerId(e.target.value)} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1 text-[var(--text-primary)]">
+                {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </label>
-            <p className={`text-lg font-semibold tabular-nums ${myNet > 0 ? "text-emerald-500" : myNet < 0 ? "text-rose-500" : "text-slate-300"}`}>
+            <p className={`font-display text-lg font-semibold tabular-nums ${myNet > 0 ? "text-[var(--status-positive)]" : myNet < 0 ? "text-[var(--status-negative)]" : "text-[var(--text-secondary)]"}`}>
               {myNet > 0 ? `You get back ${formatPaise(myNet)}` : myNet < 0 ? `You owe ${formatPaise(-myNet)}` : "You're settled up"}
             </p>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <button onClick={() => setShowAdd(true)} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 font-semibold text-slate-950 hover:bg-emerald-400">
+            <button onClick={() => setShowAdd(true)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-semibold text-xs sm:text-sm text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity">
               <Plus className="h-4 w-4" /> Add Expense
             </button>
-            <button onClick={share} className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 font-medium hover:bg-white/10">
-              {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Share2 className="h-4 w-4" />}
+            <button onClick={share} className="flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors">
+              {copied ? <Check className="h-4 w-4 text-[var(--status-positive)]" /> : <Share2 className="h-4 w-4" />}
               {copied ? "Copied for WhatsApp" : "Share Ledger Summary"}
             </button>
           </div>
         </header>
 
         {/* Transparency grid */}
-        <section className={`${glass} p-4`} aria-labelledby="who-pays">
-          <h2 id="who-pays" className="mb-3 text-base font-semibold">Who pays whom</h2>
+        <section className={`${glass} p-4 sm:p-5`} aria-labelledby="who-pays">
+          <h2 id="who-pays" className="font-display mb-3 text-base font-semibold text-[var(--text-primary)]">Who pays whom</h2>
           {ledger.transfers.length === 0 ? (
-            <p className="py-4 text-center text-sm text-slate-400">Everyone is settled up. Add an expense to get started.</p>
+            <p className="py-4 text-center text-sm text-[var(--text-secondary)]">Everyone is settled up. Add an expense to get started.</p>
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">
               {ledger.transfers.map((t) => (
-                <li key={`${t.from}-${t.to}`} className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.04] px-3 py-2.5">
+                <li key={`${t.from}-${t.to}`} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-2.5">
                   <span className="h-6 w-6 shrink-0 rounded-full" style={{ background: colors[t.from] }} aria-hidden />
-                  <span className="truncate text-sm">{names[t.from]}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-500" aria-label="pays" />
+                  <span className="truncate text-sm text-[var(--text-primary)]">{names[t.from]}</span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-label="pays" />
                   <span className="h-6 w-6 shrink-0 rounded-full" style={{ background: colors[t.to] }} aria-hidden />
-                  <span className="truncate text-sm">{names[t.to]}</span>
-                  <span className="ml-auto pl-2 text-sm font-semibold tabular-nums">{formatPaise(t.amountPaise)}</span>
+                  <span className="truncate text-sm text-[var(--text-primary)]">{names[t.to]}</span>
+                  <span className="ml-auto pl-2 text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatPaise(t.amountPaise)}</span>
                 </li>
               ))}
             </ul>
           )}
 
-          <h3 className="mb-2 mt-5 text-sm font-medium text-slate-400">Net standings</h3>
-          <ul className="divide-y divide-white/5">
+          <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Net standings</h3>
+          <ul className="divide-y divide-[var(--border-subtle)]">
             {members
               .map((m) => ({ m, v: ledger.balances[m.id] ?? 0 }))
               .sort((a, b) => b.v - a.v)
               .map(({ m, v }) => (
-                <li key={m.id} className="flex items-center gap-3 py-2">
+                <li key={m.id} className="flex items-center gap-3 py-2.5">
                   <span className="h-7 w-7 rounded-full" style={{ background: m.avatarColor }} aria-hidden />
-                  <span className="flex-1 text-sm">{m.name}{m.id === viewerId && <span className="text-slate-500"> (you)</span>}</span>
-                  <span className={`text-sm font-semibold tabular-nums ${v > 0 ? "text-emerald-500" : v < 0 ? "text-rose-500" : "text-slate-400"}`}>
+                  <span className="flex-1 text-sm text-[var(--text-primary)]">{m.name}{m.id === viewerId && <span className="text-[var(--text-secondary)]"> (you)</span>}</span>
+                  <span className={`text-sm font-semibold tabular-nums ${v > 0 ? "text-[var(--status-positive)]" : v < 0 ? "text-[var(--status-negative)]" : "text-[var(--text-secondary)]"}`}>
                     {v > 0 ? "+" : v < 0 ? "−" : ""}{formatPaise(Math.abs(v))}
                   </span>
                 </li>
@@ -264,10 +264,10 @@ export default function Dashboard() {
         </section>
 
         {/* Analytics */}
-        <section className={`${glass} p-4`} aria-labelledby="spend">
+        <section className={`${glass} p-4 sm:p-5`} aria-labelledby="spend">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="spend" className="text-base font-semibold">Spending by category</h2>
-            <span className="text-sm tabular-nums text-slate-300">{formatPaise(byCategory.grand)}</span>
+            <h2 id="spend" className="font-display text-base font-semibold text-[var(--text-primary)]">Spending by category</h2>
+            <span className="font-display text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatPaise(byCategory.grand)}</span>
           </div>
           <div className="mb-4 flex flex-wrap gap-2">
             {(["All", ...CATEGORIES] as const).map((c) => (
@@ -275,7 +275,7 @@ export default function Dashboard() {
                 key={c}
                 onClick={() => setFilter(c)}
                 aria-pressed={filter === c}
-                className={`rounded-full border px-3 py-1 text-xs transition ${filter === c ? "border-emerald-500 bg-emerald-500/15 text-emerald-300" : "border-white/10 text-slate-400 hover:text-white"}`}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${filter === c ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
               >
                 {c}
               </button>
@@ -288,15 +288,15 @@ export default function Dashboard() {
               const Icon = CATEGORY_STYLE[c].icon;
               const dim = filter !== "All" && filter !== c;
               return (
-                <li key={c} className={dim ? "opacity-30 transition" : "transition"}>
+                <li key={c} className={dim ? "opacity-30 transition-opacity" : "transition-opacity"}>
                   <div className="mb-1 flex items-center gap-2 text-sm">
                     <Icon className="h-4 w-4" style={{ color: CATEGORY_STYLE[c].bar }} />
-                    <span className="flex-1">{c}</span>
-                    <span className="tabular-nums text-slate-400">{pct.toFixed(0)}%</span>
-                    <span className="w-28 text-right tabular-nums">{formatPaise(v)}</span>
+                    <span className="flex-1 text-[var(--text-primary)]">{c}</span>
+                    <span className="tabular-nums text-[var(--text-secondary)]">{pct.toFixed(0)}%</span>
+                    <span className="w-28 text-right tabular-nums text-[var(--text-primary)]">{formatPaise(v)}</span>
                   </div>
-                  <svg viewBox="0 0 100 3" preserveAspectRatio="none" className="h-1.5 w-full" role="img" aria-label={`${c} ${pct.toFixed(0)} percent`}>
-                    <rect width="100" height="3" rx="1.5" fill="rgba(255,255,255,0.08)" />
+                  <svg viewBox="0 0 100 3" preserveAspectRatio="none" className="h-2 w-full" role="img" aria-label={`${c} ${pct.toFixed(0)} percent`}>
+                    <rect width="100" height="3" rx="1.5" fill="var(--bg-surface-secondary)" />
                     <rect width={pct} height="3" rx="1.5" fill={CATEGORY_STYLE[c].bar} style={{ transition: "width 600ms ease" }} />
                   </svg>
                 </li>
@@ -306,27 +306,27 @@ export default function Dashboard() {
         </section>
 
         {/* Expense log */}
-        <section className={`${glass} p-4`} aria-labelledby="log">
-          <h2 id="log" className="mb-3 text-base font-semibold">Expenses{filter !== "All" && ` · ${filter}`}</h2>
+        <section className={`${glass} p-4 sm:p-5`} aria-labelledby="log">
+          <h2 id="log" className="font-display mb-3 text-base font-semibold text-[var(--text-primary)]">Expenses{filter !== "All" && ` · ${filter}`}</h2>
           {visible.length === 0 ? (
-            <p className="py-4 text-center text-sm text-slate-400">No expenses here yet.</p>
+            <p className="py-4 text-center text-sm text-[var(--text-secondary)]">No expenses here yet.</p>
           ) : (
-            <ul className="divide-y divide-white/5">
+            <ul className="divide-y divide-[var(--border-subtle)]">
               {visible.map((e) => {
                 const Icon = CATEGORY_STYLE[e.category].icon;
                 return (
                   <li key={e.id} className="flex items-center gap-3 py-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
                       <Icon className="h-4 w-4" style={{ color: CATEGORY_STYLE[e.category].bar }} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{e.title}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="truncate text-sm font-medium text-[var(--text-primary)]">{e.title}</p>
+                      <p className="text-xs text-[var(--text-secondary)]">
                         {e.paidBy.name} paid · {e.splitType === "EXACT" ? "exact amounts" : "by percentage"} ·{" "}
                         {new Date(e.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                       </p>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums">{formatINR(e.totalAmount)}</span>
+                    <span className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatINR(e.totalAmount)}</span>
                   </li>
                 );
               })}
@@ -335,8 +335,8 @@ export default function Dashboard() {
         </section>
 
         <details className={`${glass} p-4 text-sm`}>
-          <summary className="flex cursor-pointer items-center gap-2 text-slate-300"><Copy className="h-4 w-4" /> Preview WhatsApp message</summary>
-          <pre className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-slate-900/70 p-3 text-xs text-slate-300">{summary}</pre>
+          <summary className="flex cursor-pointer items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><Copy className="h-4 w-4" /> Preview WhatsApp message</summary>
+          <pre className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] p-3 text-xs text-[var(--text-primary)]">{summary}</pre>
         </details>
       </main>
 

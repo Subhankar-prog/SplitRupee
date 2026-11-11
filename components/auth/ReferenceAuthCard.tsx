@@ -75,6 +75,11 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setLoginError("You're offline. Sign-in requires an internet connection.");
+      return;
+    }
+
     setLoginError("");
     setLoginLoading(true);
 
@@ -89,6 +94,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Sign-in requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Login failed. Check your credentials.");
       }
@@ -166,6 +174,10 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
     // --- GOOGLE ONBOARDING SUBMISSION ---
     if (isGoogleOnboarding) {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setSignupError("You're offline. Creating an account requires an internet connection.");
+        return;
+      }
       setSignupError("");
       setSignupLoading(true);
 
@@ -185,6 +197,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         });
 
         const data = await res.json();
+        if (data.offline) {
+          throw new Error("You're offline. Creating an account requires an internet connection.");
+        }
         if (!res.ok || !data.ok) {
           throw new Error(data.error || "Registration failed. Check your details.");
         }
@@ -219,6 +234,11 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setSignupError("You're offline. Creating an account requires an internet connection.");
+      return;
+    }
+
     setSignupError("");
     setSignupLoading(true);
 
@@ -244,6 +264,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Creating an account requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Registration failed. Check your details.");
       }
@@ -260,6 +283,11 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
   // --- REAL GOOGLE OAUTH 2.0 HANDLER ---
   function handleGoogleSignIn() {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setLoginError("You're offline. Google Sign-In requires an internet connection.");
+      setSignupError("You're offline. Google Sign-In requires an internet connection.");
+      return;
+    }
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
     // 1. If Client ID is provided and Google SDK is loaded, launch the real Google OAuth Account Chooser popup
@@ -324,11 +352,11 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         <div className="credentials-panel signin">
           {/* Brand Icon & Heading */}
           <div className="slide-element flex flex-col items-center mb-3 text-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 text-base shadow-md shadow-emerald-500/25 mb-1.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] text-base mb-1.5">
               ₹
             </div>
             <h2>Sign In</h2>
-            <p className="text-[12px] text-slate-300 mt-1 max-w-[260px] mx-auto">
+            <p className="text-[12px] text-[var(--text-secondary)] mt-1 max-w-[260px] mx-auto">
               Sign in to access your groups and balances
             </p>
           </div>
@@ -336,7 +364,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
           {loginError && (
             <div
               role="alert"
-              className="slide-element mb-2 rounded-xl border border-rose-500/30 bg-rose-500/15 px-3 py-1.5 text-center text-[11px] text-rose-300"
+              className="slide-element mb-2 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3 py-1.5 text-center text-[11px] text-[var(--status-negative)]"
             >
               {loginError}
             </div>
@@ -383,9 +411,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                 aria-label={showLoginPassword ? "Hide password" : "Show password"}
               >
                 {showLoginPassword ? (
-                  <EyeOff className="h-4 w-4 text-emerald-400" />
+                  <EyeOff className="h-4 w-4 text-[var(--brand-primary)]" />
                 ) : (
-                  <Eye className="h-4 w-4 text-slate-400" />
+                  <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
                 )}
               </button>
             </div>
@@ -394,7 +422,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             <div className="slide-element flex justify-end pt-2 pb-2">
               <Link
                 href="/forgot-password"
-                className="text-[11.5px] font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition"
+                className="text-[11.5px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
               >
                 Forgot password?
               </Link>
@@ -418,11 +446,11 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
             {/* Divider */}
             <div className="slide-element flex items-center gap-2 pt-3 pb-1.5">
-              <div className="flex-1 border-t border-white/10" />
-              <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider">
+              <div className="flex-1 border-t border-[var(--border-subtle)]" />
+              <span className="text-[9.5px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                 OR CONTINUE WITH GOOGLE
               </span>
-              <div className="flex-1 border-t border-white/10" />
+              <div className="flex-1 border-t border-[var(--border-subtle)]" />
             </div>
 
             {/* 1-Click Google OAuth Button */}
@@ -430,7 +458,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="w-full h-10 flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.04] text-[12px] font-semibold text-white hover:bg-white/[0.08] hover:border-emerald-500/40 transition shadow-sm"
+                className="w-full h-10 flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[12px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] transition-colors"
               >
                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
                   <path
@@ -457,7 +485,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             {/* Switch to Signup */}
             <div className="switch-link slide-element">
               <p>
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <button
                   type="button"
                   onClick={() => handleToggle("signup")}
@@ -475,24 +503,24 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
            ========================================================================= */}
         <div className="welcome-section signin">
           <div className="slide-element text-right max-w-[285px]">
-            <h2>WELCOME BACK!</h2>
+            <h2>Welcome Back</h2>
             <p>
               Track shared expenses, simplify group debts, and settle balances with ease.
             </p>
           </div>
 
           <div className="slide-element mt-6 space-y-3.5 max-w-[250px] ml-auto">
-            <div className="flex items-center justify-end gap-2.5 text-xs font-semibold text-slate-100">
+            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#E8EDE9]">
               <span>Smart expense splitting</span>
-              <Split className="h-4 w-4 text-emerald-400 shrink-0" />
+              <Split className="h-4 w-4 text-[#8DB69A] shrink-0" />
             </div>
-            <div className="flex items-center justify-end gap-2.5 text-xs font-semibold text-slate-100">
+            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#E8EDE9]">
               <span>Clear group balances</span>
-              <Scale className="h-4 w-4 text-emerald-400 shrink-0" />
+              <Scale className="h-4 w-4 text-[#8DB69A] shrink-0" />
             </div>
-            <div className="flex items-center justify-end gap-2.5 text-xs font-semibold text-slate-100">
+            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#E8EDE9]">
               <span>Quick UPI settlement links</span>
-              <QrCode className="h-4 w-4 text-emerald-400 shrink-0" />
+              <QrCode className="h-4 w-4 text-[#D9A86C] shrink-0" />
             </div>
           </div>
         </div>
@@ -503,15 +531,15 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         <div className="credentials-panel signup">
           {/* Brand Icon & Heading */}
           <div className="slide-element flex flex-col items-center mb-2 text-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 text-base shadow-md shadow-emerald-500/25 mb-1.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] text-base mb-1.5">
               {isGoogleOnboarding ? (
-                <CheckCircle2 className="h-5 w-5 text-slate-950" />
+                <CheckCircle2 className="h-5 w-5" />
               ) : (
                 "₹"
               )}
             </div>
             <h2>{isGoogleOnboarding ? "Complete Profile" : "Create Account"}</h2>
-            <p className="text-[12px] text-slate-300 mt-1 max-w-[280px]">
+            <p className="text-[12px] text-[var(--text-secondary)] mt-1 max-w-[280px]">
               {isGoogleOnboarding
                 ? "Confirm your name and set your UPI ID for instant expense settlements"
                 : "Create your account to start managing shared expenses"}
@@ -520,7 +548,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
           {/* Google Verified Banner during First-Time Onboarding */}
           {isGoogleOnboarding && (
-            <div className="slide-element mb-2 flex items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-300">
+            <div className="slide-element mb-2 flex items-center justify-between rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-3 py-1.5 text-[11px] text-[var(--status-positive)]">
               <div className="flex items-center gap-1.5 truncate">
                 <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
                   <path
@@ -540,13 +568,13 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                     d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
                   />
                 </svg>
-                <span className="font-semibold text-white">Google Verified:</span>
-                <span className="text-emerald-200 truncate">{signupIdentifier}</span>
+                <span className="font-semibold text-[var(--text-primary)]">Google Verified:</span>
+                <span className="truncate">{signupIdentifier}</span>
               </div>
               <button
                 type="button"
                 onClick={handleCancelGoogleOnboarding}
-                className="text-[10px] text-slate-400 hover:text-emerald-300 underline ml-2 shrink-0 transition"
+                className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline ml-2 shrink-0"
                 title="Cancel Google sign-in and switch to standard mode"
               >
                 Change
@@ -557,7 +585,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
           {signupError && (
             <div
               role="alert"
-              className="slide-element mb-2 rounded-xl border border-rose-500/30 bg-rose-500/15 px-3 py-1.5 text-center text-[11px] text-rose-300"
+              className="slide-element mb-2 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3 py-1.5 text-center text-[11px] text-[var(--status-negative)]"
             >
               {signupError}
             </div>
@@ -598,7 +626,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                   if (!isGoogleOnboarding) setSignupIdentifier(e.target.value);
                 }}
                 autoComplete="username"
-                className={isGoogleOnboarding ? "cursor-not-allowed text-emerald-200" : ""}
+                className={isGoogleOnboarding ? "cursor-not-allowed opacity-85" : ""}
                 title={isGoogleOnboarding ? "Email verified by Google (cannot be changed)" : undefined}
               />
               <label htmlFor="signup-id">
@@ -606,7 +634,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               </label>
               <div className="field-icon">
                 {isGoogleOnboarding ? (
-                  <Lock className="h-4 w-4 text-emerald-400/80" />
+                  <Lock className="h-4 w-4 text-[var(--status-positive)]" />
                 ) : (
                   <Phone className="h-4 w-4" />
                 )}
@@ -632,9 +660,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               </div>
             </div>
 
-            {/* Passwords in 2-Column Grid (Only shown for standard credentials signup, hidden for Google OAuth) */}
+            {/* Passwords in 2-Column Grid */}
             {!isGoogleOnboarding && (
-              <div className="slide-element grid grid-cols-2 gap-3 !mt-5">
+              <div className="slide-element grid grid-cols-2 gap-3 !mt-4">
                 <div className="field-wrapper !mt-0">
                   <input
                     id="signup-pass"
@@ -656,9 +684,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                     aria-label={showSignupPassword ? "Hide password" : "Show password"}
                   >
                     {showSignupPassword ? (
-                      <EyeOff className="h-3.5 w-3.5 text-emerald-400" />
+                      <EyeOff className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                     ) : (
-                      <Eye className="h-3.5 w-3.5 text-slate-400" />
+                      <Eye className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
                     )}
                   </button>
                 </div>
@@ -684,9 +712,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                     aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-3.5 w-3.5 text-emerald-400" />
+                      <EyeOff className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                     ) : (
-                      <Eye className="h-3.5 w-3.5 text-slate-400" />
+                      <Eye className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
                     )}
                   </button>
                 </div>
@@ -713,22 +741,22 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               </button>
             </div>
 
-            {/* Divider and Google Button (Hidden during Google Onboarding) */}
+            {/* Divider and Google Button */}
             {!isGoogleOnboarding && (
               <>
                 <div className="slide-element flex items-center gap-2 pt-2.5 pb-1">
-                  <div className="flex-1 border-t border-white/10" />
-                  <span className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider">
+                  <div className="flex-1 border-t border-[var(--border-subtle)]" />
+                  <span className="text-[9.5px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                     OR
                   </span>
-                  <div className="flex-1 border-t border-white/10" />
+                  <div className="flex-1 border-t border-[var(--border-subtle)]" />
                 </div>
 
                 <div className="slide-element">
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    className="w-full h-10 flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.04] text-[12px] font-semibold text-white hover:bg-white/[0.08] hover:border-emerald-500/40 transition shadow-sm"
+                    className="w-full h-10 flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[12px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] transition-colors"
                   >
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
                       <path
@@ -788,7 +816,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
            ========================================================================= */}
         <div className="welcome-section signup">
           <div className="slide-element text-left max-w-[235px]">
-            <h2>{isGoogleOnboarding ? "ALMOST READY!" : "WELCOME!"}</h2>
+            <h2>{isGoogleOnboarding ? "Almost Ready" : "Get Started"}</h2>
             <p>
               {isGoogleOnboarding
                 ? "Confirm your details to finish setting up your account."
@@ -797,16 +825,16 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
           </div>
 
           <div className="slide-element mt-6 space-y-3.5 max-w-[235px]">
-            <div className="flex items-center justify-start gap-2.5 text-xs font-semibold text-slate-100">
-              <Users className="h-4 w-4 text-emerald-400 shrink-0" />
+            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#E8EDE9]">
+              <Users className="h-4 w-4 text-[#8DB69A] shrink-0" />
               <span>Split expenses with your group</span>
             </div>
-            <div className="flex items-center justify-start gap-2.5 text-xs font-semibold text-slate-100">
-              <GitFork className="h-4 w-4 text-emerald-400 shrink-0" />
+            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#E8EDE9]">
+              <GitFork className="h-4 w-4 text-[#8DB69A] shrink-0" />
               <span>Track who owes whom</span>
             </div>
-            <div className="flex items-center justify-start gap-2.5 text-xs font-semibold text-slate-100">
-              <Smartphone className="h-4 w-4 text-emerald-400 shrink-0" />
+            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#E8EDE9]">
+              <Smartphone className="h-4 w-4 text-[#D9A86C] shrink-0" />
               <span>Direct UPI settlement links</span>
             </div>
           </div>

@@ -1,16 +1,65 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { useUser } from "@/lib/userContext";
 import { useRealtimeSync } from "@/lib/useRealtimeSync";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ChevronRight } from "lucide-react";
 import SplitRupeeLoader from "./SplitRupeeLoader";
 import AddUpiModal from "./AddUpiModal";
 import OfflineSyncModal from "./OfflineSyncModal";
+
+function RouteBreadcrumb({ pathname }: { pathname: string }) {
+  if (!pathname || pathname === "/dashboard") return null;
+
+  const segments: Array<{ label: string; href?: string }> = [
+    { label: "Dashboard", href: "/dashboard" },
+  ];
+
+  if (pathname.startsWith("/groups/")) {
+    segments.push({ label: "Groups", href: "/groups" });
+    segments.push({ label: "Group Ledger" });
+  } else if (pathname === "/groups") {
+    segments.push({ label: "Groups" });
+  } else if (pathname === "/expenses") {
+    segments.push({ label: "Expenses" });
+  } else if (pathname === "/activity") {
+    segments.push({ label: "Activity" });
+  } else if (pathname.startsWith("/itinerary")) {
+    segments.push({ label: "Trip Planner" });
+  } else if (pathname.startsWith("/join")) {
+    segments.push({ label: "Join Group" });
+  } else {
+    return null;
+  }
+
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="mb-4 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]"
+    >
+      {segments.map((seg, idx) => (
+        <React.Fragment key={`${seg.label}-${idx}`}>
+          {idx > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
+          {seg.href ? (
+            <Link
+              href={seg.href}
+              className="hover:text-[var(--text-primary)] transition-colors"
+            >
+              {seg.label}
+            </Link>
+          ) : (
+            <span className="font-medium text-[var(--text-primary)]">{seg.label}</span>
+          )}
+        </React.Fragment>
+      ))}
+    </nav>
+  );
+}
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -19,10 +68,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { currentUser, isLoading } = useUser();
 
-  // Enable live real-time synchronization across devices
   useRealtimeSync();
 
-  // Auto-close sidebar on route change (mobile UX)
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
@@ -46,35 +93,37 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password");
 
-  // Authentication Pages Layout (No Website Header/Footer)
+  const upiBanner = currentUser && !currentUser.upiId && (
+    <div className="w-full border-b border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-4 py-2 text-center text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-2 z-20">
+      <AlertCircle className="h-3.5 w-3.5 text-[var(--status-warning)] shrink-0" />
+      <span>
+        For one-tap settlements, add your UPI ID.{" "}
+        <button
+          type="button"
+          onClick={() => setShowAddUpiModal(true)}
+          className="font-semibold underline underline-offset-2 text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:opacity-80 ml-1 cursor-pointer"
+        >
+          Click here to add
+        </button>
+      </span>
+    </div>
+  );
+
+  // Authentication Routes (Clean, uncluttered container)
   if (isAuthRoute) {
     return (
-      <div className="min-h-screen text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col">
         <main className="flex-1 w-full">{children}</main>
       </div>
     );
   }
 
-  // Public Marketing / Content Pages Layout
+  // Public Marketing / Content Routes
   if (!isAppRoute) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col">
         <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
-        {currentUser && !currentUser.upiId && (
-          <div className="w-full bg-gradient-to-r from-amber-500/20 via-orange-500/25 to-amber-500/20 border-b border-amber-500/35 px-4 py-2 text-center text-xs font-medium text-amber-200 flex items-center justify-center gap-2 z-20 shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
-            <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
-            <span>
-              For one tap settlement, add your UPI ID.{" "}
-              <button
-                type="button"
-                onClick={() => setShowAddUpiModal(true)}
-                className="font-bold underline text-amber-300 hover:text-white transition ml-1 cursor-pointer"
-              >
-                Click here to add
-              </button>
-            </span>
-          </div>
-        )}
+        {upiBanner}
         <main className="flex-1 w-full">{children}</main>
         <Footer />
         <AddUpiModal isOpen={showAddUpiModal} onClose={() => setShowAddUpiModal(false)} />
@@ -82,52 +131,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If loading session on protected routes: only show loader if we have NO cached user yet
   if (isLoading && !currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex items-center justify-center">
         <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Checking session..." />
       </div>
     );
   }
 
-  // If not logged in on protected route: smoothly redirect with branded loader (no jarring box flash)
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex items-center justify-center">
         <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Redirecting to sign in..." />
       </div>
     );
   }
 
-  // Logged-in App Dashboard Layout with Sidebar & Top UPI Banner
+  // Authenticated Application Layout
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col">
       <Navbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
-
-      {/* Orange One-Tap Settlement Banner if User has no UPI ID */}
-      {!currentUser.upiId && (
-        <div className="w-full bg-gradient-to-r from-amber-500/20 via-orange-500/25 to-amber-500/20 border-b border-amber-500/35 px-4 py-2 text-center text-xs font-medium text-amber-200 flex items-center justify-center gap-2 z-20 shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
-          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
-          <span>
-            For one tap settlement, add your UPI ID.{" "}
-            <button
-              type="button"
-              onClick={() => setShowAddUpiModal(true)}
-              className="font-bold underline text-amber-300 hover:text-white transition ml-1 cursor-pointer"
-            >
-              Click here to add
-            </button>
-          </span>
-        </div>
-      )}
+      {upiBanner}
 
       <div className="flex flex-1">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        {/* Mobile: full width (sidebar is an overlay). Desktop (md+): offset by sidebar width */}
         <div className="flex-1 md:pl-64 flex flex-col min-w-0 overflow-hidden">
-          {/* pb-24 on mobile for bottom nav, pb-8 on desktop */}
-          <main className="flex-1 p-3 sm:p-4 md:p-6 max-w-6xl w-full mx-auto pb-28 md:pb-8">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24 md:pb-10">
+            <RouteBreadcrumb pathname={pathname} />
             {children}
           </main>
         </div>

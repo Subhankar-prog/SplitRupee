@@ -2,63 +2,73 @@
 
 import React from "react";
 import Link from "next/link";
-
-import TravelAuthBackground from "@/components/auth/TravelAuthBackground";
+import { Sun, Moon } from "lucide-react";
+import { useTheme } from "@/lib/themeContext";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  // Authentication forms strictly stay in dark mode only
-  React.useEffect(() => {
-    const wasLight = document.documentElement.classList.contains("light");
-    if (wasLight) {
-      document.documentElement.classList.remove("light");
-      document.documentElement.classList.add("dark");
-      document.documentElement.setAttribute("data-theme", "dark");
-    }
-    return () => {
-      try {
-        const saved = localStorage.getItem("splitrupee_theme");
-        if (saved === "light") {
-          document.documentElement.classList.add("light");
-          document.documentElement.classList.remove("dark");
-          document.documentElement.setAttribute("data-theme", "light");
-        }
-      } catch {}
-    };
-  }, []);
+  const { theme, toggleTheme } = useTheme();
+  const isLight = theme === "light";
 
   return (
-    <div className="auth-layout dark min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] md:overflow-hidden w-full text-white flex flex-col justify-between relative selection:bg-emerald-500 selection:text-slate-950 bg-[#090d16]">
-      {/* Moving Travel-Themed Background */}
-      <TravelAuthBackground />
+    <div className="auth-layout min-h-[100dvh] w-full flex flex-col justify-between relative bg-[var(--bg-canvas)] text-[var(--text-primary)] selection:bg-[var(--brand-primary)] selection:text-[#171F1D] transition-colors duration-200">
+      {/* Subtle architectural background pattern */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 opacity-45 dark:opacity-25"
+        style={{
+          backgroundImage:
+            "radial-gradient(var(--border-strong) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+        }}
+      />
 
-      {/* Top Bar with Clickable SplitRupee Logo on Top-Left */}
-      <header className="w-full max-w-7xl mx-auto px-6 pt-3 pb-1 flex items-center justify-start z-20 shrink-0">
+      {/* Top Bar with Clickable SplitRupee Logo on Top-Left & Theme Toggle */}
+      <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between z-20 shrink-0">
         <Link
           href="/"
-          className="flex items-center gap-2.5 group transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-xl p-1"
+          className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] rounded-xl p-1"
           aria-label="Back to SplitRupee Homepage"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 text-base shadow-md shadow-emerald-500/20 group-hover:shadow-emerald-500/35 transition">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] text-base transition-transform group-hover:scale-[1.03]">
             ₹
           </div>
-          <span className="font-bold tracking-tight text-white text-base group-hover:text-emerald-400 transition-colors">
+          <span className="font-display font-semibold tracking-tight text-[var(--text-primary)] text-base">
             SplitRupee
           </span>
         </Link>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+        >
+          {isLight ? (
+            <>
+              <Moon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Dark Mode</span>
+            </>
+          ) : (
+            <>
+              <Sun className="h-3.5 w-3.5 text-[var(--accent-sand)]" />
+              <span className="hidden sm:inline">Light Mode</span>
+            </>
+          )}
+        </button>
       </header>
 
-      {/* Main Authentication Content (Vertically and Horizontally Centered, No Scroll on Desktop) */}
-      <main className="flex-1 min-h-0 flex items-center justify-center px-4 py-1 z-10 w-full overflow-hidden">
+      {/* Main Authentication Content */}
+      <main className="flex-1 min-h-0 flex items-center justify-center px-4 py-4 z-10 w-full">
         {children}
       </main>
 
       {/* Subtle Accessible Footer Note */}
-      <footer className="w-full max-w-7xl mx-auto px-6 py-2 text-center text-xs text-slate-400/80 shrink-0 z-20">
-        <span>© {new Date().getFullYear()} SplitRupee · India's Smart Group Expense Manager</span>
+      <footer className="w-full max-w-6xl mx-auto px-6 py-3 text-center text-xs text-[var(--text-secondary)] shrink-0 z-20">
+        <span>© {new Date().getFullYear()} SplitRupee · Smart Group Expense Manager</span>
       </footer>
     </div>
   );

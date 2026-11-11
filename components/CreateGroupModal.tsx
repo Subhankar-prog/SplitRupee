@@ -37,6 +37,11 @@ export default function CreateGroupModal({
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setError("You're offline. Creating a new shared group requires an internet connection.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
@@ -55,6 +60,9 @@ export default function CreateGroupModal({
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Creating a new shared group requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to create group");
       }
@@ -68,21 +76,27 @@ export default function CreateGroupModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 backdrop-blur-sm animate-in fade-in duration-150">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full max-w-lg rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover"
+      >
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Users className="h-5 w-5 text-emerald-400" />
+            <h2 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <Users className="h-5 w-5 text-[var(--brand-primary)]" />
               Create New Group
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Organize expenses with roommates, trips, or friends
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition"
+            aria-label="Close modal"
+            className="rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -90,41 +104,41 @@ export default function CreateGroupModal({
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {error && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+            <div className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]">
               {error}
             </div>
           )}
 
           {/* Group Name */}
           <div>
-            <label className="text-xs font-semibold text-slate-300">Group Name</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Group Name</label>
             <input
               type="text"
-              placeholder="e.g. Manali Road Trip 🏔️ or Flat 402 Rent"
+              placeholder="e.g. Manali Road Trip or Flat 402 Rent"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
             />
           </div>
 
           {/* Group Description */}
           <div>
-            <label className="text-xs font-semibold text-slate-300">
-              Description <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              Description <span className="text-[11px] font-normal opacity-80">(Optional)</span>
             </label>
             <textarea
               placeholder="Add trip dates, apartment rules, or a short note..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none"
+              className="mt-1 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] resize-none transition-colors"
             />
           </div>
 
           {/* Group Type */}
           <div>
-            <label className="text-xs font-semibold text-slate-300">Group Type</label>
+            <label className="text-xs font-medium text-[var(--text-secondary)]">Group Type</label>
             <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {GROUP_TYPES.map((gt) => {
                 const Icon = gt.icon;
@@ -134,10 +148,10 @@ export default function CreateGroupModal({
                     key={gt.type}
                     type="button"
                     onClick={() => setType(gt.type)}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition ${
+                    className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                        : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+                        ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
+                        : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -149,12 +163,12 @@ export default function CreateGroupModal({
           </div>
 
           {/* Invite Members Guidance Card */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+          <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3.5 space-y-1.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--status-positive)]">
               <UserPlus className="h-4 w-4 shrink-0" />
               <span>Inviting Group Members</span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               You will automatically be added as the group creator. Once the group is created, you can invite your flatmates, friends, or travel companions anytime via private invite link or WhatsApp.
             </p>
           </div>
@@ -164,14 +178,14 @@ export default function CreateGroupModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/10"
+              className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 transition"
+              className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
             >
               {loading ? "Creating..." : "Create Group"}
             </button>

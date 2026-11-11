@@ -8,6 +8,9 @@ export function useRealtimeSync() {
     let reconnectTimeout: any = null;
 
     function connect() {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return;
+      }
       try {
         eventSource = new EventSource("/api/realtime/stream");
 
@@ -25,19 +28,41 @@ export function useRealtimeSync() {
             eventSource.close();
             eventSource = null;
           }
-          // Reconnect after 3s
-          reconnectTimeout = setTimeout(connect, 3000);
+          if (typeof navigator === "undefined" || navigator.onLine) {
+            // Reconnect after 3s only when online
+            reconnectTimeout = setTimeout(connect, 3000);
+          }
         };
       } catch (e) {
         console.error("Realtime sync error", e);
       }
     }
 
+    const handleOffline = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+    };
+
+    const handleOnline = () => {
+      connect();
+      window.dispatchEvent(new Event("splitrupee_refresh"));
+    };
+
     connect();
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
 
     return () => {
       if (eventSource) eventSource.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
     };
   }, []);
 }

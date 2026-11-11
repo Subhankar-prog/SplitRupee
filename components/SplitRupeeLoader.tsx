@@ -14,36 +14,26 @@ export default function SplitRupeeLoader({
   fullScreen = true,
 }: SplitRupeeLoaderProps) {
   const content = (
-    <div className="flex flex-col items-center justify-center gap-4 text-center select-none animate-in fade-in duration-300">
-      {/* Branded Glowing Ring with Rupee Symbol */}
-      <div className="relative flex items-center justify-center">
-        {/* Outer rotating pulse aura */}
-        <div className="absolute h-16 w-16 rounded-2xl bg-gradient-to-tr from-emerald-500/25 to-teal-400/25 blur-xl animate-pulse" />
-
-        {/* Animated Spin Ring */}
-        <div className="h-14 w-14 rounded-2xl border-2 border-emerald-500/20 border-t-emerald-400 border-r-teal-400 animate-spin" />
-
-        {/* Inner Glass Badge with Rupee Icon */}
-        <div className="absolute flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-extrabold text-slate-950 text-xl shadow-lg shadow-emerald-500/30">
+    <div className="flex flex-col items-center justify-center gap-3.5 text-center select-none">
+      <div className="relative flex items-center justify-center h-12 w-12">
+        <div className="absolute inset-0 rounded-2xl border-2 border-[var(--border-subtle)] border-t-[var(--brand-primary)] animate-spin" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] text-base keep-white">
           ₹
         </div>
       </div>
 
-      {/* Brand Title & Pulsing Subtitle */}
-      <div className="space-y-1">
-        <h3 className="text-sm font-bold tracking-widest text-white uppercase">
+      <div className="space-y-0.5">
+        <h3 className="font-display text-sm font-semibold tracking-wide text-[var(--text-primary)]">
           {text}
         </h3>
-        <p className="text-[11.5px] font-medium text-emerald-400/80 animate-pulse">
-          {subtext}
-        </p>
+        <p className="text-xs text-[var(--text-secondary)]">{subtext}</p>
       </div>
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-canvas)]/95">
         {content}
       </div>
     );

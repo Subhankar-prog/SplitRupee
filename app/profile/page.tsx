@@ -22,17 +22,16 @@ import {
   Trash2,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
-import Navbar from "@/components/Navbar";
 
 const AVATAR_COLORS = [
-  "#10b981", // Emerald
-  "#0ea5e9", // Sky Blue
-  "#8b5cf6", // Purple
-  "#f43f5e", // Rose
-  "#f59e0b", // Amber
-  "#ec4899", // Pink
-  "#14b8a6", // Teal
-  "#3b82f6", // Blue
+  "#739B83",
+  "#263A32",
+  "#D9A86C",
+  "#3B7356",
+  "#B85C55",
+  "#5E7B6D",
+  "#A26D2E",
+  "#4A6572",
 ];
 
 const UPI_HANDLES = ["@ybl", "@paytm", "@okaxis", "@okhdfcbank", "@icici"];
@@ -56,6 +55,10 @@ export default function ProfilePage() {
 
   const handleDeleteUpi = async () => {
     if (!currentUser) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setError("You're offline. Removing your UPI ID requires an internet connection.");
+      return;
+    }
     try {
       setDeletingUpi(true);
       setError("");
@@ -71,6 +74,9 @@ export default function ProfilePage() {
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Removing your UPI ID requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.message || data.error || "Failed to remove UPI ID");
       }
@@ -120,24 +126,24 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--brand-primary)]" />
       </div>
     );
   }
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
-        <div className="text-center space-y-3 max-w-sm">
-          <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-3 max-w-sm rounded-2xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)]">
+          <div className="h-12 w-12 rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] flex items-center justify-center mx-auto border border-[color:var(--border-subtle)]">
             <User className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-bold">Please Sign In</h2>
-          <p className="text-xs text-slate-400">Log in to view and manage your profile settings.</p>
+          <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">Please Sign In</h2>
+          <p className="text-xs text-[var(--text-secondary)]">Log in to view and manage your profile settings.</p>
           <Link
             href="/login"
-            className="inline-block px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+            className="inline-block px-5 py-2.5 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-medium text-xs transition-opacity"
           >
             Go to Login
           </Link>
@@ -166,6 +172,14 @@ export default function ProfilePage() {
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("splitrupee_pref_currency", preferredCurrency);
+      }
+      setError("You're offline. Preferred currency was saved locally, while profile account updates require an internet connection.");
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
@@ -184,6 +198,9 @@ export default function ProfilePage() {
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Saving account profile changes requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.message || data.error || "Failed to update profile");
       }
@@ -214,51 +231,48 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="w-full max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-2.5 text-xs text-[var(--text-secondary)]">
           <Link
             href="/dashboard"
-            className="flex items-center gap-1.5 hover:text-white transition"
+            className="flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Dashboard</span>
           </Link>
           <span>/</span>
-          <span className="text-white font-medium">Profile Settings</span>
+          <span className="text-[var(--text-primary)] font-medium">Profile Settings</span>
         </div>
 
         {/* Page Hero Card */}
-        <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-white/10 shadow-2xl flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
+        <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
             <div
-              className="h-20 w-20 rounded-3xl flex items-center justify-center text-2xl font-black text-slate-950 shadow-xl transition-colors ring-4 ring-white/10"
+              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center text-2xl font-display font-semibold text-white keep-white transition-colors border border-[var(--border-subtle)]"
               style={{ backgroundColor: avatarColor }}
             >
               {name ? name.slice(0, 2).toUpperCase() : currentUser.name.slice(0, 2).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center justify-center sm:justify-start gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold text-white">{name || currentUser.name}</h1>
+                <h1 className="font-display text-xl sm:text-2xl font-semibold text-[var(--text-primary)]">{name || currentUser.name}</h1>
                 {currentUser.isPro && (
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
-                    <Crown className="h-3 w-3 text-amber-400" /> PRO
+                  <span className="text-[10px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <Crown className="h-3 w-3" /> PRO
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">{currentUser.email}</p>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">{currentUser.email}</p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-3">
                 {currentUser.phone && (
-                  <span className="text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1">
+                  <span className="text-[11px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1">
                     <Smartphone className="h-3 w-3" /> +91 {currentUser.phone}
                   </span>
                 )}
                 {currentUser.upiId && (
-                  <span className="text-[11px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1">
-                    <QrCode className="h-3 w-3" /> {currentUser.upiId}
+                  <span className="text-[11px] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] border border-[var(--border-subtle)] px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1">
+                    <QrCode className="h-3 w-3 text-[var(--brand-primary)]" /> {currentUser.upiId}
                   </span>
                 )}
               </div>
@@ -269,14 +283,15 @@ export default function ProfilePage() {
             {!currentUser.isPro && (
               <Link
                 href="/pro"
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/20 hover:scale-105 transition"
+                className="h-9 inline-flex items-center px-4 rounded-xl bg-[var(--accent-sand)] text-[#171F1D] text-xs font-semibold hover:opacity-95 transition-opacity"
               >
                 Upgrade to Pro
               </Link>
             )}
             <button
+              type="button"
               onClick={() => logout()}
-              className="p-2.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold transition flex items-center gap-1.5"
+              className="h-9 px-3.5 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] hover:opacity-90 text-[var(--status-negative)] text-xs font-semibold transition-opacity flex items-center gap-1.5"
               title="Log Out"
             >
               <LogOut className="h-4 w-4" />
@@ -288,15 +303,15 @@ export default function ProfilePage() {
         {/* Form Body */}
         <form onSubmit={handleSave} className="space-y-6">
           {error && (
-            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs sm:text-sm flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 shrink-0 text-rose-400" />
+            <div className="p-4 rounded-xl bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] text-[var(--status-negative)] text-xs sm:text-sm flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm flex items-center gap-3">
-              <Check className="h-5 w-5 shrink-0 text-emerald-400" />
+            <div className="p-4 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] text-xs sm:text-sm flex items-center gap-3">
+              <Check className="h-5 w-5 shrink-0" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -305,52 +320,52 @@ export default function ProfilePage() {
             {/* Left Column: Personal Identity & Phone */}
             <div className="space-y-6">
               {/* Personal Identity Card */}
-              <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/5 space-y-4">
-                <div className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                  <User className="h-4 w-4 text-emerald-400" />
+              <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] space-y-4">
+                <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                  <User className="h-4 w-4 text-[var(--brand-primary)]" />
                   <span>Personal Details</span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Full Name</label>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Full Name</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full text-sm bg-slate-950/80 border border-white/10 rounded-xl px-3.5 py-2.5 text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] transition-colors"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-2">Avatar Color Theme</label>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Avatar Color Theme</label>
                   <div className="flex flex-wrap gap-2.5">
                     {AVATAR_COLORS.map((c) => (
                       <button
                         key={c}
                         type="button"
                         onClick={() => setAvatarColor(c)}
-                        className={`h-9 w-9 rounded-xl flex items-center justify-center transition transform active:scale-90 ${
+                        className={`h-9 w-9 rounded-xl flex items-center justify-center transition-transform ${
                           avatarColor === c
-                            ? "ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110 shadow-lg"
-                            : "hover:scale-105 opacity-80 hover:opacity-100"
+                            ? "ring-2 ring-[var(--brand-primary)] ring-offset-2 ring-offset-[var(--bg-surface)] scale-105"
+                            : "hover:scale-105 opacity-85 hover:opacity-100"
                         }`}
                         style={{ backgroundColor: c }}
                       >
-                        {avatarColor === c && <Check className="h-4 w-4 text-slate-950 font-bold" />}
+                        {avatarColor === c && <Check className="h-4 w-4 text-white keep-white stroke-[2.5]" />}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Registered Email</label>
-                  <div className="flex items-center justify-between bg-slate-950/80 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-slate-300">
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Registered Email</label>
+                  <div className="flex items-center justify-between bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-primary)]">
                     <div className="flex items-center gap-2 truncate">
-                      <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                      <Mail className="h-4 w-4 text-[var(--text-secondary)] shrink-0" />
                       <span className="truncate">{currentUser.email}</span>
                     </div>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-medium shrink-0">
+                    <span className="text-[10px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full font-medium shrink-0">
                       Primary
                     </span>
                   </div>
@@ -358,26 +373,26 @@ export default function ProfilePage() {
               </div>
 
               {/* Mobile Number & Auto-Claim Card */}
-              <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-950/20 via-slate-900/60 to-slate-900/60 border border-emerald-500/20 space-y-4">
+              <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-                    <Smartphone className="h-4 w-4 text-emerald-400" />
-                    <span>Mobile Number & Auto-Sync</span>
+                  <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-[var(--brand-primary)]" />
+                    <span>Mobile Number &amp; Auto-Sync</span>
                   </div>
                   {currentUser.phone && (
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                    <span className="text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] px-2 py-0.5 rounded-full font-semibold">
                       Linked
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     10-Digit Mobile Number (+91)
                   </label>
-                  <div className="flex items-center rounded-xl bg-slate-950/80 border border-white/10 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 overflow-hidden">
-                    <span className="px-3 text-xs font-bold text-slate-400 bg-white/5 border-r border-white/10 select-none py-2.5">
-                      🇮🇳 +91
+                  <div className="flex items-center rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] focus-within:border-[var(--brand-primary)] focus-within:bg-[var(--bg-surface)] overflow-hidden transition-colors">
+                    <span className="px-3 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] select-none py-2.5 tabular-nums">
+                      +91
                     </span>
                     <input
                       type="tel"
@@ -385,16 +400,16 @@ export default function ProfilePage() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                       placeholder="9876543210"
-                      className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-white font-mono outline-none"
+                      className="flex-1 bg-transparent px-3.5 py-2.5 text-sm text-[var(--text-primary)] font-mono outline-none"
                     />
                   </div>
                 </div>
 
                 {/* Info Card */}
-                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200/90 leading-relaxed flex items-start gap-3">
-                  <Sparkles className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-xs text-[var(--text-secondary)] leading-relaxed flex items-start gap-3">
+                  <Sparkles className="h-4 w-4 text-[var(--status-positive)] shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-emerald-300">Smart Group Auto-Claim:</strong> Whenever a friend adds you to a trip or group using your phone number, adding your mobile number here will automatically scan and pull all past expenses, balances, and debts directly into your account!
+                    <strong className="text-[var(--status-positive)]">Smart Group Auto-Claim:</strong> Whenever a friend adds you to a trip or group using your phone number, adding your mobile number here will automatically scan and pull all past expenses, balances, and debts directly into your account!
                   </div>
                 </div>
               </div>
@@ -403,10 +418,10 @@ export default function ProfilePage() {
             {/* Right Column: UPI & Preferences */}
             <div className="space-y-6">
               {/* UPI Card */}
-              <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/5 space-y-4">
+              <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                    <QrCode className="h-4 w-4 text-emerald-400" />
+                  <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                    <QrCode className="h-4 w-4 text-[var(--brand-primary)]" />
                     <span>UPI Settlement Address</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -415,7 +430,7 @@ export default function ProfilePage() {
                         type="button"
                         onClick={handleDeleteUpi}
                         disabled={deletingUpi || saving}
-                        className="text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition px-2.5 py-1 rounded-lg hover:bg-rose-500/10 border border-rose-500/20"
+                        className="text-xs font-semibold text-[var(--status-negative)] flex items-center gap-1 transition-opacity px-2.5 py-1 rounded-lg bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] hover:opacity-90"
                         title="Delete UPI ID from account"
                       >
                         {deletingUpi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -426,7 +441,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={handleCopyUpi}
-                        className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition"
+                        className="text-xs font-semibold text-[var(--status-positive)] hover:underline flex items-center gap-1"
                       >
                         {copiedUpi ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                         <span>{copiedUpi ? "Copied" : "Copy UPI"}</span>
@@ -436,7 +451,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     UPI ID (Virtual Payment Address)
                   </label>
                   <input
@@ -444,11 +459,11 @@ export default function ProfilePage() {
                     value={upiId}
                     onChange={(e) => setUpiId(e.target.value.toLowerCase().trim())}
                     placeholder="e.g. 9876543210@ybl"
-                    className="w-full text-sm bg-slate-950/80 border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-[var(--text-primary)] font-mono outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] transition-colors"
                   />
                   {/* Quick Handle Suggestions */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    <span className="text-[10px] text-slate-400">Quick handles:</span>
+                    <span className="text-[11px] text-[var(--text-secondary)]">Quick handles:</span>
                     {UPI_HANDLES.map((handle) => (
                       <button
                         key={handle}
@@ -459,7 +474,7 @@ export default function ProfilePage() {
                             : upiId || phone || name.toLowerCase().replace(/[^a-z0-9]/g, "");
                           setUpiId(`${prefix}${handle}`);
                         }}
-                        className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:border-emerald-500 hover:text-emerald-300 transition"
+                        className="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)] transition-colors"
                       >
                         {handle}
                       </button>
@@ -469,9 +484,9 @@ export default function ProfilePage() {
 
                 {/* Live QR Code Display */}
                 {qrCodeUrl && (
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-500/20 text-center space-y-3">
-                    <div className="text-xs font-bold text-white">Your Settlement QR Code</div>
-                    <div className="inline-block p-3 rounded-2xl bg-white shadow-xl">
+                  <div className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--status-positive-border)] text-center space-y-3">
+                    <div className="text-xs font-semibold text-[var(--text-primary)]">Your Settlement QR Code</div>
+                    <div className="inline-block p-3 rounded-xl bg-white border border-[#E6E9E3]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={qrCodeUrl}
@@ -479,8 +494,8 @@ export default function ProfilePage() {
                         className="h-44 w-44 object-contain mx-auto"
                       />
                     </div>
-                    <div className="text-xs font-mono text-emerald-400 font-bold">{upiId}</div>
-                    <p className="text-[11px] text-slate-400">
+                    <div className="text-xs font-mono text-[var(--status-positive)] font-semibold">{upiId}</div>
+                    <p className="text-[11px] text-[var(--text-secondary)]">
                       Friends can scan this QR code with any UPI app (GPay, PhonePe, Paytm) to settle debts.
                     </p>
                   </div>
@@ -488,24 +503,24 @@ export default function ProfilePage() {
               </div>
 
               {/* Currency Preference Card */}
-              <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/5 space-y-4">
-                <div className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                  <Crown className="h-4 w-4 text-amber-400" />
+              <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] space-y-4">
+                <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-[var(--accent-sand)]" />
                   <span>Currency Preference</span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-2">Default Currency</label>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Default Currency</label>
                   <div className="grid grid-cols-4 gap-2">
                     {(["INR", "USD", "EUR", "GBP"] as const).map((curr) => (
                       <button
                         key={curr}
                         type="button"
                         onClick={() => setPreferredCurrency(curr)}
-                        className={`py-2 px-2 rounded-xl border text-xs font-mono font-bold transition ${
+                        className={`py-2 px-2 rounded-xl border text-xs tabular-nums font-semibold transition-colors ${
                           preferredCurrency === curr
-                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm"
-                            : "bg-slate-950 border-white/5 text-slate-400 hover:text-white"
+                            ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
+                            : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}
                       >
                         {curr === "INR" ? "₹ INR" : curr === "USD" ? "$ USD" : curr === "EUR" ? "€ EUR" : "£ GBP"}
@@ -518,24 +533,23 @@ export default function ProfilePage() {
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <Link
               href="/dashboard"
-              className="px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition"
+              className="h-10 inline-flex items-center px-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] transition-colors"
             >
               Back to Dashboard
             </Link>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-7 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm shadow-xl shadow-emerald-500/20 transition disabled:opacity-50"
+              className="h-10 flex items-center gap-2 px-6 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-semibold text-xs sm:text-sm transition-opacity disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               <span>Save Profile Changes</span>
             </button>
           </div>
         </form>
-      </main>
     </div>
   );
 }

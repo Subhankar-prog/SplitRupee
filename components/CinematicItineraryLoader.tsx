@@ -167,84 +167,81 @@ export default function CinematicItineraryLoader({
         </div>
 
         {/* TOP CINEMATIC LETTERBOX BAR */}
-        <div className="relative z-10 w-full px-6 md:px-12 py-5 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md">
+        <div className="relative z-10 w-full px-6 md:px-12 py-5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+            <div className="p-2 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)]">
               <Compass className="h-5 w-5 animate-[spin_10s_linear_infinite]" />
             </div>
             <div>
-              <div className="text-[10px] tracking-[0.25em] uppercase text-emerald-400 font-bold">
+              <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--status-positive)] font-semibold">
                 SPLITRUPEE TRAVEL PLANNER
               </div>
-              <div className="text-sm font-semibold text-slate-200">
-                Autonomous Real-Time Travel Agency & Local Guide
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                Real-Time Travel Planning &amp; Local Guide
               </div>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
-              <Mountain className="h-3.5 w-3.5 text-emerald-400" /> Hills & Peaks
+          <div className="hidden sm:flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+              <Mountain className="h-3.5 w-3.5 text-[var(--status-positive)]" /> Hills &amp; Peaks
             </span>
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
-              <Palmtree className="h-3.5 w-3.5 text-teal-400" /> Coastal Shores
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+              <Palmtree className="h-3.5 w-3.5 text-[var(--brand-primary)]" /> Coastal Shores
             </span>
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
-              <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" /> Verified Contacts Only
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+              <ShieldCheck className="h-3.5 w-3.5 text-[var(--accent-sand)]" /> Verified Contacts Only
             </span>
           </div>
         </div>
 
-        {/* MAIN CINEMATIC CORE */}
+        {/* MAIN CORE */}
         <div className="relative z-10 mx-auto max-w-4xl w-full px-6 py-6 flex-1 flex flex-col justify-center items-center text-center">
-          {/* Animated Route Badge */}
+          {/* Route Badge */}
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-6 inline-flex items-center gap-3 px-5 py-2 rounded-2xl bg-slate-900/80 border border-emerald-500/30 backdrop-blur-xl shadow-2xl shadow-emerald-950/50"
+            transition={{ duration: 0.4 }}
+            className="mb-6 inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)]"
           >
-            <span className="text-lg md:text-xl font-extrabold text-white tracking-wide">
+            <span className="font-display text-lg md:text-xl font-semibold text-[var(--text-primary)]">
               {origin}
             </span>
-            <ArrowRight className="h-5 w-5 text-emerald-400 animate-pulse" />
-            <span className="text-lg md:text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-300 tracking-wide">
+            <ArrowRight className="h-5 w-5 text-[var(--brand-primary)]" />
+            <span className="font-display text-lg md:text-xl font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
               {destination}
             </span>
           </motion.div>
 
           {/* Subtitle Details */}
-          <p className="text-xs md:text-sm text-slate-300 font-medium tracking-wider uppercase mb-8">
-            {nights} Nights • {travellers} {travellers > 1 ? "Travellers" : "Traveller"} • Group Target: ₹{budget.toLocaleString()}
-            {stayBudget ? ` • Stays: ≤ ₹${stayBudget.toLocaleString()}/night` : ""}
+          <p className="text-xs md:text-sm text-[var(--text-secondary)] font-medium uppercase tracking-wider mb-8">
+            {nights} Nights · {travellers} {travellers > 1 ? "Travellers" : "Traveller"} · Group Target: ₹{budget.toLocaleString()}
+            {stayBudget ? ` · Stays: ≤ ₹${stayBudget.toLocaleString()}/night` : ""}
           </p>
 
-          {/* GIANT PERCENTAGE PROGRESS DISPLAY */}
-          <div className="relative mb-8">
+          {/* PERCENTAGE DISPLAY */}
+          <div className="relative mb-6">
             <div className="relative flex items-baseline justify-center gap-1">
-              <span className="text-7xl md:text-8xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)] font-mono">
+              <span className="font-display text-6xl md:text-7xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
                 {Math.round(progress)}
               </span>
-              <span className="text-3xl md:text-4xl font-bold text-emerald-400 font-mono">
+              <span className="text-2xl md:text-3xl font-semibold text-[var(--brand-primary)]">
                 %
               </span>
             </div>
-            <div className="text-xs uppercase tracking-[0.2em] text-emerald-400/90 font-semibold mt-1">
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--status-positive)] font-semibold mt-1">
               {progress >= 100 ? "Travel Plan Ready" : "Checking Real-World Routes & Stays"}
             </div>
           </div>
 
-          {/* HIGH-END GLOWING PROGRESS BAR */}
+          {/* PROGRESS BAR */}
           <div className="w-full max-w-xl mx-auto mb-8">
-            <div className="h-3.5 w-full bg-slate-950/80 rounded-full border border-white/10 p-0.5 overflow-hidden backdrop-blur-lg shadow-inner">
+            <div className="h-3 w-full bg-[var(--bg-surface-secondary)] rounded-full border border-[var(--border-subtle)] overflow-hidden">
               <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300 relative shadow-[0_0_15px_rgba(52,211,153,0.7)]"
+                className="h-full rounded-full bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)]"
                 style={{ width: `${progress}%` }}
                 transition={{ ease: "easeOut", duration: 0.1 }}
-              >
-                {/* Shimmer light line */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-[shimmer_2s_infinite]" />
-              </motion.div>
+              />
             </div>
           </div>
 
@@ -252,30 +249,30 @@ export default function CinematicItineraryLoader({
           <AnimatePresence mode="wait">
             <motion.div
               key={activeStage.title}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.35 }}
-              className="w-full max-w-xl p-5 rounded-2xl bg-slate-950/70 border border-emerald-500/20 backdrop-blur-xl shadow-2xl shadow-black/80"
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3 }}
+              className="w-full max-w-xl p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)]"
             >
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
+                  <div className="p-2 rounded-lg bg-[var(--status-positive-bg)] text-[var(--status-positive)]">
                     <activeStage.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="font-bold text-white text-base text-left">
+                  <h3 className="font-display font-semibold text-[var(--text-primary)] text-base text-left">
                     {activeStage.title}
                   </h3>
                 </div>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
                   Phase {currentStageIndex + 1} of {STAGES.length}
                 </span>
               </div>
-              <p className="text-slate-300 text-xs text-left mb-2">
+              <p className="text-[var(--text-secondary)] text-xs text-left mb-2">
                 {activeStage.subtitle}
               </p>
-              <div className="pt-2 border-t border-white/5 text-[11px] text-emerald-300/90 text-left flex items-start gap-1.5 italic">
-                <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-teal-400" />
+              <div className="pt-2 border-t border-[var(--border-subtle)] text-[11px] text-[var(--status-positive)] text-left flex items-start gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 <span>{activeStage.tip}</span>
               </div>
             </motion.div>
@@ -289,19 +286,19 @@ export default function CinematicItineraryLoader({
               return (
                 <div
                   key={idx}
-                  className={`p-2.5 rounded-xl border text-center transition-all ${
+                  className={`p-2.5 rounded-xl border text-center transition-colors ${
                     isPast
-                      ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-300"
+                      ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--status-positive)]"
                       : isCurrent
-                      ? "bg-slate-900/80 border-cyan-400/50 text-white shadow-lg shadow-cyan-950/50"
-                      : "bg-slate-950/40 border-white/5 text-slate-500"
+                      ? "bg-[var(--bg-surface)] border-[var(--brand-primary)] text-[var(--text-primary)] shadow-[var(--shadow-card)]"
+                      : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] text-[var(--text-secondary)]"
                   }`}
                 >
                   <div className="flex items-center justify-center mb-1">
                     {isPast ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)]" />
                     ) : (
-                      <span className="text-[10px] font-mono font-bold text-slate-400">
+                      <span className="text-[10px] font-mono font-bold">
                         0{idx + 1}
                       </span>
                     )}
@@ -319,32 +316,33 @@ export default function CinematicItineraryLoader({
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mt-6 p-4 rounded-xl bg-red-950/80 border border-red-500/40 text-red-300 text-xs max-w-lg"
+              className="mt-6 p-4 rounded-xl bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] text-[var(--status-negative)] text-xs max-w-lg"
             >
-              <div className="font-bold mb-1">Compilation Note:</div>
+              <div className="font-semibold mb-1">Compilation Note:</div>
               <p className="mb-3">{error}</p>
               {onDismissError && (
                 <button
+                  type="button"
                   onClick={onDismissError}
-                  className="px-4 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 font-semibold transition"
+                  className="px-4 py-1.5 rounded-lg bg-[var(--status-negative)] text-white text-xs font-semibold hover:opacity-95 transition-opacity"
                 >
-                  Close & Retry
+                  Close &amp; Retry
                 </button>
               )}
             </motion.div>
           )}
         </div>
 
-        {/* BOTTOM CINEMATIC TICKER */}
-        <div className="relative z-10 w-full px-6 py-4 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs border-t border-white/10 bg-black/60 backdrop-blur-md">
+        {/* BOTTOM TICKER */}
+        <div className="relative z-10 w-full px-6 py-4 flex flex-col sm:flex-row items-center justify-between text-[var(--text-secondary)] text-xs border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2 mb-2 sm:mb-0">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-slate-300 font-medium">
-              Confirming Authentic Train Timetables & Regional Routes
+            <span className="h-2 w-2 rounded-full bg-[var(--status-positive)]" />
+            <span className="text-[var(--text-primary)] font-medium">
+              Confirming Authentic Train Timetables &amp; Regional Routes
             </span>
           </div>
-          <div className="text-[11px] text-slate-400">
-            Verified Regional Timings • Fair Group Pricing • Comfortable Pacing
+          <div className="text-[11px]">
+            Verified Regional Timings · Fair Group Pricing · Comfortable Pacing
           </div>
         </div>
       </motion.div>

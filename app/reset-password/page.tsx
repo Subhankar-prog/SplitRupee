@@ -33,10 +33,17 @@ function ResetPasswordContent() {
     }
 
     async function verify() {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setTokenError("You're offline. Verifying your password reset link requires an internet connection.");
+        setVerifying(false);
+        return;
+      }
       try {
         const res = await fetch(`/api/auth/reset-password?token=${encodeURIComponent(token!)}`);
         const data = await res.json();
-        if (!res.ok || !data.ok) {
+        if (data.offline) {
+          setTokenError("You're offline. Verifying your password reset link requires an internet connection.");
+        } else if (!res.ok || !data.ok) {
           setTokenError(data.error || "This reset link is invalid or has expired.");
         } else {
           setUserEmail(data.email || "");
@@ -66,6 +73,11 @@ function ResetPasswordContent() {
       return;
     }
 
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setFormError("You're offline. Updating your password requires an internet connection.");
+      return;
+    }
+
     setFormError("");
     setSubmitting(true);
 
@@ -80,6 +92,9 @@ function ResetPasswordContent() {
       });
 
       const data = await res.json();
+      if (data.offline) {
+        throw new Error("You're offline. Updating your password requires an internet connection.");
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to update password");
       }
@@ -97,7 +112,7 @@ function ResetPasswordContent() {
 
   if (verifying) {
     return (
-      <div className="w-full max-w-[460px] rounded-[24px] border-2 border-emerald-500/30 bg-[#0b1329] p-8 text-center shadow-2xl backdrop-blur-xl">
+      <div className="w-full max-w-[440px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center shadow-[var(--shadow-popover)]">
         <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Verifying reset link..." />
       </div>
     );
@@ -106,20 +121,20 @@ function ResetPasswordContent() {
   // Token is invalid or expired
   if (tokenError) {
     return (
-      <div className="w-full max-w-[460px] rounded-[24px] border-2 border-rose-500/40 bg-[#0b1329] p-7 sm:p-9 shadow-[0_0_30px_rgba(244,63,94,0.25),0_20px_45px_rgba(0,0,0,0.8)] backdrop-blur-xl text-center space-y-5 animate-in fade-in duration-200">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400">
+      <div className="w-full max-w-[440px] rounded-2xl border border-[var(--status-negative-border)] bg-[var(--bg-surface)] p-7 sm:p-8 shadow-[var(--shadow-popover)] text-center space-y-5 animate-in fade-in duration-150">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] text-[var(--status-negative)]">
           <AlertCircle className="h-6 w-6" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white">Reset Link Expired</h2>
-          <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+          <h2 className="font-display text-xl font-semibold text-[var(--text-primary)]">Reset Link Expired</h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed">
             {tokenError}
           </p>
         </div>
         <div className="pt-2">
           <Link
             href="/forgot-password"
-            className="submit-button w-full inline-flex items-center justify-center gap-2"
+            className="w-full h-11 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity inline-flex items-center justify-center gap-2"
           >
             <ArrowRight className="h-4 w-4" />
             <span>Request New Reset Link</span>
@@ -128,7 +143,7 @@ function ResetPasswordContent() {
         <div>
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Back to Sign In</span>
@@ -139,25 +154,25 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="w-full max-w-[460px] rounded-[24px] border-2 border-[#10b981] bg-[#0b1329] p-6 sm:p-9 shadow-[0_0_30px_rgba(16,185,129,0.35),0_20px_45px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="space-y-6">
+    <div className="w-full max-w-[440px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-popover)] animate-in fade-in duration-150">
+      <div className="space-y-5">
         <div className="text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 font-bold mb-3 shadow-md shadow-emerald-500/25">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] mb-3">
             <KeyRound className="h-5 w-5" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
             Set New Password
           </h1>
-          <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+          <p className="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
             Create a secure new password for account{" "}
-            <span className="font-semibold text-emerald-400">{userEmail || userName}</span>
+            <span className="font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">{userEmail || userName}</span>
           </p>
         </div>
 
         {formError && (
           <div
             role="alert"
-            className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 text-center animate-in fade-in"
+            className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)] text-center"
           >
             {formError}
           </div>
@@ -166,9 +181,9 @@ function ResetPasswordContent() {
         {success && (
           <div
             role="status"
-            className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300 text-center flex items-center justify-center gap-2 animate-in fade-in"
+            className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 text-xs text-[var(--status-positive)] text-center flex items-center justify-center gap-2"
           >
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
@@ -199,7 +214,7 @@ function ResetPasswordContent() {
           <button
             type="submit"
             disabled={submitting || Boolean(success)}
-            className="submit-button"
+            className="w-full h-11 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>
@@ -209,7 +224,7 @@ function ResetPasswordContent() {
             ) : (
               <>
                 <ArrowRight className="h-4 w-4" />
-                <span>Update Password & Log In</span>
+                <span>Update Password &amp; Log In</span>
               </>
             )}
           </button>
@@ -218,7 +233,7 @@ function ResetPasswordContent() {
         <div className="text-center pt-1">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Back to Sign In</span>

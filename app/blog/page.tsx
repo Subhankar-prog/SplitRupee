@@ -12,7 +12,7 @@ export default function BlogPage() {
       readTime: "4 min read",
       date: "Oct 2026",
       icon: Plane,
-      color: "text-purple-400 bg-purple-500/10",
+      color: "text-[var(--status-warning)] bg-[var(--accent-sand)]/15",
     },
     {
       slug: "flatmate-rent-and-groceries-guide",
@@ -22,7 +22,7 @@ export default function BlogPage() {
       readTime: "5 min read",
       date: "Oct 2026",
       icon: Home,
-      color: "text-sky-400 bg-sky-500/10",
+      color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--bg-surface-secondary)]",
     },
     {
       slug: "upi-deep-linking-explained",
@@ -32,21 +32,21 @@ export default function BlogPage() {
       readTime: "6 min read",
       date: "Sep 2026",
       icon: Sparkles,
-      color: "text-emerald-400 bg-emerald-500/10",
+      color: "text-[var(--status-positive)] bg-[var(--status-positive-bg)]",
     },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 space-y-12 animate-in fade-in duration-300">
+    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 space-y-10">
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-400">
-          <BookOpen className="h-3.5 w-3.5" />
-          <span>SplitRupee Blog & Guides</span>
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 py-1 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+          <BookOpen className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+          <span>SplitRupee Blog &amp; Guides</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
+        <h1 className="font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
           Tips for smarter group expense sharing
         </h1>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+        <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
           Insights, budgeting strategies, and guides on managing shared expenses without friction.
         </p>
       </div>
@@ -57,34 +57,34 @@ export default function BlogPage() {
           return (
             <div
               key={post.slug}
-              className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 hover:border-emerald-500/30 transition group"
+              className="flex flex-col justify-between rounded-xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)] hover:border-[color:var(--border-strong)] transition-colors group"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 ${post.color}`}>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-subtle)] ${post.color}`}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className="text-[11px] text-slate-500">{post.readTime}</span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">{post.readTime}</span>
                 </div>
 
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-semibold text-[var(--status-positive)] uppercase tracking-wider">
                     {post.category}
                   </span>
-                  <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition">
+                  <h3 className="font-display text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors">
                     {post.title}
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                     {post.desc}
                   </p>
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-white/5 flex items-center justify-between text-xs text-slate-500">
+              <div className="pt-5 mt-5 border-t border-[color:var(--border-subtle)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
                 <span>{post.date}</span>
                 <Link
                   href="/calculator"
-                  className="inline-flex items-center gap-1 font-semibold text-emerald-400 group-hover:translate-x-1 transition"
+                  className="inline-flex items-center gap-1 font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] group-hover:translate-x-0.5 transition-transform"
                 >
                   <span>Read Guide</span>
                   <ArrowRight className="h-3.5 w-3.5" />

@@ -34,22 +34,22 @@ import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 import { getCachedAllExpenses, saveCachedAllExpenses } from "@/lib/offlineSync";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
-  Food: { icon: Utensils, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-  Rent: { icon: Home, color: "text-sky-400", bg: "bg-sky-500/10 border-sky-500/20" },
-  Travel: { icon: Plane, color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
-  Utilities: { icon: Zap, color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" },
-  Shopping: { icon: ShoppingBag, color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
-  Entertainment: { icon: Film, color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
-  Miscellaneous: { icon: Shapes, color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/20" },
+  Food: { icon: Utensils, color: "text-[var(--status-warning)]", bg: "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" },
+  Rent: { icon: Home, color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)]", bg: "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]" },
+  Travel: { icon: Plane, color: "text-[var(--status-positive)]", bg: "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]" },
+  Utilities: { icon: Zap, color: "text-[var(--status-warning)]", bg: "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" },
+  Shopping: { icon: ShoppingBag, color: "text-[var(--text-primary)]", bg: "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]" },
+  Entertainment: { icon: Film, color: "text-[var(--status-negative)]", bg: "bg-[var(--status-negative-bg)] border-[var(--status-negative-border)]" },
+  Miscellaneous: { icon: Shapes, color: "text-[var(--text-secondary)]", bg: "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]" },
 };
 
 export default function AllExpensesPage() {
   const { currentUser, isLoading: userLoading } = useUser();
-  const [expenses, setExpenses] = useState<any[]>(() => getCachedAllExpenses());
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(() => getCachedAllExpenses().length === 0);
+  const [loading, setLoading] = useState(true);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -65,8 +65,13 @@ export default function AllExpensesPage() {
       if (!userLoading) setLoading(false);
       return;
     }
+    const cachedInitial = getCachedAllExpenses();
+    if (isInitial && cachedInitial.length > 0) {
+      setExpenses(cachedInitial);
+      setLoading(false);
+    }
     try {
-      if (isInitial && expensesRef.current.length === 0) setLoading(true);
+      if (isInitial && expensesRef.current.length === 0 && cachedInitial.length === 0) setLoading(true);
       const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
       const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
       const res = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
@@ -75,16 +80,14 @@ export default function AllExpensesPage() {
       if (timeoutId) clearTimeout(timeoutId);
       const data = await res.json();
       if (data.ok && Array.isArray(data.expenses)) {
-        setExpenses(data.expenses);
         saveCachedAllExpenses(data.expenses);
+        setExpenses(getCachedAllExpenses());
       } else {
-        const cached = getCachedAllExpenses();
-        if (cached.length > 0) setExpenses(cached);
+        setExpenses(getCachedAllExpenses());
       }
     } catch (e) {
       console.warn("Failed to load all expenses (offline mode active):", e);
-      const cached = getCachedAllExpenses();
-      if (cached.length > 0) setExpenses(cached);
+      setExpenses(getCachedAllExpenses());
     } finally {
       setLoading(false);
     }
@@ -124,29 +127,30 @@ export default function AllExpensesPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Receipt className="h-6 w-6 text-emerald-400" />
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5">
+            <Receipt className="h-6 w-6 text-[var(--brand-primary)]" />
             All Expenses
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
             Complete chronological expense history across all your shared groups
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3.5 py-1.5 text-right">
-            <p className="text-[10px] text-slate-400 font-semibold uppercase">Total Shown</p>
-            <p className="text-sm font-bold text-white tabular-nums">{formatINR(totalSum)}</p>
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-1.5 text-right shadow-[var(--shadow-card)]">
+            <p className="text-[10px] text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Total Shown</p>
+            <p className="font-display text-sm font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(totalSum)}</p>
           </div>
           <button
+            type="button"
             onClick={() => setShowAddExpense(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
+            className="flex h-10 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
           >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <Plus className="h-4 w-4" />
             <span>Add Expense</span>
           </button>
         </div>
@@ -156,13 +160,13 @@ export default function AllExpensesPage() {
       <div className="flex flex-col sm:flex-row items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 w-full">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
           <input
             type="text"
             placeholder="Search by title, payer, or group name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-10 pr-4 text-xs sm:text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
           />
         </div>
 
@@ -171,11 +175,12 @@ export default function AllExpensesPage() {
           {(["All", ...CATEGORIES] as const).map((cat) => (
             <button
               key={cat}
+              type="button"
               onClick={() => setCategoryFilter(cat)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                 categoryFilter === cat
-                  ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                  : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
+                  ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
+                  : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               {cat}
@@ -204,7 +209,7 @@ export default function AllExpensesPage() {
           return (
             <div
               key={exp.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden hover:border-white/20 transition"
+              className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)] overflow-hidden hover:border-[var(--border-strong)] transition-colors"
             >
               <div
                 onClick={() => setExpandedId(isExpanded ? null : exp.id)}
@@ -216,23 +221,28 @@ export default function AllExpensesPage() {
                   </span>
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-white truncate">{exp.title}</h4>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate">{exp.title}</h4>
+                      {(exp as any).isOfflinePending && (
+                        <span className="shrink-0 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
+                          Pending Sync
+                        </span>
+                      )}
                       {exp.groupName && (
                         <Link
                           href={`/groups/${exp.groupId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition"
+                          className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2 py-0.5 text-[10px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] transition-colors"
                         >
                           {exp.groupName}
                         </Link>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-1">
-                      <span className="font-semibold text-slate-300">{exp.paidBy.name}</span> paid{" "}
-                      <span className="font-semibold text-white">{formatINR(exp.totalAmount)}</span>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1">
+                      <span className="font-semibold text-[var(--text-primary)]">{exp.paidBy.name}</span> paid{" "}
+                      <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(exp.totalAmount)}</span>
                       {exp.currency && exp.currency !== "INR" && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[10px] font-bold text-amber-300">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
                           <span>{getCurrency(exp.currency).flag}</span>
                           <span>
                             {exp.originalAmount
@@ -241,7 +251,7 @@ export default function AllExpensesPage() {
                           </span>
                         </span>
                       )}
-                      <span className="text-slate-500">·</span>
+                      <span>·</span>
                       <span>
                         {new Date(exp.date || exp.createdAt).toLocaleDateString("en-IN", {
                           month: "short",
@@ -252,65 +262,65 @@ export default function AllExpensesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
                     <p
-                      className={`text-xs font-bold tabular-nums ${
+                      className={`text-xs font-semibold tabular-nums ${
                         isPayer
-                          ? "text-emerald-400"
+                          ? "text-[var(--status-positive)]"
                           : mySplit
-                          ? "text-rose-400"
-                          : "text-slate-500"
+                          ? "text-[var(--status-negative)]"
+                          : "text-[var(--text-secondary)]"
                       }`}
                     >
                       {userImpact}
                     </p>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
                       {exp.splitType}
                     </p>
                   </div>
-                  <button className="text-slate-500 hover:text-slate-300">
+                  <button type="button" aria-label="Toggle split breakdown" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
               {isExpanded && (
-                <div className="border-t border-white/5 bg-white/[0.02] p-4 space-y-3 text-xs animate-in fade-in duration-150">
+                <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3 text-xs animate-in fade-in duration-150">
                   {exp.currency && exp.currency !== "INR" && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-300 font-medium">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-3 py-2 text-xs text-[var(--status-warning)] font-medium">
                       <div className="flex items-center gap-1.5">
                         <span className="text-base">{getCurrency(exp.currency).flag}</span>
                         <span>Foreign Expense: <strong>{exp.originalAmount ? formatCurrencyAmount(exp.originalAmount, exp.currency) : exp.currency}</strong></span>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">
+                      <span className="text-[11px] text-[var(--text-secondary)] tabular-nums">
                         1 {exp.currency} = ₹{exp.exchangeRate?.toFixed(4) || "—"} INR · Recorded in ledger as {formatINR(exp.totalAmount)}
                       </span>
                     </div>
                   )}
 
                   {exp.notes && (
-                    <p className="text-slate-300 bg-white/5 p-2.5 rounded-xl text-xs italic">
-                      "{exp.notes}"
+                    <p className="text-[var(--text-secondary)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2.5 rounded-xl text-xs">
+                      &ldquo;{exp.notes}&rdquo;
                     </p>
                   )}
 
                   <div>
-                    <p className="font-semibold text-slate-400 mb-2">Split Breakdown:</p>
+                    <p className="font-semibold text-[var(--text-secondary)] mb-2">Split Breakdown:</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {exp.splits.map((s: any) => (
                         <div
                           key={s.id}
-                          className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-2"
+                          className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5"
                         >
                           <div className="flex items-center gap-2">
                             <span
                               className="h-2.5 w-2.5 rounded-full"
-                              style={{ background: s.user.avatarColor || "#10b981" }}
+                              style={{ background: s.user.avatarColor || "#739B83" }}
                             />
-                            <span className="font-medium text-slate-200">{s.user.name}</span>
+                            <span className="font-medium text-[var(--text-primary)]">{s.user.name}</span>
                           </div>
-                          <span className="font-semibold text-white tabular-nums">
+                          <span className="font-semibold text-[var(--text-primary)] tabular-nums">
                             {formatINR(s.amount)}
                           </span>
                         </div>
@@ -318,17 +328,19 @@ export default function AllExpensesPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                     <button
+                      type="button"
                       onClick={() => setEditingExpense(exp)}
-                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition"
+                      className="flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
                       <span>Edit Expense</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => setDeletingExpense(exp)}
-                      className="flex items-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition"
+                      className="flex items-center gap-1.5 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--status-negative)] hover:opacity-90 transition-opacity"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       <span>Delete</span>
@@ -341,10 +353,10 @@ export default function AllExpensesPage() {
         })}
 
         {filtered.length === 0 && (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center">
-            <Receipt className="mx-auto h-8 w-8 text-slate-600 mb-2" />
-            <p className="text-sm font-semibold text-white">No expenses found</p>
-            <p className="text-xs text-slate-400 mt-1">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-10 text-center">
+            <Receipt className="mx-auto h-8 w-8 text-[var(--text-secondary)] mb-2" />
+            <p className="font-display text-sm font-semibold text-[var(--text-primary)]">No expenses found</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
               Try adjusting your search query or category filters.
             </p>
           </div>
@@ -376,6 +388,7 @@ export default function AllExpensesPage() {
       {deletingExpense && (
         <DeleteExpenseModal
           expense={deletingExpense}
+          groupName={(deletingExpense as any).groupName}
           onClose={() => setDeletingExpense(null)}
           onDeleted={() => {
             setDeletingExpense(null);

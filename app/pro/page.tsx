@@ -57,28 +57,28 @@ export default function ProPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 space-y-16 animate-in fade-in duration-300">
+    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 space-y-14">
       {/* Hero */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-semibold text-amber-400">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent-sand)]/35 bg-[var(--accent-sand)]/12 px-3.5 py-1 text-xs font-medium text-[var(--status-warning)]">
           <Crown className="h-3.5 w-3.5" />
           <span>SplitRupee Pro</span>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+        <h1 className="font-display text-3xl sm:text-5xl font-bold text-[var(--text-primary)] tracking-tight">
           Supercharge your group budgeting with{" "}
-          <span className="bg-gradient-to-r from-amber-400 via-orange-300 to-yellow-400 bg-clip-text text-transparent">
+          <span className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)] underline decoration-[var(--accent-sand)] decoration-2 underline-offset-4">
             Pro Power
           </span>
         </h1>
-        <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+        <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
           Smart receipt scanning, rich spending charts, forex currency conversion, and unlimited expense exports for you and your friends.
         </p>
 
         {/* Billing Toggle */}
-        <div className="flex items-center justify-center gap-3 pt-4">
+        <div className="flex items-center justify-center gap-3 pt-3">
           <span
-            className={`text-xs font-semibold cursor-pointer ${
-              billingCycle === "monthly" ? "text-white" : "text-slate-400"
+            className={`text-xs font-medium cursor-pointer transition-colors ${
+              billingCycle === "monthly" ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
             }`}
             onClick={() => setBillingCycle("monthly")}
           >
@@ -88,22 +88,23 @@ export default function ProPage() {
             onClick={() =>
               setBillingCycle(billingCycle === "yearly" ? "monthly" : "yearly")
             }
-            className="relative h-7 w-14 rounded-full bg-slate-800 p-1 transition border border-white/10"
+            aria-label="Toggle billing cycle"
+            className="relative h-7 w-14 rounded-full bg-[var(--bg-surface-secondary)] p-1 transition-colors border border-[color:var(--border-subtle)]"
           >
             <div
-              className={`h-5 w-5 rounded-full bg-amber-400 shadow-md transition-transform ${
+              className={`h-5 w-5 rounded-full bg-[var(--accent-sand)] shadow-sm transition-transform ${
                 billingCycle === "yearly" ? "translate-x-7" : "translate-x-0"
               }`}
             />
           </button>
           <span
-            className={`text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${
-              billingCycle === "yearly" ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"
+            className={`text-xs font-medium cursor-pointer flex items-center gap-1.5 transition-colors ${
+              billingCycle === "yearly" ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
             }`}
             onClick={() => setBillingCycle("yearly")}
           >
             Yearly Billing
-            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+            <span className="rounded-full bg-[var(--status-positive-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--status-positive)] border border-[var(--status-positive)]/25">
               Save 15%
             </span>
           </span>
@@ -111,24 +112,24 @@ export default function ProPage() {
       </div>
 
       {/* Pricing Card */}
-      <div className="mx-auto max-w-md rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-slate-900 to-slate-950 p-8 text-center space-y-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[10px] font-extrabold uppercase px-4 py-1 rounded-bl-xl tracking-wider">
+      <div className="mx-auto max-w-md rounded-2xl border border-[color:var(--border-strong)] bg-[var(--bg-surface)] p-8 text-center space-y-6 shadow-[var(--shadow-card)] relative overflow-hidden">
+        <div className="absolute top-0 right-0 bg-[var(--accent-sand)] text-[#26332D] text-[10px] font-semibold uppercase px-3.5 py-1 rounded-bl-lg tracking-wider">
           Most Popular
         </div>
 
-        <div className="space-y-1">
-          <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+        <div className="space-y-1.5 pt-1">
+          <span className="text-xs font-medium text-[var(--status-warning)] uppercase tracking-widest">
             All-Inclusive Pro Plan
           </span>
           <div className="flex items-baseline justify-center gap-1">
-            <span className="text-4xl sm:text-5xl font-extrabold text-slate-950 dark:text-white">
+            <span className="font-display text-4xl sm:text-5xl font-bold tabular-nums text-[var(--text-primary)]">
               {billingCycle === "yearly" ? formatINR(yearlyPrice) : formatINR(monthlyPrice)}
             </span>
-            <span className="text-xs text-slate-600 dark:text-slate-400">
+            <span className="text-xs text-[var(--text-secondary)]">
               {billingCycle === "yearly" ? "/ year" : "/ month"}
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+          <p className="text-[11px] text-[var(--text-secondary)]">
             {billingCycle === "yearly"
               ? "Equivalent to just ₹41/month · Cancel anytime"
               : "Billed monthly · Cancel anytime"}
@@ -137,13 +138,13 @@ export default function ProPage() {
 
         <Link
           href="/signup"
-          className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-amber-500/20 hover:opacity-95 transition active:scale-95"
+          className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] py-3 text-sm font-medium text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
         >
           <span>Start 14-Day Free Trial</span>
           <ArrowRight className="h-4 w-4" />
         </Link>
 
-        <div className="space-y-2.5 pt-4 text-left border-t border-amber-500/20 dark:border-white/10 text-xs text-slate-800 dark:text-slate-300 font-medium">
+        <div className="space-y-2.5 pt-4 text-left border-t border-[color:var(--border-subtle)] text-xs text-[var(--text-primary)]">
           {[
             "Smart Camera Receipt & Bill Scanner",
             "Category Spending Charts & Graphs",
@@ -154,7 +155,7 @@ export default function ProPage() {
             "Priority WhatsApp Support",
           ].map((item) => (
             <div key={item} className="flex items-center gap-2.5">
-              <Check className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 stroke-[3]" />
+              <Check className="h-4 w-4 text-[var(--brand-primary)] shrink-0 stroke-[2.5]" />
               <span>{item}</span>
             </div>
           ))}
@@ -163,28 +164,28 @@ export default function ProPage() {
 
       {/* Feature Deep Dive Grid */}
       <div className="space-y-8">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+        <div className="text-center space-y-1.5">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
             Why upgrade to SplitRupee Pro?
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
             Built for power users, travelers, and roommates who want zero budgeting friction.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {proFeatures.map((feat) => {
             const Icon = feat.icon;
             return (
               <div
                 key={feat.title}
-                className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] p-6 backdrop-blur-xl hover:border-amber-500/30 transition space-y-3 shadow-sm"
+                className="rounded-xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-6 hover:border-[color:var(--border-strong)] transition-colors space-y-3 shadow-[var(--shadow-card)]"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--bg-surface-secondary)] text-[var(--status-warning)] border border-[color:var(--border-subtle)]">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">{feat.title}</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{feat.desc}</p>
+                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{feat.title}</h3>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{feat.desc}</p>
               </div>
             );
           })}

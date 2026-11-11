@@ -61,43 +61,29 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="space-y-24 pb-20 animate-in fade-in duration-300">
+    <div className="space-y-24 pb-20">
       {/* 1. HERO SECTION */}
-      <section className="relative pt-8 pb-14 text-center lg:py-20 overflow-hidden">
-        {/* Ambient background glows */}
-        <div
-          className="pointer-events-none absolute -top-32 left-1/2 h-96 w-[50rem] -translate-x-1/2 rounded-full bg-emerald-500/15 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute top-40 -left-20 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute top-40 -right-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl"
-          aria-hidden
-        />
-
+      <section className="relative pt-10 pb-14 text-center lg:py-20 overflow-hidden">
         <div className="relative mx-auto max-w-4xl space-y-6 px-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-400 backdrop-blur-xl">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>The Modern Split Tracker for India 🇮🇳</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-1 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+            <span>The Modern Split Tracker for India</span>
           </div>
 
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-6xl sm:leading-[1.12]">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-[var(--text-primary)] sm:text-5xl lg:text-6xl sm:leading-[1.12]">
             Less stress when sharing expenses{" "}
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-              on trips & with flatmates.
+            <span className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)] underline decoration-[var(--accent-sand)] decoration-2 underline-offset-4">
+              on trips &amp; with flatmates.
             </span>
           </h1>
 
           {/* Interactive Category Selector Pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
             {[
-              { id: "trips", icon: Plane, label: "Trips", color: "text-purple-400" },
-              { id: "flats", icon: Home, label: "Housemates", color: "text-sky-400" },
-              { id: "couples", icon: Heart, label: "Couples", color: "text-rose-400" },
-              { id: "parties", icon: Tag, label: "Dinners & Friends", color: "text-amber-400" },
+              { id: "trips", icon: Plane, label: "Trips" },
+              { id: "flats", icon: Home, label: "Housemates" },
+              { id: "couples", icon: Heart, label: "Couples" },
+              { id: "parties", icon: Tag, label: "Dinners & Friends" },
             ].map((cat) => {
               const Icon = cat.icon;
               const isActive = activeCategoryTab === cat.id;
@@ -105,19 +91,20 @@ export default function LandingPage() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategoryTab(cat.id as any)}
-                  className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-xs font-semibold border transition-all ${isActive
-                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-white shadow-lg shadow-emerald-500/10 font-bold"
-                      : "border-slate-300 dark:border-white/10 bg-white/60 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/10"
-                    }`}
+                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium border transition-colors ${
+                    isActive
+                      ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--status-positive)]"
+                      : "border-[color:var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[color:var(--border-strong)]"
+                  }`}
                 >
-                  <Icon className={`h-4 w-4 ${cat.color}`} />
+                  <Icon className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                   <span>{cat.label}</span>
                 </button>
               );
             })}
           </div>
 
-          <p className="mx-auto max-w-2xl text-sm sm:text-base text-slate-400 leading-relaxed">
+          <p className="mx-auto max-w-2xl text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
             {categoryHeadlines[activeCategoryTab].desc} Keep track of balances, attach bill photos, minimize group debts, and settle up in 1 tap via Google Pay, PhonePe, or Paytm.
           </p>
 
@@ -127,10 +114,10 @@ export default function LandingPage() {
               <>
                 <Link
                   href="/dashboard"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 px-8 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-emerald-500/25 hover:opacity-95 active:scale-95 transition"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-7 py-3 text-sm font-medium text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                 >
                   <span>Open Dashboard ({currentUser.name})</span>
-                  <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
 
                 {/* <Link
@@ -143,7 +130,7 @@ export default function LandingPage() {
 
                 <Link
                   href="/activity"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-8 py-3.5 text-sm font-bold text-white hover:bg-white/10 transition"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] px-7 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <span>Recent Activity Feed</span>
                 </Link>
@@ -152,10 +139,10 @@ export default function LandingPage() {
               <>
                 <Link
                   href="/signup"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 px-8 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-emerald-500/25 hover:opacity-95 active:scale-95 transition"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-7 py-3 text-sm font-medium text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                 >
                   <span>Sign up for free</span>
-                  <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
 
                 {/* <Link
@@ -170,13 +157,13 @@ export default function LandingPage() {
 
             <Link
               href="/calculator"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-3.5 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-3 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               <span>Split Calculator</span>
             </Link>
           </div>
 
-          <div className="pt-2 flex items-center justify-center gap-4 text-[11px] text-slate-500">
+          <div className="pt-2 flex items-center justify-center gap-4 text-[11px] text-[var(--text-secondary)]">
             <span>✓ 100% Free forever</span>
             <span>·</span>
             <span>✓ 1-Tap UPI Settlements</span>
@@ -189,193 +176,187 @@ export default function LandingPage() {
       {/* 2. FOUR CORE CAPABILITIES WITH LIVE MOCKUPS (MATCHING SPLITWISE CONCEPT) */}
       <section id="features" className="mx-auto max-w-6xl px-4 sm:px-6 space-y-12">
         <div className="text-center space-y-2 max-w-2xl mx-auto">
-          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+          <span className="text-[11px] font-semibold text-[var(--status-positive)] uppercase tracking-wider">
             Built for Real-World Spending
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)]">
             Everything you need to share expenses effortlessly
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
             Four powerful features designed specifically for the way Indian groups travel, live, and settle up.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* FEATURE 1: Track Balances */}
-          <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 sm:p-8 backdrop-blur-xl hover:border-emerald-500/30 transition group space-y-6">
+          <div className="flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors space-y-6">
             <div className="space-y-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <TrendingUp className="h-6 w-6" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
+                <TrendingUp className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold text-white">Track Balances & Simplified Debts</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                Keep track of shared expenses, balances, and who owes whom. Our graph debt minimization automatically turns messy 20-way payments into 2 clean transfers.
+              <h3 className="font-display text-xl font-semibold text-[var(--text-primary)]">Track Balances &amp; Simplified Debts</h3>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                Keep track of shared expenses, balances, and who owes whom. Graph debt minimization turns complex 20-way tabs into clear minimal transfers.
               </p>
             </div>
 
             {/* Mockup Preview 1 */}
-            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 space-y-2.5 shadow-inner">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 pb-2 border-b border-white/10">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-2.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)] pb-2 border-b border-[var(--border-subtle)]">
                 <span>Friend Balances</span>
-                <span className="text-emerald-400">Net: +₹2,400.00</span>
+                <span className="text-[var(--status-positive)] tabular-nums">Net: +₹2,400.00</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5 text-xs">
+              <div className="flex items-center justify-between rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2.5 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="h-6 w-6 rounded-lg bg-rose-500 text-slate-950 font-bold grid place-items-center text-[11px]">D</span>
+                  <span className="h-6 w-6 rounded-md bg-[var(--brand-primary)] text-[#171F1D] font-semibold grid place-items-center text-[11px]">D</span>
                   <div>
-                    <p className="font-semibold text-white">Diya</p>
-                    <p className="text-[10px] text-emerald-400">owes you ₹1,200</p>
+                    <p className="font-semibold text-[var(--text-primary)]">Diya</p>
+                    <p className="text-[10px] text-[var(--status-positive)]">owes you ₹1,200</p>
                   </div>
                 </div>
-                <span className="font-bold text-emerald-400">+₹1,200.00</span>
+                <span className="font-semibold text-[var(--status-positive)] tabular-nums">+₹1,200.00</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5 text-xs">
+              <div className="flex items-center justify-between rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2.5 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="h-6 w-6 rounded-lg bg-sky-500 text-slate-950 font-bold grid place-items-center text-[11px]">K</span>
+                  <span className="h-6 w-6 rounded-md bg-[var(--accent-sand)] text-[#171F1D] font-semibold grid place-items-center text-[11px]">K</span>
                   <div>
-                    <p className="font-semibold text-white">Kabir</p>
-                    <p className="text-[10px] text-emerald-400">owes you ₹1,200</p>
+                    <p className="font-semibold text-[var(--text-primary)]">Kabir</p>
+                    <p className="text-[10px] text-[var(--status-positive)]">owes you ₹1,200</p>
                   </div>
                 </div>
-                <span className="font-bold text-emerald-400">+₹1,200.00</span>
+                <span className="font-semibold text-[var(--status-positive)] tabular-nums">+₹1,200.00</span>
               </div>
             </div>
           </div>
 
           {/* FEATURE 2: Organize Expenses */}
-          <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 sm:p-8 backdrop-blur-xl hover:border-teal-500/30 transition group space-y-6">
+          <div className="flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors space-y-6">
             <div className="space-y-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                <Users className="h-6 w-6" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border border-[var(--status-positive-border)]">
+                <Users className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold text-white">Organize Any Group</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              <h3 className="font-display text-xl font-semibold text-[var(--text-primary)]">Organize Any Group</h3>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
                 Split expenses with any circle: flatmates, trip squads, couples, and family. Share instant WhatsApp invite links or scannable QR codes for 1-click joining.
               </p>
             </div>
 
             {/* Mockup Preview 2 */}
-            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 space-y-2.5 shadow-inner">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 pb-2 border-b border-white/10">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-2.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)] pb-2 border-b border-[var(--border-subtle)]">
                 <span>Active Groups</span>
-                <span className="text-teal-400">3 Active</span>
+                <span className="text-[var(--status-positive)]">3 Active</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-lg">🌴</span>
-                  <div>
-                    <p className="font-semibold text-white">Goa Beach Trip 2026</p>
-                    <p className="text-[10px] text-slate-400">4 members · Total ₹14,800</p>
-                  </div>
+              <div className="flex items-center justify-between rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2.5 text-xs">
+                <div>
+                  <p className="font-semibold text-[var(--text-primary)]">Goa Beach Trip 2026</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] tabular-nums">4 members · Total ₹14,800</p>
                 </div>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">Settled</span>
+                <span className="text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] px-2 py-0.5 rounded-full font-semibold">Settled</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-lg">🏠</span>
-                  <div>
-                    <p className="font-semibold text-white">Flat 402 Koramangala</p>
-                    <p className="text-[10px] text-slate-400">3 members · Total ₹36,500</p>
-                  </div>
+              <div className="flex items-center justify-between rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2.5 text-xs">
+                <div>
+                  <p className="font-semibold text-[var(--text-primary)]">Flat 402 Koramangala</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] tabular-nums">3 members · Total ₹36,500</p>
                 </div>
-                <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold">Pending</span>
+                <span className="text-[10px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-2 py-0.5 rounded-full font-semibold">Pending</span>
               </div>
             </div>
           </div>
 
           {/* FEATURE 3: Add Expenses Easily */}
-          <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 sm:p-8 backdrop-blur-xl hover:border-sky-500/30 transition group space-y-6">
+          <div className="flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors space-y-6">
             <div className="space-y-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                <Receipt className="h-6 w-6" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)]">
+                <Receipt className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold text-white">Add Expenses Easily</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                Quickly add expenses before you forget. Split equally, by exact rupee amounts, or percentages, and attach camera photos of food and fuel receipts.
+              <h3 className="font-display text-xl font-semibold text-[var(--text-primary)]">Add Expenses Easily</h3>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                Quickly record bills before details slip. Split equally, by exact rupee amounts, or percentages, and attach receipts directly to the entry.
               </p>
             </div>
 
             {/* Mockup Preview 3 */}
-            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 space-y-3 shadow-inner">
-              <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs">
-                <span className="font-semibold text-slate-200">Taxi to Anjuna Beach</span>
-                <span className="font-extrabold text-emerald-400 text-sm">₹1,500.00</span>
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)] text-xs">
+                <span className="font-semibold text-[var(--text-primary)]">Taxi to Anjuna Beach</span>
+                <span className="font-display font-semibold text-[var(--status-positive)] text-sm tabular-nums">₹1,500.00</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                <div className="rounded-lg bg-emerald-500/20 border border-emerald-500/30 p-2 text-emerald-300 font-bold">
+                <div className="rounded-lg bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] p-2 text-[var(--status-positive)] font-semibold">
                   Equally (₹500 ea)
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-2 text-slate-400">
+                <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2 text-[var(--text-secondary)]">
                   Exact ₹
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-2 text-slate-400">
+                <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2 text-[var(--text-secondary)]">
                   By %
                 </div>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                <span className="flex items-center gap-1"><Camera className="h-3.5 w-3.5 text-emerald-400" /> Receipt Attached</span>
-                <span className="text-slate-300 font-medium">Paid by Aarav</span>
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] pt-1">
+                <span className="flex items-center gap-1"><Camera className="h-3.5 w-3.5 text-[var(--brand-primary)]" /> Receipt Attached</span>
+                <span className="text-[var(--text-primary)] font-medium">Paid by Aarav</span>
               </div>
             </div>
           </div>
 
           {/* FEATURE 4: Pay Friends Back */}
-          <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 sm:p-8 backdrop-blur-xl hover:border-amber-500/30 transition group space-y-6">
+          <div className="flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors space-y-6">
             <div className="space-y-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <Smartphone className="h-6 w-6" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)]">
+                <Smartphone className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold text-white">Pay Friends Back in 1 Tap</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              <h3 className="font-display text-xl font-semibold text-[var(--text-primary)]">Pay Friends Back in 1 Tap</h3>
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
                 Settle up directly with 1-click UPI links to Google Pay, PhonePe, Paytm, or BHIM. Zero manual UPI typing errors, zero transaction delays.
               </p>
             </div>
 
             {/* Mockup Preview 4 */}
-            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 space-y-3 shadow-inner">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-medium">Settle up with Aarav</span>
-                <span className="text-base font-extrabold text-white">₹1,200.00</span>
+                <span className="text-[var(--text-secondary)] font-medium">Settle up with Aarav</span>
+                <span className="font-display text-base font-semibold text-[var(--text-primary)] tabular-nums">₹1,200.00</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex items-center justify-center gap-1 rounded-xl bg-white/5 border border-white/10 p-2 text-[10px] font-bold text-white">
-                  <span>Google Pay</span>
+                <div className="flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2 text-[10px] font-semibold text-[var(--text-primary)]">
+                  Google Pay
                 </div>
-                <div className="flex items-center justify-center gap-1 rounded-xl bg-white/5 border border-white/10 p-2 text-[10px] font-bold text-white">
-                  <span>PhonePe</span>
+                <div className="flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2 text-[10px] font-semibold text-[var(--text-primary)]">
+                  PhonePe
                 </div>
-                <div className="flex items-center justify-center gap-1 rounded-xl bg-white/5 border border-white/10 p-2 text-[10px] font-bold text-white">
-                  <span>Paytm / QR</span>
+                <div className="flex items-center justify-center rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2 text-[10px] font-semibold text-[var(--text-primary)]">
+                  Paytm / QR
                 </div>
               </div>
-              <div className="text-[10px] text-center text-emerald-400 font-semibold bg-emerald-500/10 py-1.5 rounded-lg">
-                ✓ Pre-filled UPI intent (aarav@okaxis)
+              <div className="text-[10px] text-center text-[var(--status-positive)] font-semibold bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] py-1.5 rounded-lg">
+                Pre-filled UPI intent (aarav@okaxis)
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. SPLITRUPEE PRO SHOWCASE SECTION (MATCHING CONCEPT) */}
+      {/* 3. SPLITRUPEE PRO SHOWCASE SECTION */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="relative rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-slate-900 to-slate-950 p-8 sm:p-12 overflow-hidden shadow-2xl">
+        <div className="relative rounded-2xl border border-[var(--status-warning-border)] bg-[var(--bg-surface)] p-8 sm:p-12 overflow-hidden shadow-[var(--shadow-card)]">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-12 items-center">
             <div className="md:col-span-7 space-y-5">
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-1 text-xs font-semibold text-[var(--status-warning)]">
                 <Crown className="h-3.5 w-3.5" />
                 <span>SplitRupee Pro Upgrade</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="font-display text-2xl sm:text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
                 Get even more with PRO
               </h2>
-              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                Unlock instant smart receipt scanning, category spending graphs, 100+ live forex currency conversions, Excel ledgers, and priority support for just ₹49/month.
+              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+                Unlock instant smart receipt scanning, category spending graphs, 100+ live forex currency conversions, Excel ledgers, and priority support for ₹49/month.
               </p>
 
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
                   href="/pro"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-6 py-3 text-xs font-bold text-slate-950 shadow-lg shadow-amber-500/20 hover:opacity-95 transition"
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--accent-sand)] px-5 text-xs font-semibold text-[#171F1D] hover:opacity-95 transition-opacity"
                 >
                   <span>Explore Pro Features</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -383,7 +364,7 @@ export default function LandingPage() {
 
                 <Link
                   href="/signup"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 px-6 py-3 text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition"
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <span>Start 14-Day Free Trial</span>
                 </Link>
@@ -391,30 +372,30 @@ export default function LandingPage() {
             </div>
 
             {/* Pro Mockup Card */}
-            <div className="md:col-span-5 rounded-2xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900/90 p-5 space-y-3 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+            <div className="md:col-span-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-5 space-y-3">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
                 <div className="flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">Smart Receipt Scanner</span>
+                  <Camera className="h-4 w-4 text-[var(--status-warning)]" />
+                  <span className="text-xs font-semibold text-[var(--text-primary)]">Smart Receipt Scanner</span>
                 </div>
-                <span className="text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-semibold bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-2 py-0.5 rounded-full">
                   Instant
                 </span>
               </div>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-700 dark:text-slate-300">
+              <div className="space-y-1.5 text-xs tabular-nums">
+                <div className="flex justify-between text-[var(--text-secondary)]">
                   <span>3x Grilled Fish Tikka</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">₹1,350</span>
+                  <span className="font-semibold text-[var(--text-primary)]">₹1,350</span>
                 </div>
-                <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                <div className="flex justify-between text-[var(--text-secondary)]">
                   <span>4x Kingfisher Premium</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">₹960</span>
+                  <span className="font-semibold text-[var(--text-primary)]">₹960</span>
                 </div>
-                <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[11px]">
-                  <span>GST & Service Charge (10%)</span>
+                <div className="flex justify-between text-[var(--text-secondary)] text-[11px]">
+                  <span>GST &amp; Service Charge (10%)</span>
                   <span>₹231</span>
                 </div>
-                <div className="pt-2 border-t border-slate-200 dark:border-white/10 flex justify-between font-bold text-amber-600 dark:text-amber-400">
+                <div className="pt-2 border-t border-[var(--border-subtle)] flex justify-between font-semibold text-[var(--status-warning)]">
                   <span>Auto-Detected Total</span>
                   <span>₹2,541.00</span>
                 </div>
@@ -427,18 +408,18 @@ export default function LandingPage() {
       {/* 4. THE WHOLE NINE YARDS (20+ FEATURE CHECKLIST) */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 space-y-8">
         <div className="text-center space-y-2">
-          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <span className="text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] uppercase tracking-widest">
             Complete Feature Matrix
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
+          <h2 className="font-display text-3xl sm:text-4xl font-semibold text-[var(--text-primary)]">
             The whole nine yards
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
             Compare core free features vs pro capabilities.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 text-xs font-semibold text-slate-800 dark:text-slate-300">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 text-xs font-medium text-[var(--text-primary)]">
           {[
             { name: "Add groups & friends", pro: false },
             { name: "1-Click UPI deep linking", pro: false },
@@ -463,15 +444,15 @@ export default function LandingPage() {
           ].map((item) => (
             <div
               key={item.name}
-              className={`flex items-center gap-2.5 rounded-2xl border p-3.5 transition ${item.pro
-                  ? "border-amber-500/25 bg-amber-500/[0.03] text-slate-200"
-                  : "border-white/10 bg-white/[0.02] text-slate-300"
+              className={`flex items-center gap-2.5 rounded-xl border p-3.5 transition-colors ${item.pro
+                  ? "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--text-primary)]"
+                  : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)]"
                 }`}
             >
               {item.pro ? (
-                <Crown className="h-4 w-4 shrink-0 text-amber-400" />
+                <Crown className="h-4 w-4 shrink-0 text-[var(--status-warning)]" />
               ) : (
-                <Check className="h-4 w-4 shrink-0 text-emerald-400 stroke-[3]" />
+                <Check className="h-4 w-4 shrink-0 text-[var(--status-positive)] stroke-[2.5]" />
               )}
               <span className="truncate">{item.name}</span>
             </div>
@@ -479,45 +460,45 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 5. PRESS & USER TESTIMONIALS (MATCHING SPLITWISE CONCEPT) */}
+      {/* 5. PRESS & USER TESTIMONIALS */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 space-y-8">
         <div className="text-center space-y-2">
-          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">
+          <span className="text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] uppercase tracking-widest">
             Loved by Groups
           </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-            What travelers & flatmates are saying
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-[var(--text-primary)]">
+            What travelers &amp; flatmates are saying
           </h2>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 space-y-4 flex flex-col justify-between">
-            <p className="text-xs text-slate-300 leading-relaxed italic">
-              "Fundamental for managing shared vacation houses. Makes splitting a 4-day Goa villa and Thar rental effortlessly transparent."
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)] space-y-4 flex flex-col justify-between">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              &ldquo;Fundamental for managing shared vacation houses. Makes splitting a 4-day Goa villa and Thar rental effortlessly transparent.&rdquo;
             </p>
-            <div className="flex items-center justify-between border-t border-white/5 pt-3">
-              <span className="font-bold text-white text-xs">Financial Times</span>
-              <div className="flex text-amber-400 text-xs">★★★★★</div>
+            <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+              <span className="font-semibold text-[var(--text-primary)] text-xs">Financial Times</span>
+              <div className="flex text-[var(--accent-sand)] text-xs">★★★★★</div>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 space-y-4 flex flex-col justify-between">
-            <p className="text-xs text-slate-300 leading-relaxed italic">
-              "SplitRupee's 1-tap UPI settlement is a godsend in India. No more copying VPAs into Google Pay manually."
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)] space-y-4 flex flex-col justify-between">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              &ldquo;SplitRupee&apos;s 1-tap UPI settlement makes Indian group trips effortless. No more copying VPAs into Google Pay manually.&rdquo;
             </p>
-            <div className="flex items-center justify-between border-t border-white/5 pt-3">
-              <span className="font-bold text-white text-xs">Economic Times</span>
-              <div className="flex text-amber-400 text-xs">★★★★★</div>
+            <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+              <span className="font-semibold text-[var(--text-primary)] text-xs">Economic Times</span>
+              <div className="flex text-[var(--accent-sand)] text-xs">★★★★★</div>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 space-y-4 flex flex-col justify-between">
-            <p className="text-xs text-slate-300 leading-relaxed italic">
-              "Eliminates fight over who paid for groceries or Wi-Fi. We use it for our 3BHK flat in Koramangala every single day."
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)] space-y-4 flex flex-col justify-between">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              &ldquo;Eliminates arguments over who paid for groceries or Wi-Fi. We use it for our 3BHK flat in Koramangala every single day.&rdquo;
             </p>
-            <div className="flex items-center justify-between border-t border-white/5 pt-3">
-              <span className="font-bold text-white text-xs">Tech In Asia</span>
-              <div className="flex text-amber-400 text-xs">★★★★★</div>
+            <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+              <span className="font-semibold text-[var(--text-primary)] text-xs">Tech In Asia</span>
+              <div className="flex text-[var(--accent-sand)] text-xs">★★★★★</div>
             </div>
           </div>
         </div>

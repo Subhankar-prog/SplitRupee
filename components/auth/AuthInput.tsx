@@ -24,39 +24,39 @@ export default function AuthInput({
 }: AuthInputProps) {
   return (
     <div className="w-full space-y-1.5">
-      <label htmlFor={id} className="block text-xs font-semibold text-slate-300">
+      <label htmlFor={id} className="block text-xs font-medium text-[var(--text-secondary)]">
         {label}
       </label>
       <div className="relative flex items-center">
         {prefixText && (
-          <span className="pointer-events-none absolute left-3.5 text-xs font-bold text-slate-400">
+          <span className="pointer-events-none absolute left-3.5 text-xs font-semibold text-[var(--text-secondary)]">
             {prefixText}
           </span>
         )}
         <input
           id={id}
-          className={`w-full h-12 rounded-xl border bg-white/[0.04] text-xs text-white placeholder-slate-500 outline-none transition ${
+          className={`w-full h-11 rounded-xl border bg-[var(--bg-surface-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none transition-colors ${
             prefixText ? "pl-11" : "pl-3.5"
           } ${Icon ? "pr-10" : "pr-3.5"} ${
             error
-              ? "border-rose-500/80 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
-              : "border-white/10 hover:border-white/20 focus:border-emerald-500 focus:bg-white/[0.07] focus:ring-1 focus:ring-emerald-500"
+              ? "border-[var(--status-negative)] focus:ring-2 focus:ring-[var(--status-negative-bg)]"
+              : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus:ring-2 focus:ring-[var(--status-positive-bg)]"
           } ${className}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : helperText ? `${id}-helper` : undefined}
           {...props}
         />
         {Icon && (
-          <Icon className="pointer-events-none absolute right-3.5 h-4 w-4 text-slate-500" />
+          <Icon className="pointer-events-none absolute right-3.5 h-4 w-4 text-[var(--text-secondary)]" />
         )}
       </div>
       {error && (
-        <p id={`${id}-error`} className="text-[11px] font-medium text-rose-400">
+        <p id={`${id}-error`} className="text-[11px] font-medium text-[var(--status-negative)]">
           {error}
         </p>
       )}
       {!error && helperText && (
-        <p id={`${id}-helper`} className="text-[11px] text-slate-400">
+        <p id={`${id}-helper`} className="text-[11px] text-[var(--text-secondary)]">
           {helperText}
         </p>
       )}

@@ -18,7 +18,7 @@ import {
   type SplitInput,
 } from "@/lib/split";
 import { formatINR, roundFigure } from "@/lib/money";
-import { addOfflineExpense } from "@/lib/offlineSync";
+import { addOfflineExpense, getCachedGroupsList } from "@/lib/offlineSync";
 import CurrencyPickerModal from "@/components/CurrencyPickerModal";
 import {
   getCurrency,
@@ -146,7 +146,7 @@ export default function AddExpenseModal({
     });
   }, []);
 
-  // Fetch groups if not provided (strictly scoped to currentUser's active groups)
+  // Fetch groups if not provided (strictly scoped to currentUser's active groups, with offline cache fallback)
   useEffect(() => {
     if (providedGroup) {
       setAllGroups([providedGroup]);
@@ -155,6 +155,21 @@ export default function AddExpenseModal({
     }
 
     if (!currentUser?.id) return;
+
+    // Immediately populate from offline cache so Add Expense works anywhere offline
+    const cachedGroups = getCachedGroupsList().filter((g: any) =>
+      !g.members?.length || g.members.some((m: any) => m.id === currentUser.id || m.userId === currentUser.id)
+    );
+    if (cachedGroups.length > 0) {
+      setAllGroups(cachedGroups);
+      if (!selectedGroupId) {
+        setSelectedGroupId(cachedGroups[0].id);
+      }
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return;
+    }
 
     fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
       cache: "no-store",
@@ -173,7 +188,7 @@ export default function AddExpenseModal({
           }
         }
       })
-      .catch((err) => console.warn("Failed to fetch user groups:", err));
+      .catch((err) => console.warn("Failed to fetch user groups (using cached groups):", err));
   }, [providedGroup, selectedGroupId, currentUser?.id]);
 
   const activeGroup = providedGroup || allGroups.find((g) => g.id === selectedGroupId) || null;
@@ -285,6 +300,10 @@ export default function AddExpenseModal({
 
   async function triggerOcrScan(imagePayload: string) {
     if (!imagePayload || !currentUser?.isPro) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setOcrSuccessMsg("Photo attached locally (Offline mode). AI scanning requires internet — enter the bill amount manually.");
+      return;
+    }
     setIsScanningReceipt(true);
     setOcrSuccessMsg(null);
     setSubmitError(null);
@@ -411,24 +430,27 @@ export default function AddExpenseModal({
       })),
     };
 
-    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
-
-    if (isOffline) {
+    const saveOfflineFallback = (noticeText: string) => {
       addOfflineExpense({
         isEdit: Boolean(initialExpense),
         expenseId: initialExpense?.id,
-        groupId: selectedGroupId,
+        groupId: activeGroup.id,
         groupName: activeGroup?.name || "Group",
         title: title.trim(),
         totalAmount: totalNum,
         payload,
       });
 
-      setOfflineNotice("Data saved locally (Offline mode). It will sync automatically when reconnected.");
+      setOfflineNotice(noticeText);
       setLoading(false);
       setTimeout(() => {
         onSaved();
-      }, 1400);
+      }, 1200);
+    };
+
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (isOffline) {
+      saveOfflineFallback("Data saved locally (Offline mode). It will sync automatically when reconnected.");
       return;
     }
 
@@ -443,6 +465,10 @@ export default function AddExpenseModal({
       });
 
       const json = await res.json();
+      if (json?.offline) {
+        saveOfflineFallback("Connection unavailable: Data saved locally. It will sync once internet is restored.");
+        return;
+      }
       if (!res.ok || !json.ok) {
         throw new Error(json.error || json.issues?.join(", ") || "Failed to save expense");
       }
@@ -450,20 +476,7 @@ export default function AddExpenseModal({
       onSaved();
     } catch (err: any) {
       if (!navigator.onLine || err.message?.includes("Failed to fetch") || err.message?.includes("network")) {
-        addOfflineExpense({
-          isEdit: Boolean(initialExpense),
-          expenseId: initialExpense?.id,
-          groupId: selectedGroupId,
-          groupName: activeGroup?.name || "Group",
-          title: title.trim(),
-          totalAmount: totalNum,
-          payload,
-        });
-
-        setOfflineNotice("Connection lost: Data saved locally. It will sync once internet is restored.");
-        setTimeout(() => {
-          onSaved();
-        }, 1400);
+        saveOfflineFallback("Connection lost: Data saved locally. It will sync once internet is restored.");
         return;
       }
       setSubmitError(err.message || "Failed to save expense");
@@ -474,29 +487,35 @@ export default function AddExpenseModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 p-0 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
-        <div className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-white/10 bg-slate-900/98 p-4 sm:p-6 shadow-2xl backdrop-blur-2xl max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sm:my-4">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sm:my-4"
+        >
           {/* Drag handle on mobile */}
           <div className="sm:hidden flex justify-center mb-2 -mt-1">
-            <div className="h-1 w-10 rounded-full bg-white/20" />
+            <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
             <div>
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-emerald-400" />
+              <h2 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-[var(--brand-primary)]" />
                 {initialExpense ? "Edit Expense" : "Add an Expense"}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                 {initialExpense
                   ? "Update amounts, payer, or multi-currency split details"
                   : "Split international travel, dining, tickets, or local bills"}
               </p>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition"
+              aria-label="Close modal"
+              className="rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -504,29 +523,29 @@ export default function AddExpenseModal({
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             {offlineNotice && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/15 p-3 text-xs text-amber-200 flex items-center gap-2 animate-in fade-in">
-                <Cloud className="h-4 w-4 text-amber-400 shrink-0 animate-pulse" />
+              <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-xs text-[var(--status-warning)] flex items-center gap-2">
+                <Cloud className="h-4 w-4 shrink-0" />
                 <span>{offlineNotice}</span>
               </div>
             )}
 
             {submitError && (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+              <div className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]">
                 {submitError}
               </div>
             )}
 
             {/* AI Receipt Scanning Status Banner (PRO only) */}
             {currentUser?.isPro && isScanningReceipt && (
-              <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3 text-xs text-amber-200 flex items-center justify-between gap-3 animate-pulse">
+              <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-xs text-[var(--status-warning)] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                   <div>
-                    <span className="font-bold text-white flex items-center gap-1.5">
-                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-[var(--status-warning)]" />
                       Gemini Vision OCR Scanning Receipt...
                     </span>
-                    <p className="text-[11px] text-amber-300/80 mt-0.5">
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                       Auto-detecting merchant, amount, category, and items
                     </p>
                   </div>
@@ -535,16 +554,16 @@ export default function AddExpenseModal({
             )}
 
             {currentUser?.isPro && ocrSuccessMsg && (
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 text-xs text-[var(--status-positive)] flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
                   <span className="font-medium truncate">{ocrSuccessMsg}</span>
                 </div>
                 {scannedItems.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setShowScannedItems(!showScannedItems)}
-                    className="shrink-0 text-[11px] font-bold text-emerald-400 hover:underline flex items-center gap-1"
+                    className="shrink-0 text-[11px] font-semibold hover:underline flex items-center gap-1"
                   >
                     <ListOrdered className="h-3.5 w-3.5" />
                     <span>{showScannedItems ? "Hide Items" : `${scannedItems.length} Items`}</span>
@@ -554,21 +573,21 @@ export default function AddExpenseModal({
             )}
 
             {currentUser?.isPro && showScannedItems && scannedItems.length > 0 && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-2 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300 border-b border-white/5 pb-2">
-                  <span className="flex items-center gap-1.5 text-amber-400">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-2">
+                  <span className="flex items-center gap-1.5 text-[var(--status-warning)]">
                     <Sparkles className="h-3.5 w-3.5" />
                     Itemized Bill Items:
                   </span>
-                  <span className="text-[11px] text-slate-400">{scannedItems.length} items detected</span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">{scannedItems.length} items detected</span>
                 </div>
-                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 divide-y divide-white/5">
+                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 divide-y divide-[var(--border-subtle)]">
                   {scannedItems.map((item, idx) => (
-                    <div key={idx} className="pt-1.5 flex items-center justify-between text-xs text-slate-300">
+                    <div key={idx} className="pt-1.5 flex items-center justify-between text-xs text-[var(--text-secondary)]">
                       <span className="truncate max-w-[220px]">
                         {item.qty && item.qty > 1 ? `${item.qty}x ` : ""}{item.name}
                       </span>
-                      <span className="font-mono font-bold text-white">
+                      <span className="font-display tabular-nums font-semibold text-[var(--text-primary)]">
                         {currencyInfo.symbol}{roundFigure(Number(item.price))}
                       </span>
                     </div>
@@ -580,12 +599,12 @@ export default function AddExpenseModal({
             {/* Group selector */}
             {!providedGroup && allGroups.length > 0 && (
               <div>
-                <label className="text-xs font-semibold text-slate-300">Group</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Group</label>
                 <select
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(e.target.value)}
                   disabled={!!initialExpense}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-medium text-white outline-none focus:border-emerald-500"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                 >
                   {allGroups.map((g) => (
                     <option key={g.id} value={g.id}>
@@ -599,27 +618,27 @@ export default function AddExpenseModal({
             {/* Title & Amount with Currency Picker Trigger */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-300">Description / Title</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Description / Title</label>
                 <input
                   type="text"
                   placeholder="e.g. Dinner in Pokhara, SkyTrain ticket, Uber"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
                     Amount ({currency})
                   </label>
                   {/* Currency Selector Trigger Button */}
                   <button
                     type="button"
                     onClick={() => setIsCurrencyPickerOpen(true)}
-                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition border border-emerald-500/30"
+                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] hover:opacity-90 transition-opacity"
                     title="Change currency"
                   >
                     <span>{currencyInfo.flag}</span>
@@ -629,7 +648,7 @@ export default function AddExpenseModal({
                 </div>
 
                 <div className="relative mt-1">
-                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 font-bold text-xs">
+                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--text-secondary)] font-semibold text-xs">
                     {currencyInfo.symbol}
                   </span>
                   <input
@@ -646,7 +665,7 @@ export default function AddExpenseModal({
                       }
                     }}
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-8 pr-3 text-sm font-semibold text-white placeholder-slate-500 outline-none focus:border-emerald-500 font-mono"
+                    className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-8 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] tabular-nums transition-colors"
                   />
                 </div>
               </div>
@@ -654,14 +673,14 @@ export default function AddExpenseModal({
 
             {/* Small live INR amount shown near foreign currency */}
             {isForeign && (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-300 animate-in fade-in space-y-2">
+              <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-2.5 text-xs space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-white">Live INR Equivalent:</span>
-                    <span className="font-extrabold text-sm text-emerald-400 tabular-nums">
+                    <span className="font-semibold text-[var(--text-primary)]">Live INR Equivalent:</span>
+                    <span className="font-display font-semibold text-sm text-[var(--status-positive)] tabular-nums">
                       ≈ ₹{roundFigure(totalNum).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} INR
                     </span>
-                    <span className="text-[11px] text-slate-400 font-mono">
+                    <span className="text-[11px] text-[var(--text-secondary)] tabular-nums">
                       (1 {currency} = ₹{effectiveRate.toFixed(4)})
                     </span>
                   </div>
@@ -675,7 +694,7 @@ export default function AddExpenseModal({
                       }
                       setIsEditingRate(!isEditingRate);
                     }}
-                    className="text-[11px] font-semibold text-emerald-400 hover:underline flex items-center gap-1"
+                    className="text-[11px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline flex items-center gap-1"
                   >
                     <Edit3 className="h-3 w-3" />
                     <span>{customRate ? "Custom Rate Active" : "Edit Forex Rate"}</span>
@@ -683,10 +702,10 @@ export default function AddExpenseModal({
                 </div>
 
                 {isEditingRate && (
-                  <div className="pt-2 border-t border-emerald-500/20 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="text-slate-300 text-[11px]">Override rate (Bank statement):</span>
+                  <div className="pt-2 border-t border-[var(--status-positive-border)] flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-[var(--text-secondary)] text-[11px]">Override rate (Bank statement):</span>
                     <div className="flex items-center gap-1">
-                      <span className="text-slate-400">1 {currency} = ₹</span>
+                      <span className="text-[var(--text-secondary)]">1 {currency} = ₹</span>
                       <input
                         type="number"
                         step="0.0001"
@@ -696,7 +715,7 @@ export default function AddExpenseModal({
                           const n = parseFloat(e.target.value);
                           if (n > 0) setCustomRate(n);
                         }}
-                        className="w-24 rounded-lg border border-white/20 bg-slate-950 px-2 py-1 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                        className="w-24 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] tabular-nums"
                       />
                     </div>
                     {customRate && (
@@ -707,7 +726,7 @@ export default function AddExpenseModal({
                           setCustomRateInput("");
                           setIsEditingRate(false);
                         }}
-                        className="text-[10px] text-amber-300 hover:underline ml-auto"
+                        className="text-[10px] text-[var(--status-warning)] hover:underline ml-auto font-medium"
                       >
                         Reset to Live Rate
                       </button>
@@ -720,11 +739,11 @@ export default function AddExpenseModal({
             {/* Category & Date */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold text-slate-300">Category</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as CategoryName)}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-medium text-white outline-none focus:border-emerald-500"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -734,23 +753,23 @@ export default function AddExpenseModal({
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-300">Date</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Date</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-medium text-white outline-none focus:border-emerald-500"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                 />
               </div>
             </div>
 
             {/* Paid by */}
             <div>
-              <label className="text-xs font-semibold text-slate-300">Paid By</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Paid By</label>
               <select
                 value={paidById}
                 onChange={(e) => setPaidById(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-xs font-medium text-white outline-none focus:border-emerald-500"
+                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -761,26 +780,26 @@ export default function AddExpenseModal({
             </div>
 
             {/* Split Mode Selector */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300">Split Method</label>
+                  <label className="text-xs font-semibold text-[var(--text-primary)]">Split Method</label>
                   {isForeign && (
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-[var(--text-secondary)]">
                       Balances are kept in INR; foreign shares shown for reference
                     </p>
                   )}
                 </div>
-                <div className="flex rounded-lg bg-white/5 p-0.5 border border-white/10">
+                <div className="flex rounded-lg bg-[var(--bg-surface)] p-0.5 border border-[var(--border-subtle)]">
                   {SPLIT_TYPES.map((st) => (
                     <button
                       key={st}
                       type="button"
                       onClick={() => setSplitType(st)}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         splitType === st
-                          ? "bg-emerald-500 text-slate-950 shadow"
-                          : "text-slate-400 hover:text-white"
+                          ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       }`}
                     >
                       {st === "EQUAL" ? "Equally" : st === "EXACT" ? `Exact ${currencyInfo.symbol}` : "By %"}
@@ -807,10 +826,10 @@ export default function AddExpenseModal({
                     return (
                       <div
                         key={m.id}
-                        className={`flex items-center justify-between gap-2 rounded-xl border p-2 text-xs transition ${
+                        className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 text-xs transition-colors ${
                           isIncluded
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-transparent bg-transparent opacity-40"
+                            ? "border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+                            : "border-transparent bg-transparent opacity-45"
                         }`}
                       >
                         <button
@@ -819,26 +838,26 @@ export default function AddExpenseModal({
                           className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                         >
                           <div
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
                               isIncluded
-                                ? "border-emerald-500 bg-emerald-500 text-slate-950"
-                                : "border-slate-600 bg-transparent"
+                                ? "border-[var(--brand-dark)] dark:border-[var(--brand-primary)] bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]"
+                                : "border-[var(--border-strong)] bg-transparent"
                             }`}
                           >
-                            {isIncluded && <Check className="h-3 w-3 stroke-[3]" />}
+                            {isIncluded && <Check className="h-3 w-3 stroke-[2.5]" />}
                           </div>
-                          <span className="font-medium text-slate-200 truncate">{m.name}</span>
+                          <span className="font-medium text-[var(--text-primary)] truncate">{m.name}</span>
                         </button>
 
                         {isIncluded && (
                           <div className="shrink-0 flex items-center gap-1.5">
                             {splitType === "EQUAL" && (
                               <div className="text-right">
-                                <span className="text-slate-200 font-semibold tabular-nums text-xs block">
+                                <span className="text-[var(--text-primary)] font-semibold tabular-nums text-xs block">
                                   {isForeign ? `${currencyInfo.symbol}${memberShare}` : `₹${memberShare}`}
                                 </span>
                                 {isForeign && (
-                                  <span className="text-[10px] text-emerald-400 font-mono block">
+                                  <span className="text-[10px] text-[var(--status-positive)] tabular-nums block">
                                     ≈ ₹{memberShareINR}
                                   </span>
                                 )}
@@ -848,7 +867,7 @@ export default function AddExpenseModal({
                             {splitType === "EXACT" && (
                               <div className="flex flex-col items-end gap-0.5">
                                 <div className="flex items-center gap-1">
-                                  <span className="text-slate-500 font-bold">{currencyInfo.symbol}</span>
+                                  <span className="text-[var(--text-secondary)] font-semibold">{currencyInfo.symbol}</span>
                                   <input
                                     type="number"
                                     step="1"
@@ -864,11 +883,11 @@ export default function AddExpenseModal({
                                         if (!isNaN(n)) setExactAmounts({ ...exactAmounts, [m.id]: roundFigure(n).toString() });
                                       }
                                     }}
-                                    className="w-20 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-right text-xs text-white outline-none focus:border-emerald-500"
+                                    className="w-20 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2 py-1 text-right text-xs text-[var(--text-primary)] tabular-nums outline-none focus:border-[var(--brand-primary)]"
                                   />
                                 </div>
                                 {isForeign && exactAmounts[m.id] && (
-                                  <span className="text-[10px] text-emerald-400 font-mono">
+                                  <span className="text-[10px] text-[var(--status-positive)] tabular-nums">
                                     ≈ ₹{roundFigure(parseFloat(exactAmounts[m.id] || "0") * effectiveRate)}
                                   </span>
                                 )}
@@ -886,12 +905,12 @@ export default function AddExpenseModal({
                                     onChange={(e) =>
                                       setPercentages({ ...percentages, [m.id]: e.target.value })
                                     }
-                                    className="w-16 rounded-lg border border-white/10 bg-slate-950 px-2 py-1 text-right text-xs text-white outline-none focus:border-emerald-500"
+                                    className="w-16 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2 py-1 text-right text-xs text-[var(--text-primary)] tabular-nums outline-none focus:border-[var(--brand-primary)]"
                                   />
-                                  <span className="text-slate-500 font-bold">%</span>
+                                  <span className="text-[var(--text-secondary)] font-semibold">%</span>
                                 </div>
                                 {percentages[m.id] && (
-                                  <span className="text-[10px] text-emerald-400 font-mono">
+                                  <span className="text-[10px] text-[var(--status-positive)] tabular-nums">
                                     ≈ ₹{roundFigure((parseFloat(percentages[m.id] || "0") / 100) * totalNum)}
                                   </span>
                                 )}
@@ -910,7 +929,7 @@ export default function AddExpenseModal({
                   <button
                     type="button"
                     onClick={setEqually}
-                    className="text-[11px] font-semibold text-emerald-400 hover:underline"
+                    className="text-[11px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
                   >
                     Split equally between selected
                   </button>
@@ -919,16 +938,16 @@ export default function AddExpenseModal({
             </div>
 
             {/* Bill Receipt Photo Upload */}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5 space-y-2.5">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <Camera className="h-4 w-4 text-emerald-400" />
+                  <label className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-[var(--brand-primary)]" />
                     <span>Bill Receipt Photo</span>
                   </label>
                   {currentUser?.isPro && (
-                    <span className="rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-extrabold flex items-center gap-1">
-                      <Sparkles className="h-2.5 w-2.5 text-amber-400" /> AI OCR
+                    <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[9px] font-semibold flex items-center gap-1">
+                      <Sparkles className="h-2.5 w-2.5" /> AI OCR
                     </span>
                   )}
                 </div>
@@ -938,7 +957,7 @@ export default function AddExpenseModal({
                       type="button"
                       onClick={() => triggerOcrScan(receiptUrl)}
                       disabled={isScanningReceipt}
-                      className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 font-semibold"
+                      className="text-[11px] text-[var(--status-warning)] hover:underline flex items-center gap-1 font-semibold"
                     >
                       <Scan className="h-3 w-3" />
                       <span>{isScanningReceipt ? "Scanning..." : "Re-Scan with AI"}</span>
@@ -953,7 +972,7 @@ export default function AddExpenseModal({
                         setScannedItems([]);
                         setShowScannedItems(false);
                       }}
-                      className="text-[11px] text-rose-400 hover:underline flex items-center gap-1"
+                      className="text-[11px] text-[var(--status-negative)] hover:underline flex items-center gap-1"
                     >
                       <Trash2 className="h-3 w-3" /> Remove
                     </button>
@@ -962,21 +981,21 @@ export default function AddExpenseModal({
               </div>
 
               {receiptUrl ? (
-                <div className="relative rounded-xl overflow-hidden border border-white/10 max-h-36 bg-slate-950 flex items-center justify-center">
+                <div className="relative rounded-xl overflow-hidden border border-[var(--border-subtle)] max-h-36 bg-[var(--bg-surface)] flex items-center justify-center">
                   <img src={receiptUrl} alt="Bill Receipt" className="h-36 w-full object-cover" />
                 </div>
               ) : (
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/[0.02] p-3 text-center hover:border-emerald-500/50 hover:bg-emerald-500/5 transition">
-                  <ImageIcon className="h-6 w-6 text-slate-400 mb-1" />
-                  <span className="text-xs font-medium text-slate-300">
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-3 text-center hover:border-[var(--brand-primary)] transition-colors">
+                  <ImageIcon className="h-6 w-6 text-[var(--text-secondary)] mb-1" />
+                  <span className="text-xs font-medium text-[var(--text-primary)]">
                     Upload image or snap a photo of receipt
                   </span>
                   {currentUser?.isPro ? (
-                    <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium flex items-center gap-1">
+                    <span className="text-[10px] text-[var(--status-warning)] mt-0.5 font-medium flex items-center gap-1">
                       <Sparkles className="h-2.5 w-2.5" /> Auto-extracts total amount, merchant, and dishes with AI
                     </span>
                   ) : (
-                    <span className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                    <span className="text-[10px] text-[var(--text-secondary)] mt-0.5 font-medium">
                       Store bill photo with expense details
                     </span>
                   )}
@@ -992,13 +1011,13 @@ export default function AddExpenseModal({
 
             {/* Notes */}
             <div>
-              <label className="text-xs font-semibold text-slate-300">Notes / Details</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)]">Notes / Details</label>
               <input
                 type="text"
                 placeholder="e.g. Pokhara Lakeside cafe, Tip included"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500"
+                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] transition-colors"
               />
             </div>
 
@@ -1007,14 +1026,14 @@ export default function AddExpenseModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/10"
+                className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 transition shadow-lg shadow-emerald-500/20"
+                className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
               >
                 {loading ? "Saving..." : initialExpense ? "Save Changes" : "Create Expense"}
               </button>

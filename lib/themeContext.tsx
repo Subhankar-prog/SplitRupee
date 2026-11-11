@@ -12,37 +12,62 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "dark",
-  isDarkMode: true,
+  theme: "light",
+  isDarkMode: false,
   toggleTheme: () => {},
   setTheme: () => {},
 });
 
+function applyDomTheme(next: Theme) {
+  if (typeof document === "undefined") return;
+  if (next === "dark") {
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.classList.add("light");
+    document.documentElement.classList.remove("dark");
+    document.documentElement.setAttribute("data-theme", "light");
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
-  const [isMounted, setIsMounted] = useState(false);
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
-    setIsMounted(true);
     try {
       const saved = localStorage.getItem("splitrupee_theme");
-      if (saved === "light") {
-        setThemeState("light");
-        document.documentElement.classList.add("light");
-        document.documentElement.classList.remove("dark");
-        document.documentElement.setAttribute("data-theme", "light");
+      if (saved === "light" || saved === "dark") {
+        setThemeState(saved);
+        applyDomTheme(saved);
       } else {
-        // Default is dark mode
-        setThemeState("dark");
-        document.documentElement.classList.add("dark");
-        document.documentElement.classList.remove("light");
-        document.documentElement.setAttribute("data-theme", "dark");
-        if (!saved) {
-          localStorage.setItem("splitrupee_theme", "dark");
-        }
+        const prefersDark =
+          typeof window !== "undefined" &&
+          window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+        const resolved: Theme = prefersDark ? "dark" : "light";
+        setThemeState(resolved);
+        applyDomTheme(resolved);
       }
     } catch {
-      setThemeState("dark");
+      setThemeState("light");
+      applyDomTheme("light");
+    }
+
+    // Listen for system color-scheme changes if user has not set an explicit preference
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleSystemChange = (e: MediaQueryListEvent) => {
+        try {
+          const explicit = localStorage.getItem("splitrupee_theme");
+          if (explicit !== "light" && explicit !== "dark") {
+            const next: Theme = e.matches ? "dark" : "light";
+            setThemeState(next);
+            applyDomTheme(next);
+          }
+        } catch {}
+      };
+      mq.addEventListener?.("change", handleSystemChange);
+      return () => mq.removeEventListener?.("change", handleSystemChange);
     }
   }, []);
 
@@ -50,15 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(next);
     try {
       localStorage.setItem("splitrupee_theme", next);
-      if (next === "dark") {
-        document.documentElement.classList.add("dark");
-        document.documentElement.classList.remove("light");
-        document.documentElement.setAttribute("data-theme", "dark");
-      } else {
-        document.documentElement.classList.add("light");
-        document.documentElement.classList.remove("dark");
-        document.documentElement.setAttribute("data-theme", "light");
-      }
+      applyDomTheme(next);
       window.dispatchEvent(new CustomEvent("splitrupee_theme_changed", { detail: { theme: next } }));
     } catch (e) {
       console.warn("Failed to set theme in localStorage", e);

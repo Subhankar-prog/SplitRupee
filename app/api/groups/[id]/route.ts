@@ -35,6 +35,7 @@ export async function GET(req: Request, { params }: Params) {
           orderBy: { joinedAt: "asc" },
         },
         expenses: {
+          where: { isDeleted: false },
           orderBy: { createdAt: "desc" },
           include: {
             paidBy: { select: { id: true, name: true, avatarColor: true } },

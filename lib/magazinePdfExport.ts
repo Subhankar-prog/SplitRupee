@@ -286,11 +286,16 @@ export async function exportMagazinePDF(
   container.style.zIndex = "-9999";
   document.body.appendChild(container);
 
-  // Shared Styles
-  const styleBlock = `
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+  // Shared Styles (skip external Google Fonts link offline to prevent network stalls in html2canvas)
+  const isOnline = typeof navigator === "undefined" || navigator.onLine;
+  const googleFontsLink = isOnline
+    ? `<link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Caveat:wght@700&family=Comic+Neue:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Caveat:wght@700&family=Comic+Neue:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">`
+    : "";
+
+  const styleBlock = `
+    ${googleFontsLink}
     <style>
       .mag-page {
         width: 794px;
@@ -851,13 +856,16 @@ export async function exportMagazinePDF(
     ${essentialsPageHtml}
   `;
 
-  // Wait briefly for font layout
+  // Wait briefly for font layout (capped so offline mode never hangs)
   if (typeof document !== "undefined" && (document as any).fonts) {
     try {
-      await (document as any).fonts.ready;
+      await Promise.race([
+        (document as any).fonts.ready,
+        new Promise((r) => setTimeout(r, 800)),
+      ]);
     } catch {}
   }
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 250));
 
   // Render with jsPDF & html2canvas
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -885,6 +893,7 @@ export async function exportMagazinePDF(
   } catch {}
 
   onProgress?.(totalPages, totalPages, "Download ready!");
-  const filename = `SplitRupee_Travel_Guide_${origin}_to_${destination}.pdf`.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const safeSlug = `SplitRupee_Travel_Guide_${origin}_to_${destination}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const filename = `${safeSlug}.pdf`;
   pdf.save(filename);
 }

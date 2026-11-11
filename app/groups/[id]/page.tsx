@@ -82,13 +82,13 @@ import RecurringExpensesModal from "@/components/RecurringExpensesModal";
 import { getCachedGroup, saveCachedGroup } from "@/lib/offlineSync";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
-  Food: { icon: Utensils, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-  Rent: { icon: Home, color: "text-sky-400", bg: "bg-sky-500/10 border-sky-500/20" },
-  Travel: { icon: Plane, color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
-  Utilities: { icon: Zap, color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/20" },
-  Shopping: { icon: ShoppingBag, color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
-  Entertainment: { icon: Film, color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
-  Miscellaneous: { icon: Shapes, color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/20" },
+  Food: { icon: Utensils, color: "text-[var(--status-warning)]", bg: "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" },
+  Rent: { icon: Home, color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)]", bg: "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]" },
+  Travel: { icon: Plane, color: "text-[var(--status-positive)]", bg: "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]" },
+  Utilities: { icon: Zap, color: "text-[var(--status-warning)]", bg: "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" },
+  Shopping: { icon: ShoppingBag, color: "text-[var(--text-primary)]", bg: "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]" },
+  Entertainment: { icon: Film, color: "text-[var(--status-negative)]", bg: "bg-[var(--status-negative-bg)] border-[var(--status-negative-border)]" },
+  Miscellaneous: { icon: Shapes, color: "text-[var(--text-secondary)]", bg: "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]" },
 };
 
 const TYPE_ICONS = {
@@ -120,22 +120,11 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   const groupId = unresolvedId ? decodeURIComponent(unresolvedId).trim() : "";
   const { currentUser } = useUser();
 
-  const [group, setGroup] = useState<any | null>(() => {
-    if (typeof window !== "undefined" && groupId && groupId !== "undefined") {
-      return getCachedGroup(groupId);
-    }
-    return null;
-  });
+  const [group, setGroup] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<"passbook" | "matrix" | "balances" | "expenses" | "settlements" | "activity" | "members" | "itinerary">("matrix");
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window !== "undefined" && groupId && groupId !== "undefined") {
-      const cached = getCachedGroup(groupId);
-      return !cached || !cached.expenses || cached.expenses.length === 0;
-    }
-    return true;
-  });
+  const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState(false);
   const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -203,9 +192,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
     const cached = getCachedGroup(groupId);
     if (isInitial && cached) {
       setGroup(cached);
-      if (cached.expenses && cached.expenses.length > 0) {
-        setLoading(false);
-      }
+      setLoading(false);
     } else if (isInitial && !groupRef.current) {
       setLoading(true);
     }
@@ -219,12 +206,12 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       if (timeoutId) clearTimeout(timeoutId);
       const data = await res.json();
       if (data.ok && data.group) {
-        setGroup(data.group);
         saveCachedGroup(groupId, data.group);
         if (data.group.id && data.group.id !== groupId) {
           saveCachedGroup(data.group.id, data.group);
         }
-      } else if (!groupRef.current) {
+        setGroup(getCachedGroup(groupId) || data.group);
+      } else {
         const fallback = getCachedGroup(groupId);
         if (fallback) {
           setGroup(fallback);
@@ -232,11 +219,9 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       }
     } catch (e) {
       console.warn("Failed to load group (offline mode active):", e);
-      if (!groupRef.current) {
-        const fallback = getCachedGroup(groupId);
-        if (fallback) {
-          setGroup(fallback);
-        }
+      const fallback = getCachedGroup(groupId);
+      if (fallback) {
+        setGroup(fallback);
       }
     } finally {
       setLoading(false);
@@ -266,7 +251,10 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
   // Debt & Ledger Calculation
   const members = group?.members ?? [];
-  const expenses = group?.expenses ?? [];
+  const expenses = useMemo(
+    () => (group?.expenses ?? []).filter((e: any) => !e?.isDeleted),
+    [group?.expenses]
+  );
   const payments = group?.payments ?? [];
   const activities = group?.activityLogs ?? [];
 
@@ -389,27 +377,29 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   if (!group) {
     return (
       <div className="grid min-h-[50vh] place-items-center text-center p-4">
-        <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-8 max-w-md backdrop-blur-xl space-y-4">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 grid place-items-center">
-            <WifiOff className="h-6 w-6" />
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 max-w-md shadow-[var(--shadow-card)] space-y-4">
+          <div className="mx-auto h-11 w-11 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] text-[var(--status-warning)] grid place-items-center">
+            <WifiOff className="h-5 w-5" />
           </div>
-          <h2 className="text-lg font-bold text-white">Group Data Unavailable</h2>
-          <p className="text-xs text-slate-400 leading-relaxed">
+          <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">Group Data Unavailable</h2>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
             Could not load group details right now. Please retry or return to your dashboard.
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
+              type="button"
               onClick={() => {
                 setLoading(true);
                 loadGroup(true);
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
             >
               Retry
             </button>
             <button
+              type="button"
               onClick={() => router.push("/dashboard")}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               Dashboard
             </button>
@@ -422,20 +412,20 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   const TypeIcon = TYPE_ICONS[group.type as keyof typeof TYPE_ICONS] || Tag;
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-5 animate-in fade-in duration-200">
       {/* Group Header Card */}
-      <div className="relative z-20 rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-4 sm:p-6 backdrop-blur-xl max-w-full overflow-visible">
+      <div className="relative z-20 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-[var(--shadow-card)] max-w-full overflow-visible">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 min-w-0 max-w-full flex-1">
-            <span className="grid h-10 w-10 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-lg shadow-emerald-500/10 mt-0.5">
-              <TypeIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border border-[var(--status-positive-border)] mt-0.5">
+              <TypeIcon className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg sm:text-2xl font-bold text-white tracking-tight break-all">
+                <h1 className="font-display text-lg sm:text-2xl font-semibold text-[var(--text-primary)] tracking-tight break-words">
                   {group.name}
                 </h1>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">
+                <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider shrink-0">
                   {group.type}
                 </span>
 
@@ -448,26 +438,26 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     setCopiedInviteCode(true);
                     setTimeout(() => setCopiedInviteCode(false), 2000);
                   }}
-                  className="rounded-full border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-mono text-emerald-300 flex items-center gap-1.5 transition active:scale-95 shadow-sm shrink-0 cursor-pointer"
+                  className="rounded-full border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] hover:opacity-90 px-2.5 py-0.5 text-[11px] font-mono text-[var(--status-positive)] flex items-center gap-1.5 transition-opacity shrink-0 cursor-pointer"
                   title={`Group Invite Code: ${group.inviteCode || group.id.slice(0, 8)} (Click to copy)`}
                 >
-                  <span className="text-slate-400 font-sans font-medium text-[9px] uppercase tracking-wider">Code:</span>
-                  <span className="font-bold text-emerald-400">{group.inviteCode || group.id.slice(0, 8)}</span>
+                  <span className="text-[var(--text-secondary)] font-sans font-medium text-[9px] uppercase tracking-wider">Code:</span>
+                  <span className="font-semibold">{group.inviteCode || group.id.slice(0, 8)}</span>
                   {copiedInviteCode ? (
-                    <Check className="h-3 w-3 text-emerald-400" />
+                    <Check className="h-3 w-3" />
                   ) : (
-                    <Copy className="h-3 w-3 text-emerald-400/70" />
+                    <Copy className="h-3 w-3 opacity-75" />
                   )}
                 </button>
 
                 {isAdmin && (
-                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 flex items-center gap-1">
-                    <Crown className="h-3 w-3 text-amber-400" /> Admin
+                  <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-warning)] shrink-0 flex items-center gap-1">
+                    <Crown className="h-3 w-3" /> Admin
                   </span>
                 )}
                 {typeof navigator !== "undefined" && !navigator.onLine && (
-                  <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300 shrink-0 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+                  <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-warning)] shrink-0 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-warning)]" />
                     Offline (Cached)
                   </span>
                 )}
@@ -475,15 +465,15 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
               {group.description ? (
                 <div className="mt-1.5 max-w-full">
-                  <p className="text-xs text-slate-300/90 italic border-l-2 border-emerald-500/40 pl-2.5 break-words break-all whitespace-pre-wrap leading-relaxed">
-                    "{group.description.length > 90 && !descExpanded
+                  <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--brand-primary)] pl-2.5 break-words whitespace-pre-wrap leading-relaxed">
+                    &ldquo;{group.description.length > 90 && !descExpanded
                       ? `${group.description.slice(0, 90)}...`
-                      : group.description}"
+                      : group.description}&rdquo;
                     {group.description.length > 90 && (
                       <button
                         type="button"
                         onClick={() => setDescExpanded(!descExpanded)}
-                        className="ml-2 font-semibold text-emerald-400 hover:text-emerald-300 hover:underline not-italic inline-flex items-center gap-0.5 cursor-pointer"
+                        className="ml-2 font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
                       >
                         {descExpanded ? "Show less" : "View more"}
                       </button>
@@ -492,7 +482,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       <button
                         type="button"
                         onClick={() => setShowManageGroup(true)}
-                        className="ml-2 font-normal text-slate-400 hover:text-emerald-300 not-italic inline-flex items-center gap-1 cursor-pointer"
+                        className="ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 cursor-pointer"
                         title="Edit description"
                       >
                         <Edit3 className="h-3 w-3" />
@@ -505,15 +495,15 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                   <button
                     type="button"
                     onClick={() => setShowManageGroup(true)}
-                    className="text-[11px] text-emerald-400/90 hover:text-emerald-300 flex items-center gap-1 hover:underline cursor-pointer font-medium"
+                    className="text-[11px] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] flex items-center gap-1 hover:underline cursor-pointer font-medium"
                   >
                     <span>+ Add group description</span>
                   </button>
                 </div>
               ) : null}
 
-              <p className="text-xs text-slate-400 mt-1">
-                {members.length} members · {expenses.length} expenses · <span className="font-semibold text-slate-200">{formatINR(totalSpend)}</span>
+              <p className="text-xs text-[var(--text-secondary)] mt-1.5">
+                {members.length} members · {expenses.length} expenses · <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(totalSpend)}</span>
               </p>
             </div>
           </div>
@@ -521,100 +511,109 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
           {/* Quick Add Expense & Add Member on larger screens */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
+              type="button"
               onClick={() => setShowAddMember(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 active:scale-95 transition"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
-              <UserPlus className="h-4 w-4" />
+              <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
               <span>Add Member</span>
             </button>
             <button
+              type="button"
               onClick={() => setShowAddExpense(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <Plus className="h-4 w-4" />
               <span>Add Expense</span>
             </button>
           </div>
         </div>
 
-        {/* Action Buttons Toolbar: flex-wrap so buttons NEVER overflow the card or screen */}
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-3 mt-3 border-t border-white/5 w-full">
+        {/* Action Buttons Toolbar */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-3.5 mt-3.5 border-t border-[var(--border-subtle)] w-full">
           {/* Mobile Add Member & Add Expense Buttons */}
           <button
+            type="button"
             onClick={() => setShowAddMember(true)}
-            className="sm:hidden flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 active:scale-95 transition"
+            className="sm:hidden flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-semibold text-[var(--text-primary)]"
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
             <span>Add Member</span>
           </button>
           <button
+            type="button"
             onClick={() => setShowAddExpense(true)}
-            className="sm:hidden flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
+            className="sm:hidden flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 text-xs font-semibold text-white dark:text-[#171F1D]"
           >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <Plus className="h-3.5 w-3.5" />
             <span>Add Expense</span>
           </button>
 
           {isAdmin && (
             <button
+              type="button"
               onClick={() => setActiveTab("passbook")}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
-              <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
+              <BookOpen className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
               <span>Passbook</span>
             </button>
           )}
           {isAdmin && (
             <button
+              type="button"
               onClick={() => setShowManageGroup(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
-              <Settings className="h-3.5 w-3.5 text-amber-400" />
+              <Settings className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <span>Manage</span>
             </button>
           )}
           <button
+            type="button"
             onClick={() => setShowExitGroup(true)}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
+            className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3 text-xs font-medium text-[var(--status-negative)] hover:opacity-90 transition-opacity"
           >
-            <LogOut className="h-3.5 w-3.5 text-rose-400" />
+            <LogOut className="h-3.5 w-3.5" />
             <span>Exit</span>
           </button>
           <button
+            type="button"
             onClick={() => setSettleUpData({})}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+            className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-3 text-xs font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity"
           >
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+            <CheckCircle2 className="h-3.5 w-3.5" />
             <span>Settle Up</span>
           </button>
           {currentUser?.isPro && (
             <button
+              type="button"
               onClick={() => setShowRecurringModal(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-xs font-medium text-[var(--status-warning)] hover:opacity-90 transition-opacity"
               title="Automated Recurring Expenses (Rent, Maid, Cook, Wi-Fi)"
             >
-              <Repeat className="h-3.5 w-3.5 text-purple-400" />
+              <Repeat className="h-3.5 w-3.5" />
               <span>Recurring</span>
-              <span className="rounded bg-purple-500/30 px-1 py-0.2 text-[9px] font-extrabold text-purple-200 uppercase tracking-wider">PRO</span>
+              <span className="rounded bg-[var(--accent-sand)] px-1 py-0.5 text-[9px] font-semibold text-[#171F1D] uppercase tracking-wider">PRO</span>
             </button>
           )}
           <div className="relative" ref={exportMenuRef}>
             <button
               type="button"
               onClick={() => setShowExportMenu((prev) => !prev)}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer"
+              className="w-full sm:w-auto flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors cursor-pointer"
               aria-expanded={showExportMenu}
               aria-haspopup="menu"
               title="Export financial statement or share summary"
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                <Check className="h-3.5 w-3.5 text-[var(--status-positive)]" />
               ) : (
-                <Download className="h-3.5 w-3.5 text-emerald-400" />
+                <Download className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
               )}
               <span>{copied ? "Copied!" : "Export"}</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform duration-150 ${
+                className={`h-3.5 w-3.5 text-[var(--text-secondary)] transition-transform duration-150 ${
                   showExportMenu ? "rotate-180" : ""
                 }`}
               />
@@ -623,7 +622,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             {showExportMenu && (
               <div
                 role="menu"
-                className="absolute right-0 sm:left-0 mt-2 w-56 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-1.5 z-50 space-y-1"
+                className="absolute right-0 sm:left-0 mt-2 w-56 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-popover)] p-1.5 z-50 space-y-1"
               >
                 <button
                   type="button"
@@ -632,12 +631,12 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     handleShareWhatsApp();
                     setShowExportMenu(false);
                   }}
-                  className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/10 transition cursor-pointer"
+                  className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors cursor-pointer"
                 >
-                  <Share2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <Share2 className="h-3.5 w-3.5 text-[var(--status-positive)] shrink-0" />
                   <div>
                     <div>WhatsApp</div>
-                    <div className="text-[10px] font-normal text-slate-400">
+                    <div className="text-[10px] font-normal text-[var(--text-secondary)]">
                       Copy balances &amp; transfer summary
                     </div>
                   </div>
@@ -650,12 +649,12 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     handleDownloadPDF();
                     setShowExportMenu(false);
                   }}
-                  className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/10 transition cursor-pointer"
+                  className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors cursor-pointer"
                 >
-                  <FileText className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                  <FileText className="h-3.5 w-3.5 text-[var(--status-negative)] shrink-0" />
                   <div>
                     <div>PDF Statement</div>
-                    <div className="text-[10px] font-normal text-slate-400">
+                    <div className="text-[10px] font-normal text-[var(--text-secondary)]">
                       Print-ready 4-section ledger
                     </div>
                   </div>
@@ -668,12 +667,12 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     handleDownloadCSV();
                     setShowExportMenu(false);
                   }}
-                  className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/10 transition cursor-pointer"
+                  className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors cursor-pointer"
                 >
-                  <Download className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                  <Download className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
                   <div>
                     <div>Excel / CSV</div>
-                    <div className="text-[10px] font-normal text-slate-400">
+                    <div className="text-[10px] font-normal text-[var(--text-secondary)]">
                       Matching spreadsheet ledger
                     </div>
                   </div>
@@ -684,46 +683,46 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
         </div>
 
         {/* Summary Stats */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 border-t border-white/10 pt-4 text-xs">
-          <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2.5 sm:p-3 space-y-1">
-            <span className="text-[11px] text-slate-400 block">Total Spend</span>
-            <span className="text-sm sm:text-base font-extrabold text-white block tabular-nums">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-[var(--border-subtle)] pt-4 text-xs">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3 space-y-1">
+            <span className="text-[11px] text-[var(--text-secondary)] block">Total Spend</span>
+            <span className="font-display text-sm sm:text-base font-semibold text-[var(--text-primary)] block tabular-nums">
               {formatINR(totalSpend)}
             </span>
           </div>
 
-          <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2.5 sm:p-3 space-y-1">
-            <span className="text-[11px] text-slate-400 block">Reconciled</span>
-            <span className="text-sm sm:text-base font-extrabold text-emerald-400 block tabular-nums">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3 space-y-1">
+            <span className="text-[11px] text-[var(--text-secondary)] block">Reconciled</span>
+            <span className="font-display text-sm sm:text-base font-semibold text-[var(--status-positive)] block tabular-nums">
               {formatINR(totalReconciled)}
             </span>
           </div>
 
-          <div className="rounded-xl sm:rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 sm:p-3 space-y-1">
-            <span className="text-[11px] text-emerald-400 font-semibold block">Balance</span>
-            <span className="text-xs font-bold text-white flex items-center gap-1">
-              <Scale className="h-3.5 w-3.5 text-emerald-400" /> Balanced
+          <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 space-y-1">
+            <span className="text-[11px] text-[var(--status-positive)] font-semibold block">Balance</span>
+            <span className="font-display text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+              <Scale className="h-3.5 w-3.5 text-[var(--status-positive)]" /> Balanced
             </span>
           </div>
         </div>
 
         {/* Current User Standing Banner */}
         {currentUser && (
-          <div className="mt-3 sm:mt-4 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/5">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="mt-3 sm:mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
               <span>Your standing:</span>
-              <span className="font-semibold text-white">{currentUser.name.split(" ")[0]}</span>
+              <span className="font-semibold text-[var(--text-primary)]">{currentUser.name.split(" ")[0]}</span>
             </div>
             <p
-              className={`text-xs sm:text-sm font-bold tabular-nums ${
-                myNet > 0 ? "text-emerald-400" : myNet < 0 ? "text-rose-400" : "text-slate-400"
+              className={`font-display text-xs sm:text-sm font-semibold tabular-nums ${
+                myNet > 0 ? "text-[var(--status-positive)]" : myNet < 0 ? "text-[var(--status-negative)]" : "text-[var(--text-secondary)]"
               }`}
             >
               {myNet > 0
                 ? `Get back ${formatPaise(myNet)}`
                 : myNet < 0
                 ? `Owe ${formatPaise(-myNet)}`
-                : "All settled up ✓"}
+                : "All settled up"}
             </p>
           </div>
         )}
@@ -731,26 +730,26 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* Official Forwarded Travel Itinerary Banner */}
       {group?.itineraries && group.itineraries.length > 0 && (
-        <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 p-5 sm:p-6 backdrop-blur-xl shadow-xl shadow-emerald-500/5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+        <div className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--bg-surface)] p-5 sm:p-6 shadow-[var(--shadow-card)]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
             <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0 mt-0.5">
-                <Plane className="h-6 w-6" />
+              <div className="p-2.5 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] shrink-0 mt-0.5">
+                <Plane className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-positive)]">
                     Official Group Travel Itinerary
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    ✓ Forwarded & Linked to Group
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
+                    Forwarded &amp; Linked
                   </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-extrabold text-white mt-1">
-                  {group.itineraries[0].title || `Trip: ${group.itineraries[0].origin} ➔ ${group.itineraries[0].destination}`}
+                <h3 className="font-display text-lg sm:text-xl font-semibold text-[var(--text-primary)] mt-1">
+                  {group.itineraries[0].title || `Trip: ${group.itineraries[0].origin} -> ${group.itineraries[0].destination}`}
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Handcrafted {group.itineraries[0].days}D travel plan for {group.itineraries[0].groupSize || group.members.length} members with verified trains, dedicated cabs & budget stays
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Handcrafted {group.itineraries[0].days}D travel plan for {group.itineraries[0].groupSize || group.members.length} members with verified trains, dedicated cabs &amp; budget stays
                 </p>
               </div>
             </div>
@@ -759,46 +758,46 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               <button
                 type="button"
                 onClick={() => setActiveTab("itinerary")}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
+                className={`flex h-9 items-center gap-1.5 px-4 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                   activeTab === "itinerary"
-                    ? "bg-emerald-500 text-slate-950 shadow-emerald-500/20"
-                    : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
+                    ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]"
+                    : "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] hover:opacity-90"
                 }`}
               >
-                <Plane className="h-4 w-4" />
+                <Plane className="h-3.5 w-3.5" />
                 <span>{activeTab === "itinerary" ? "Viewing Itinerary Tab" : "View Day-by-Day Plan"}</span>
               </button>
 
               <Link
                 href={`/itinerary?id=${group.itineraries[0].id}`}
-                className="flex items-center gap-1.5 bg-slate-900/80 hover:bg-slate-800 border border-white/10 hover:border-emerald-500/30 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition"
+                className="flex h-9 items-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-3.5 rounded-xl text-xs font-medium transition-colors"
                 title="Open full itinerary studio to view routes, maps, and export PDF"
               >
                 <span>Open in Studio</span>
-                <ExternalLink className="h-3.5 w-3.5 text-emerald-400" />
+                <ExternalLink className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
               </Link>
             </div>
           </div>
 
           {/* Quick Metrics & Highlights */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 text-xs">
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <div className="text-slate-400 text-[11px]">Route Circuit</div>
-              <div className="font-bold text-white text-sm mt-0.5">{group.itineraries[0].origin} ➔ {group.itineraries[0].destination}</div>
+            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+              <div className="text-[var(--text-secondary)] text-[11px]">Route Circuit</div>
+              <div className="font-semibold text-[var(--text-primary)] text-sm mt-0.5">{group.itineraries[0].origin} &rarr; {group.itineraries[0].destination}</div>
             </div>
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <div className="text-slate-400 text-[11px]">Duration</div>
-              <div className="font-bold text-white text-sm mt-0.5">{group.itineraries[0].days} Days / {Math.max(1, group.itineraries[0].days - 1)} Nights</div>
+            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+              <div className="text-[var(--text-secondary)] text-[11px]">Duration</div>
+              <div className="font-semibold text-[var(--text-primary)] text-sm mt-0.5">{group.itineraries[0].days} Days / {Math.max(1, group.itineraries[0].days - 1)} Nights</div>
             </div>
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <div className="text-slate-400 text-[11px]">Group Size</div>
-              <div className="font-bold text-teal-300 text-sm mt-0.5">{group.itineraries[0].groupSize || group.members.length} Travellers</div>
+            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+              <div className="text-[var(--text-secondary)] text-[11px]">Group Size</div>
+              <div className="font-semibold text-[var(--text-primary)] text-sm mt-0.5">{group.itineraries[0].groupSize || group.members.length} Travellers</div>
             </div>
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5">
-              <div className="text-slate-400 text-[11px]">Comprehensive Budget</div>
-              <div className="font-bold text-emerald-400 text-sm mt-0.5">
+            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+              <div className="text-[var(--text-secondary)] text-[11px]">Comprehensive Budget</div>
+              <div className="font-display font-semibold text-[var(--status-positive)] text-sm mt-0.5 tabular-nums">
                 ₹{Number(group.itineraries[0].totalBudget || 120000).toLocaleString()}
-                <span className="text-[10px] text-slate-400 font-normal ml-1">
+                <span className="text-[10px] text-[var(--text-secondary)] font-normal ml-1">
                   (~₹{Math.round(Number(group.itineraries[0].totalBudget || 120000) / (group.itineraries[0].groupSize || group.members.length || 1)).toLocaleString()}/p)
                 </span>
               </div>
@@ -807,8 +806,8 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
         </div>
       )}
 
-      {/* Responsive Segmented Tabs Navigation — Grid on mobile, wrap on desktop */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl">
+      {/* Responsive Segmented Tabs Navigation */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
         {[
           ...(isAdmin
             ? [{ key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" }]
@@ -824,15 +823,16 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
           { key: "members", icon: Users, label: `Members (${members.length})`, fullLabel: `Members (${members.length})` },
         ].map(({ key, icon: Icon, label, fullLabel }) => (
           <button
+            type="button"
             key={key}
             onClick={() => setActiveTab(key as typeof activeTab)}
-            className={`flex items-center justify-center gap-1.5 rounded-xl px-2 sm:px-4 py-2 text-xs font-semibold transition ${
+            className={`flex items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-2 text-xs font-medium transition-colors ${
               activeTab === key
-                ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold"
-                : "bg-white/[0.02] text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                ? "bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <Icon className={`h-3.5 w-3.5 shrink-0 ${activeTab === key ? "text-[var(--brand-primary)]" : ""}`} />
             <span className="sm:hidden truncate">{label}</span>
             <span className="hidden sm:inline whitespace-nowrap">{fullLabel}</span>
           </button>
@@ -842,65 +842,66 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       {/* TAB 0: ADMIN PASSBOOK & MASTER FINANCIAL RECONCILIATION */}
       {isAdmin && activeTab === "passbook" && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-slate-900/90 overflow-hidden shadow-2xl p-4 sm:p-6 space-y-6">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-[var(--shadow-card)] p-4 sm:p-6 space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-5">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-emerald-400" />
-                    Admin Passbook & Master Financial Reconciliation
+                  <h3 className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-[var(--brand-primary)]" />
+                    Admin Passbook &amp; Master Financial Reconciliation
                   </h3>
-                  <span className="rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5">
+                  <span className="rounded-full bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] text-[10px] font-semibold px-2 py-0.5">
                     Live Ledger
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[var(--text-secondary)] mt-1">
                   Aggregated member contribution totals, live debt status, and bilateral settlement matrix.
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleDownloadCSV}
-                className="self-start sm:self-auto flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+                className="self-start sm:self-auto flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
-                <Download className="h-3.5 w-3.5 text-emerald-400" />
+                <Download className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                 <span>Export Passbook</span>
               </button>
             </div>
 
             {/* Top 4 Summary Metrics Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Group Spend</p>
-                <p className="mt-1 text-lg sm:text-xl font-extrabold text-white tabular-nums">{formatINR(totalSpend)}</p>
-                <p className="mt-0.5 text-[10px] text-slate-400">{expenses.length} total expenses recorded</p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Group Spend</p>
+                <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(totalSpend)}</p>
+                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{expenses.length} total expenses recorded</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Total Settled Volume</p>
-                <p className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-400 tabular-nums">{formatINR(totalReconciled)}</p>
-                <p className="mt-0.5 text-[10px] text-slate-400">{payments.length} payments completed</p>
+              <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-positive)]">Total Settled Volume</p>
+                <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--status-positive)] tabular-nums">{formatINR(totalReconciled)}</p>
+                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{payments.length} payments completed</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">Pending Obligations</p>
-                <p className="mt-1 text-lg sm:text-xl font-extrabold text-amber-400 tabular-nums">{formatINR(totalPendingSettlements)}</p>
-                <p className="mt-0.5 text-[10px] text-slate-400">{ledger.transfers.length} transfers needed</p>
+              <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-warning)]">Pending Obligations</p>
+                <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--status-warning)] tabular-nums">{formatINR(totalPendingSettlements)}</p>
+                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{ledger.transfers.length} transfers needed</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">Ledger Health</p>
-                <p className="mt-1 text-lg sm:text-xl font-extrabold text-indigo-300">Balanced</p>
-                <p className="mt-0.5 text-[10px] text-slate-400">Zero variance in pool</p>
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Ledger Health</p>
+                <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--text-primary)]">Balanced</p>
+                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">Zero variance in pool</p>
               </div>
             </div>
 
-            {/* Cumulative Member Contributions Table ("Kabir paid how much till now") */}
+            {/* Cumulative Member Contributions Table */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Cumulative Member Contribution Ledger
               </h4>
-              <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/50">
+              <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+                    <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] uppercase text-[10px] font-semibold tracking-wider">
                       <th className="p-3 pl-4 align-middle">Member</th>
                       <th className="p-3 align-middle">Total Paid In All (₹)</th>
                       <th className="p-3 align-middle">Fair Share (₹)</th>
@@ -910,7 +911,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       <th className="p-3 pr-4 align-middle text-right">Status / Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 text-slate-300">
+                  <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-secondary)]">
                     {members.map((m: any) => {
                       const paid = memberPaid[m.id] || 0;
                       const share = memberShare[m.id] || 0;
@@ -923,48 +924,48 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       const isCreator = group?.creatorId === m.id;
 
                       return (
-                        <tr key={m.id} className="hover:bg-white/[0.02] transition">
-                          <td className="p-3 pl-4 align-middle font-semibold text-white whitespace-nowrap">
+                        <tr key={m.id} className="hover:bg-[var(--bg-surface-secondary)] transition-colors">
+                          <td className="p-3 pl-4 align-middle font-semibold text-[var(--text-primary)] whitespace-nowrap">
                             <div className="flex items-center gap-2 min-w-max">
                               <span
-                                className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
-                                style={{ background: m.avatarColor || "#10b981" }}
+                                className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-white keep-white text-[10px] shrink-0"
+                                style={{ background: m.avatarColor || "#739B83" }}
                               >
                                 {m.name.charAt(0)}
                               </span>
                               <span className="truncate max-w-[130px]">{m.name}</span>
                               {currentUser?.id === m.id && (
-                                <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 text-[9px] font-bold">
+                                <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
                                   You
                                 </span>
                               )}
                               {isCreator && (
-                                <span className="rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold">
+                                <span className="rounded bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[9px] font-semibold">
                                   Admin
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="p-3 align-middle font-bold text-white tabular-nums">
+                          <td className="p-3 align-middle font-semibold text-[var(--text-primary)] tabular-nums">
                             {formatINR(paid)}
                           </td>
-                          <td className="p-3 align-middle tabular-nums text-slate-300">
+                          <td className="p-3 align-middle tabular-nums">
                             {formatINR(share)}
                           </td>
-                          <td className="p-3 align-middle tabular-nums text-slate-300">
+                          <td className="p-3 align-middle tabular-nums">
                             {formatINR(setPaid)}
                           </td>
-                          <td className="p-3 align-middle tabular-nums text-slate-300">
+                          <td className="p-3 align-middle tabular-nums">
                             {formatINR(setRecv)}
                           </td>
-                          <td className="p-3 align-middle tabular-nums font-bold">
+                          <td className="p-3 align-middle tabular-nums font-semibold">
                             <span
                               className={
                                 isCreditor
-                                  ? "text-emerald-400"
+                                  ? "text-[var(--status-positive)]"
                                   : isDebtor
-                                  ? "text-rose-400"
-                                  : "text-slate-400"
+                                  ? "text-[var(--status-negative)]"
+                                  : "text-[var(--text-secondary)]"
                               }
                             >
                               {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
@@ -973,6 +974,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                           <td className="p-3 pr-4 align-middle text-right">
                             {isDebtor ? (
                               <button
+                                type="button"
                                 onClick={() => {
                                   const transfer = ledger.transfers.find((t) => t.from === m.id);
                                   const targetReceiver = transfer
@@ -985,16 +987,16 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                                     amount: transferAmount,
                                   });
                                 }}
-                                className="rounded-xl bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 hover:bg-emerald-400 transition"
+                                className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-2.5 py-1 text-[11px] font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                               >
                                 Settle Up
                               </button>
                             ) : isCreditor ? (
-                              <span className="text-[11px] font-semibold text-emerald-400">
+                              <span className="text-[11px] font-semibold text-[var(--status-positive)]">
                                 Receiving
                               </span>
                             ) : (
-                              <span className="text-[11px] text-slate-500 font-medium">All Square</span>
+                              <span className="text-[11px] text-[var(--text-secondary)] font-medium">All Square</span>
                             )}
                           </td>
                         </tr>
@@ -1007,13 +1009,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
             {/* Live Bilateral Obligations */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Live Bilateral Transfer Obligations (Updated with Every Payment)
               </h4>
               {ledger.transfers.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-xs text-slate-400">
-                  <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-400 mb-1.5" />
-                  <p className="font-bold text-white">Everyone is 100% settled up!</p>
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-6 text-center text-xs text-[var(--text-secondary)]">
+                  <CheckCircle2 className="mx-auto h-7 w-7 text-[var(--status-positive)] mb-1.5" />
+                  <p className="font-semibold text-[var(--text-primary)]">Everyone is 100% settled up</p>
                   <p className="text-[11px] mt-0.5">All pending debts have been reconciled and cleared.</p>
                 </div>
               ) : (
@@ -1021,22 +1023,23 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                   {ledger.transfers.map((t, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3.5 rounded-2xl border border-white/10 bg-white/[0.02]"
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]"
                     >
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-white truncate">
+                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
                           {names[t.from]} owes {names[t.to]}
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-warning)]" />
                           Settlement Pending
                         </p>
                       </div>
                       <div className="flex items-center gap-2.5 shrink-0">
-                        <span className="text-sm font-extrabold text-emerald-400 tabular-nums">
+                        <span className="font-display text-sm font-semibold text-[var(--status-positive)] tabular-nums">
                           {formatPaise(t.amountPaise)}
                         </span>
                         <button
+                          type="button"
                           onClick={() =>
                             setSettleUpData({
                               payerId: t.from,
@@ -1044,7 +1047,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                               amount: t.amountPaise / 100,
                             })
                           }
-                          className="rounded-xl bg-emerald-500 px-2.5 py-1 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                          className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-2.5 py-1 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                         >
                           1-Tap Settle
                         </button>
@@ -1057,25 +1060,25 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
             {/* Completed Settlements Feed */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Completed Settlement Records ({payments.length})
               </h4>
               {payments.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">No settlement payments recorded yet in this group.</p>
+                <p className="text-xs text-[var(--text-secondary)]">No settlement payments recorded yet in this group.</p>
               ) : (
                 <div className="space-y-2">
                   {payments.map((p: any) => (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between p-3 rounded-2xl border border-white/5 bg-white/[0.02] text-xs"
+                      className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs"
                     >
                       <div className="flex items-center gap-2.5">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)] shrink-0" />
                         <div>
-                          <p className="font-semibold text-white">
+                          <p className="font-semibold text-[var(--text-primary)]">
                             {p.payer?.name} paid {p.receiver?.name}
                           </p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[10px] text-[var(--text-secondary)]">
                             {new Date(p.createdAt).toLocaleDateString("en-IN", {
                               day: "numeric",
                               month: "short",
@@ -1087,7 +1090,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                           </p>
                         </div>
                       </div>
-                      <span className="font-extrabold text-emerald-400 tabular-nums">
+                      <span className="font-display font-semibold text-[var(--status-positive)] tabular-nums">
                         {formatINR(p.amount)}
                       </span>
                     </div>
@@ -1099,22 +1102,23 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
         </div>
       )}
 
-      {/* TAB 1: TRAVELER RECONCILIATION TABLE (MATCHING SPREADSHEET MODEL) */}
+      {/* TAB 1: TRAVELER RECONCILIATION TABLE */}
       {activeTab === "matrix" && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-slate-900/90 overflow-hidden shadow-2xl">
-            <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-[var(--shadow-card)]">
+            <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white">Traveler / Member Reconciliation Matrix</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Traveler / Member Reconciliation Matrix</h3>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   Complete breakdown of total paid, fair share, net balances, and settlement actions.
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleDownloadCSV}
-                className="hidden sm:flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+                className="hidden sm:flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
-                <Download className="h-3.5 w-3.5 text-emerald-400" />
+                <Download className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                 <span>Export to CSV / Excel</span>
               </button>
             </div>
@@ -1122,7 +1126,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+                  <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] uppercase text-[10px] font-semibold tracking-wider">
                     <th className="p-3.5 pl-5 align-middle">Traveler / Member</th>
                     <th className="p-3.5 align-middle">Total Paid (INR)</th>
                     <th className="p-3.5 align-middle">Fair Share (INR)</th>
@@ -1131,7 +1135,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     <th className="p-3.5 pr-5 align-middle text-right">Settlement Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-slate-300">
+                <tbody className="divide-y divide-[var(--border-subtle)] text-[var(--text-secondary)]">
                   {members.map((m: any) => {
                     const paid = memberPaid[m.id] || 0;
                     const share = memberShare[m.id] || 0;
@@ -1141,37 +1145,37 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     const isDebtor = netINR < 0;
 
                     return (
-                      <tr key={m.id} className="hover:bg-white/[0.02] transition">
-                        <td className="p-3.5 pl-5 align-middle font-semibold text-white whitespace-nowrap">
+                      <tr key={m.id} className="hover:bg-[var(--bg-surface-secondary)] transition-colors">
+                        <td className="p-3.5 pl-5 align-middle font-semibold text-[var(--text-primary)] whitespace-nowrap">
                           <div className="flex items-center gap-2.5 min-w-max">
                             <span
-                              className="h-6 w-6 rounded-lg grid place-items-center font-bold text-slate-950 text-[10px] shrink-0"
-                              style={{ background: m.avatarColor || "#10b981" }}
+                              className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-white keep-white text-[10px] shrink-0"
+                              style={{ background: m.avatarColor || "#739B83" }}
                             >
                               {m.name.charAt(0)}
                             </span>
                             <span className="truncate max-w-[140px]">{m.name}</span>
                             {currentUser?.id === m.id && (
-                              <span className="rounded bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 text-[9px] font-bold">
+                              <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
                                 You
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="p-3.5 align-middle tabular-nums font-semibold text-white">
+                        <td className="p-3.5 align-middle tabular-nums font-semibold text-[var(--text-primary)]">
                           {formatINR(paid)}
                         </td>
-                        <td className="p-3.5 align-middle tabular-nums text-slate-300">
+                        <td className="p-3.5 align-middle tabular-nums">
                           {formatINR(share)}
                         </td>
-                        <td className="p-3.5 align-middle tabular-nums font-bold">
+                        <td className="p-3.5 align-middle tabular-nums font-semibold">
                           <span
                             className={
                               isCreditor
-                                ? "text-emerald-400"
+                                ? "text-[var(--status-positive)]"
                                 : isDebtor
-                                ? "text-rose-400"
-                                : "text-slate-400"
+                                ? "text-[var(--status-negative)]"
+                                : "text-[var(--text-secondary)]"
                             }
                           >
                             {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
@@ -1179,12 +1183,12 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         </td>
                         <td className="p-3.5 align-middle">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
                               isCreditor
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                ? "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border-[var(--status-positive-border)]"
                                 : isDebtor
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                                : "bg-white/5 text-slate-400 border-white/10"
+                                ? "bg-[var(--status-negative-bg)] text-[var(--status-negative)] border-[var(--status-negative-border)]"
+                                : "bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
                             }`}
                           >
                             {isCreditor
@@ -1214,7 +1218,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                                       amount: transfer ? transfer.amountPaise / 100 : Math.abs(netINR),
                                     });
                                   }}
-                                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
+                                  className="rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2 py-1.5 text-[11px] font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity flex items-center gap-1"
                                   title="Send WhatsApp payment reminder"
                                 >
                                   <MessageCircle className="h-3 w-3" />
@@ -1222,6 +1226,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                                 </button>
                               )}
                               <button
+                                type="button"
                                 onClick={() => {
                                   const transfer = ledger.transfers.find((t) => t.from === m.id);
                                   const targetReceiver = transfer
@@ -1234,13 +1239,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                                     amount: transferAmount,
                                   });
                                 }}
-                                className="rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-slate-950 hover:bg-emerald-400 transition"
+                                className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 py-1.5 text-[11px] font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                               >
                                 Settle Up
                               </button>
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-500 font-medium">All Square</span>
+                            <span className="text-[11px] text-[var(--text-secondary)] font-medium">All Square</span>
                           )}
                         </td>
                       </tr>
@@ -1248,13 +1253,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-white/10 bg-white/[0.04] font-bold text-white text-xs">
+                  <tr className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] font-semibold text-[var(--text-primary)] text-xs">
                     <td className="p-3.5 pl-5">Total Group Pool</td>
-                    <td className="p-3.5 tabular-nums text-emerald-400">{formatINR(totalSpend)}</td>
-                    <td className="p-3.5 tabular-nums text-emerald-400">{formatINR(totalSpend)}</td>
-                    <td className="p-3.5 tabular-nums text-slate-300">₹ 0.00</td>
-                    <td className="p-3.5 text-emerald-400">Net Balanced</td>
-                    <td className="p-3.5 pr-5 text-right text-[11px] text-slate-400">Variance: ₹ 0.00</td>
+                    <td className="p-3.5 tabular-nums text-[var(--status-positive)]">{formatINR(totalSpend)}</td>
+                    <td className="p-3.5 tabular-nums text-[var(--status-positive)]">{formatINR(totalSpend)}</td>
+                    <td className="p-3.5 tabular-nums text-[var(--text-secondary)]">₹ 0.00</td>
+                    <td className="p-3.5 text-[var(--status-positive)]">Net Balanced</td>
+                    <td className="p-3.5 pr-5 text-right text-[11px] text-[var(--text-secondary)]">Variance: ₹ 0.00</td>
                   </tr>
                 </tfoot>
               </table>
@@ -1266,21 +1271,21 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       {/* TAB 2: OPTIMIZED TRANSFERS */}
       {activeTab === "balances" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              Optimized Minimal Cash-Flow Transfers (Graph Minimization)
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-[var(--brand-primary)]" />
+              Optimized Minimal Cash-Flow Transfers
             </h3>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-[var(--text-secondary)]">
               {ledger.transfers.length} transfer{ledger.transfers.length === 1 ? "" : "s"} needed to balance entire group
             </span>
           </div>
 
           {ledger.transfers.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center">
-              <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-400 mb-2" />
-              <p className="text-sm font-semibold text-white">Everyone is settled up!</p>
-              <p className="text-xs text-slate-400 mt-1">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
+              <CheckCircle2 className="mx-auto h-8 w-8 text-[var(--status-positive)] mb-2" />
+              <p className="font-display text-sm font-semibold text-[var(--text-primary)]">Everyone is settled up</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
                 No pending debts remaining in this group.
               </p>
             </div>
@@ -1289,35 +1294,35 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               {ledger.transfers.map((t: any, idx: number) => (
                 <div
                   key={`${t.from}-${t.to}-${idx}`}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl hover:border-emerald-500/30 transition"
+                  className="flex items-center justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] hover:border-[var(--brand-primary)] transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="text-left">
-                      <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">
+                      <span className="text-[10px] font-semibold text-[var(--status-negative)] uppercase tracking-wider block">
                         Debtor (Pays)
                       </span>
-                      <p className="text-xs font-bold text-white truncate max-w-[100px]">
+                      <p className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[100px]">
                         {names[t.from]}
                       </p>
                     </div>
 
                     <div className="flex flex-col items-center px-1">
-                      <ArrowRight className="h-4 w-4 text-emerald-400" />
-                      <span className="text-[9px] text-slate-500 uppercase">UPI / Cash</span>
+                      <ArrowRight className="h-4 w-4 text-[var(--brand-primary)]" />
+                      <span className="text-[9px] text-[var(--text-secondary)] uppercase">UPI / Cash</span>
                     </div>
 
                     <div className="text-left">
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                      <span className="text-[10px] font-semibold text-[var(--status-positive)] uppercase tracking-wider block">
                         Creditor (Receives)
                       </span>
-                      <p className="text-xs font-bold text-white truncate max-w-[100px]">
+                      <p className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[100px]">
                         {names[t.to]}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-extrabold text-emerald-400 tabular-nums">
+                    <span className="font-display text-sm font-semibold text-[var(--status-positive)] tabular-nums">
                       {formatPaise(t.amountPaise)}
                     </span>
                     {currentUser?.isPro && (
@@ -1332,7 +1337,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                             amount: t.amountPaise / 100,
                           })
                         }
-                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition flex items-center gap-1"
+                        className="rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity flex items-center gap-1"
                         title="Send WhatsApp payment reminder"
                       >
                         <MessageCircle className="h-3.5 w-3.5" />
@@ -1340,6 +1345,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       </button>
                     )}
                     <button
+                      type="button"
                       onClick={() =>
                         setSettleUpData({
                           payerId: t.from,
@@ -1347,7 +1353,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                           amount: t.amountPaise / 100,
                         })
                       }
-                      className="rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                      className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
                     >
                       1-Tap Settle
                     </button>
@@ -1366,12 +1372,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <div className="flex flex-wrap items-center gap-1.5">
               {(["All", ...CATEGORIES] as const).map((cat) => (
                 <button
+                  type="button"
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                     categoryFilter === cat
-                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                      : "border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                      ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {cat}
@@ -1382,31 +1389,33 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <div className="flex items-center gap-2">
               {currentUser?.isPro && (
                 <button
+                  type="button"
                   onClick={() => setShowRecurringModal(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition"
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-xs font-medium text-[var(--status-warning)] hover:opacity-90 transition-opacity"
                   title="Automated Recurring Expenses"
                 >
-                  <Repeat className="h-3.5 w-3.5 text-purple-400" />
+                  <Repeat className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Recurring Rules</span>
                   <span className="sm:hidden">Recurring</span>
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => setShowAddExpense(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3.5 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
               >
-                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <Plus className="h-3.5 w-3.5" />
                 <span>Add Expense</span>
               </button>
             </div>
           </div>
 
           {filteredExpenses.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center">
-              <Receipt className="mx-auto h-8 w-8 text-slate-600 mb-2" />
-              <p className="text-sm font-semibold text-white">No expenses recorded yet</p>
-              <p className="text-xs text-slate-400 mt-1">
-                Click "+ Add Expense" to record travel tickets, meals, or rent.
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
+              <Receipt className="mx-auto h-8 w-8 text-[var(--text-secondary)] mb-2" />
+              <p className="font-display text-sm font-semibold text-[var(--text-primary)]">No expenses recorded yet</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                Click &ldquo;+ Add Expense&rdquo; to record travel tickets, meals, or rent.
               </p>
             </div>
           ) : (
@@ -1431,7 +1440,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                 return (
                   <div
                     key={exp.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden hover:border-white/20 transition"
+                    className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)] overflow-hidden hover:border-[var(--border-strong)] transition-colors"
                   >
                     <div
                       onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
@@ -1443,14 +1452,21 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         </span>
 
                         <div className="min-w-0">
-                          <h4 className="text-sm font-bold text-white truncate">
-                            {exp.title}
-                          </h4>
-                          <p className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-1">
-                            <span className="font-semibold text-slate-300">{exp.paidBy.name}</span> paid{" "}
-                            <span className="font-semibold text-white">{formatINR(exp.totalAmount)}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                              {exp.title}
+                            </h4>
+                            {exp.isOfflinePending && (
+                              <span className="shrink-0 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
+                                Pending Sync
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1">
+                            <span className="font-semibold text-[var(--text-primary)]">{exp.paidBy.name}</span> paid{" "}
+                            <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(exp.totalAmount)}</span>
                             {exp.currency && exp.currency !== "INR" && (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[10px] font-bold text-amber-300">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
                                 <span>{getCurrency(exp.currency).flag}</span>
                                 <span>
                                   {exp.originalAmount
@@ -1459,7 +1475,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                                 </span>
                               </span>
                             )}
-                            <span className="text-slate-500">·</span>
+                            <span>·</span>
                             <span>
                               {new Date(exp.date || exp.createdAt).toLocaleDateString("en-IN", {
                                 month: "short",
@@ -1470,68 +1486,68 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 shrink-0">
+                      <div className="flex items-center gap-3 shrink-0">
                         <div className="text-right">
                           <p
-                            className={`text-xs font-bold tabular-nums ${
+                            className={`text-xs font-semibold tabular-nums ${
                               isPayer
-                                ? "text-emerald-400"
+                                ? "text-[var(--status-positive)]"
                                 : mySplit
-                                ? "text-rose-400"
-                                : "text-slate-500"
+                                ? "text-[var(--status-negative)]"
+                                : "text-[var(--text-secondary)]"
                             }`}
                           >
                             {userImpact}
                           </p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                          <p className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider">
                             {exp.splitType}
                           </p>
                         </div>
-                        <button className="text-slate-500 hover:text-slate-300">
+                        <button type="button" aria-label="Toggle split breakdown" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
 
                     {isExpanded && (
-                      <div className="border-t border-white/5 bg-white/[0.02] p-4 space-y-3 text-xs animate-in fade-in duration-150">
+                      <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3 text-xs animate-in fade-in duration-150">
                         {exp.currency && exp.currency !== "INR" && (
-                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-300 font-medium">
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-3 py-2 text-xs text-[var(--status-warning)] font-medium">
                             <div className="flex items-center gap-1.5">
                               <span className="text-base">{getCurrency(exp.currency).flag}</span>
                               <span>Foreign Expense: <strong>{exp.originalAmount ? formatCurrencyAmount(exp.originalAmount, exp.currency) : exp.currency}</strong></span>
                             </div>
-                            <span className="text-[11px] text-slate-400 font-mono">
+                            <span className="text-[11px] text-[var(--text-secondary)] tabular-nums">
                               1 {exp.currency} = ₹{exp.exchangeRate?.toFixed(4) || "—"} INR · Group balance: {formatINR(exp.totalAmount)}
                             </span>
                           </div>
                         )}
 
                         {exp.notes && (
-                          <p className="text-slate-300 bg-white/5 p-2.5 rounded-xl text-xs italic">
-                            "{exp.notes}"
+                          <p className="text-[var(--text-secondary)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-2.5 rounded-xl text-xs">
+                            &ldquo;{exp.notes}&rdquo;
                           </p>
                         )}
 
                         <div>
-                          <p className="font-semibold text-slate-400 mb-2">Split Breakdown & Participation:</p>
+                          <p className="font-semibold text-[var(--text-secondary)] mb-2">Split Breakdown &amp; Participation:</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {exp.splits.map((s: any) => (
                               <div
                                 key={s.id}
-                                className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-2"
+                                className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5"
                               >
                                 <div className="flex items-center gap-2">
                                   <span
                                     className="h-2.5 w-2.5 rounded-full"
-                                    style={{ background: s.user.avatarColor || "#10b981" }}
+                                    style={{ background: s.user.avatarColor || "#739B83" }}
                                   />
-                                  <span className="font-medium text-slate-200">{s.user.name}</span>
+                                  <span className="font-medium text-[var(--text-primary)]">{s.user.name}</span>
                                 </div>
-                                <span className="font-semibold text-white tabular-nums">
+                                <span className="font-semibold text-[var(--text-primary)] tabular-nums">
                                   {formatINR(s.amount)}
                                   {s.percentage !== null && (
-                                    <span className="text-[10px] text-slate-400 ml-1">
+                                    <span className="text-[10px] text-[var(--text-secondary)] ml-1">
                                       ({s.percentage.toFixed(0)}%)
                                     </span>
                                   )}
@@ -1541,17 +1557,19 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                           <button
+                            type="button"
                             onClick={() => setEditingExpense(exp)}
-                            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition"
+                            className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
                             <span>Edit Expense</span>
                           </button>
                           <button
+                            type="button"
                             onClick={() => setDeletingExpense(exp)}
-                            className="flex items-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition"
+                            className="flex items-center gap-1.5 rounded-lg border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--status-negative)] hover:opacity-90 transition-opacity"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                             <span>Delete</span>
@@ -1570,21 +1588,21 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       {/* TAB 4: DIRECT SETTLEMENTS LEDGER */}
       {activeTab === "settlements" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-400" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-[var(--brand-primary)]" />
               Direct Person-to-Person Settlements Log (UPI / Cash)
             </h3>
-            <span className="text-xs text-emerald-400 font-semibold">
+            <span className="text-xs text-[var(--status-positive)] font-semibold tabular-nums">
               Total Reconciled: {formatINR(totalReconciled)}
             </span>
           </div>
 
           {payments.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center">
-              <CheckCircle2 className="mx-auto h-8 w-8 text-slate-600 mb-2" />
-              <p className="text-sm font-semibold text-white">No direct settlements recorded yet</p>
-              <p className="text-xs text-slate-400 mt-1">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
+              <CheckCircle2 className="mx-auto h-8 w-8 text-[var(--text-secondary)] mb-2" />
+              <p className="font-display text-sm font-semibold text-[var(--text-primary)]">No direct settlements recorded yet</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
                 When members settle up via Google Pay or Cash, recorded payments will appear here.
               </p>
             </div>
@@ -1593,23 +1611,30 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               {payments.map((p: any) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl"
+                  className="flex items-center justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)]"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <Check className="h-4 w-4 stroke-[3]" />
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
+                      <Check className="h-4 w-4 stroke-[2.5]" />
                     </span>
                     <div>
-                      <p className="text-xs font-bold text-white">
-                        <span className="text-emerald-400">{names[p.payerId]}</span> paid{" "}
-                        <span className="text-white">{names[p.receiverId]}</span>
+                      <p className="text-xs font-semibold text-[var(--text-primary)] flex flex-wrap items-center gap-1.5">
+                        <span>
+                          <span className="text-[var(--status-positive)]">{names[p.payerId]}</span> paid{" "}
+                          <span>{names[p.receiverId]}</span>
+                        </span>
+                        {p.isOfflinePending && (
+                          <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
+                            Pending Sync
+                          </span>
+                        )}
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                         {p.notes || "Direct UPI Settle"} · {new Date(p.createdAt).toLocaleDateString("en-IN")}
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-emerald-400 tabular-nums">
+                  <span className="font-display text-sm font-semibold text-[var(--status-positive)] tabular-nums">
                     {formatINR(p.amount)}
                   </span>
                 </div>
@@ -1621,29 +1646,31 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB 5: ACTIVITY LOG */}
       {activeTab === "activity" && (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 sm:p-5">
           <ActivityLogList activities={activities} />
         </div>
       )}
 
       {/* TAB 6: MEMBERS & INVITES */}
       {activeTab === "members" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-white">Group Members ({members.length})</h3>
+            <h3 className="font-display text-sm font-semibold text-[var(--text-primary)]">Group Members ({members.length})</h3>
             <div className="flex items-center gap-2">
               {isAdmin && (
                 <button
+                  type="button"
                   onClick={() => setShowManageGroup(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition"
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
-                  <Settings className="h-3.5 w-3.5" />
+                  <Settings className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
                   <span>Manage Roles</span>
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => setShowAddMember(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition"
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3.5 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
               >
                 <UserPlus className="h-3.5 w-3.5" />
                 <span>Add / Invite Friends</span>
@@ -1655,24 +1682,24 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             {members.map((m: any) => (
               <div
                 key={m.id}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 backdrop-blur-xl"
+                className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-card)]"
               >
                 <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-slate-950 text-sm shadow"
-                  style={{ background: m.avatarColor || "#10b981" }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-semibold text-white keep-white text-sm"
+                  style={{ background: m.avatarColor || "#739B83" }}
                 >
                   {m.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-white truncate">{m.name}</p>
+                    <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{m.name}</p>
                     {m.role === "ADMIN" && (
-                      <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-bold flex items-center gap-0.5 shrink-0">
-                        <Crown className="h-2.5 w-2.5 text-amber-400" /> Admin
+                      <span className="text-[9px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5 shrink-0">
+                        <Crown className="h-2.5 w-2.5" /> Admin
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400 truncate">{m.email || m.phone || "Member"}</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] truncate">{m.email || m.phone || "Member"}</p>
                 </div>
               </div>
             ))}
@@ -1682,7 +1709,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB: FORWARDED ITINERARY */}
       {activeTab === "itinerary" && group?.itineraries && group.itineraries.length > 0 && (
-        <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="space-y-6 animate-in fade-in duration-200">
           {group.itineraries.map((it: any, itIdx: number) => {
             const plan = it.planData || {};
             const budgetBreakdown = plan.budgetBreakdown;
@@ -1691,29 +1718,29 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             return (
               <div key={it.id || itIdx} className="space-y-6">
                 {/* Itinerary Header Card */}
-                <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-teal-950/40 p-6 backdrop-blur-xl">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                <div className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-card)]">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          ✓ Linked Itinerary
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
+                          Linked Itinerary
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-[var(--text-secondary)]">
                           Updated: {new Date(it.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </span>
                       </div>
-                      <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
-                        {it.title || `Trip: ${it.origin} ➔ ${it.destination}`}
+                      <h2 className="font-display text-xl sm:text-2xl font-semibold text-[var(--text-primary)] mt-1">
+                        {it.title || `Trip: ${it.origin} -> ${it.destination}`}
                       </h2>
-                      <p className="text-xs text-slate-300 mt-1">
-                        Complete verified day-by-day itinerary with rail berths, dedicated mountain cabs, and budget backpacker hostels & homestays.
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">
+                        Complete verified day-by-day itinerary with rail berths, dedicated mountain cabs, and budget backpacker hostels &amp; homestays.
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/itinerary?id=${it.id}`}
-                        className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
+                        className="flex h-10 items-center gap-1.5 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-semibold px-4 rounded-xl text-xs hover:opacity-95 transition-opacity"
                       >
                         <span>Open in Itinerary Studio</span>
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -1723,25 +1750,25 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
                   {/* 6-Category Comprehensive Budget Breakdown */}
                   {budgetBreakdown && Array.isArray(budgetBreakdown.categories) && (
-                    <div className="mt-5 pt-4 border-t border-white/10">
-                      <div className="flex items-center justify-between mb-3">
+                    <div className="mt-5 pt-4 border-t border-[var(--border-subtle)]">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div className="flex items-center gap-2">
-                          <Receipt className="h-4 w-4 text-emerald-400" />
-                          <h4 className="text-sm font-bold text-white">Comprehensive Entire-Trip Group Budget</h4>
+                          <Receipt className="h-4 w-4 text-[var(--brand-primary)]" />
+                          <h4 className="font-display text-sm font-semibold text-[var(--text-primary)]">Comprehensive Entire-Trip Group Budget</h4>
                         </div>
-                        <div className="text-xs font-mono font-bold text-emerald-300">
+                        <div className="text-xs tabular-nums font-semibold text-[var(--status-positive)]">
                           Total: ₹{Number(budgetBreakdown.totalGroupCost || it.totalBudget).toLocaleString()} (~₹{Number(budgetBreakdown.costPerPerson || 15000).toLocaleString()} / person)
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
                         {budgetBreakdown.categories.map((c: any) => (
-                          <div key={c.id} className="p-2.5 rounded-xl bg-slate-950/70 border border-white/5">
-                            <span className="text-slate-400 text-[10px] block truncate">{c.name.split("(")[0]}</span>
-                            <span className="text-sm font-extrabold text-white font-mono block mt-0.5">
+                          <div key={c.id} className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+                            <span className="text-[var(--text-secondary)] text-[10px] block truncate">{c.name.split("(")[0]}</span>
+                            <span className="font-display text-sm font-semibold text-[var(--text-primary)] tabular-nums block mt-0.5">
                               ₹{Number(c.groupTotal || 0).toLocaleString()}
                             </span>
-                            <span className="text-[10px] text-teal-300/80 block mt-0.5">
+                            <span className="text-[10px] text-[var(--status-positive)] tabular-nums block mt-0.5">
                               ₹{Number(c.perPerson || 0).toLocaleString()}/p
                             </span>
                           </div>
@@ -1753,34 +1780,34 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
                 {/* Day-by-Day Cards */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between px-1">
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-emerald-400" />
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <h3 className="font-display text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-[var(--brand-primary)]" />
                       <span>Day-by-Day Schedule ({daysList.length} Days)</span>
                     </h3>
-                    <span className="text-xs text-slate-400">All timings verified with realistic mountain road speeds</span>
+                    <span className="text-xs text-[var(--text-secondary)]">All timings verified with realistic mountain road speeds</span>
                   </div>
 
                   {daysList.map((day: any) => (
                     <div
                       key={day.day || day.dayNumber}
-                      className="rounded-2xl border border-white/10 bg-slate-900/70 p-5 space-y-4 backdrop-blur-md"
+                      className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 space-y-4 shadow-[var(--shadow-card)]"
                     >
                       {/* Day Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/10">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[var(--border-subtle)]">
                         <div className="flex items-center gap-3">
-                          <span className="h-8 w-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-extrabold text-sm grid place-items-center font-mono">
+                          <span className="h-8 w-8 rounded-lg bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] font-display font-semibold text-xs grid place-items-center tabular-nums">
                             D{day.day || day.dayNumber}
                           </span>
                           <div>
-                            <h4 className="text-base font-bold text-white">{day.dayTitle || `Day ${day.day || day.dayNumber}`}</h4>
-                            {day.date && <p className="text-xs text-slate-400 font-mono">{day.date}</p>}
+                            <h4 className="font-display text-base font-semibold text-[var(--text-primary)]">{day.dayTitle || `Day ${day.day || day.dayNumber}`}</h4>
+                            {day.date && <p className="text-xs text-[var(--text-secondary)] tabular-nums">{day.date}</p>}
                           </div>
                         </div>
 
                         {day.stay && (
-                          <div className="flex items-center gap-1.5 text-xs text-teal-300 bg-teal-500/10 border border-teal-500/20 px-3 py-1 rounded-full">
-                            <Hotel className="h-3.5 w-3.5 text-teal-400" />
+                          <div className="flex items-center gap-1.5 text-xs text-[var(--status-positive)] bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] px-3 py-1 rounded-full">
+                            <Hotel className="h-3.5 w-3.5" />
                             <span className="truncate max-w-[240px]">Stay: {day.stay}</span>
                           </div>
                         )}
@@ -1789,24 +1816,24 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       {/* Transit Legs */}
                       {Array.isArray(day.legs) && day.legs.length > 0 && (
                         <div className="space-y-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                            <Train className="h-3.5 w-3.5 text-cyan-400" /> Transit & Transfers
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+                            <Train className="h-3.5 w-3.5 text-[var(--brand-primary)]" /> Transit &amp; Transfers
                           </span>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                             {day.legs.map((leg: any, legIdx: number) => (
-                              <div key={legIdx} className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-white">{leg.from} ➔ {leg.to}</span>
-                                  <span className="text-emerald-400 font-mono font-bold">₹{leg.cost} (group)</span>
+                              <div key={legIdx} className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-xs space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-[var(--text-primary)]">{leg.from} &rarr; {leg.to}</span>
+                                  <span className="text-[var(--status-positive)] tabular-nums font-semibold">₹{leg.cost} (group)</span>
                                 </div>
-                                <div className="text-slate-400 text-[11px] flex items-center gap-2">
-                                  <span className="text-cyan-300">{leg.mode}</span>
+                                <div className="text-[var(--text-secondary)] text-[11px] flex flex-wrap items-center gap-2">
+                                  <span className="font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">{leg.mode}</span>
                                   <span>•</span>
                                   <span>{leg.depart} - {leg.arrive}</span>
                                   <span>•</span>
                                   <span>{leg.duration}</span>
                                 </div>
-                                {leg.details && <p className="text-slate-300 text-[11px]">{leg.details}</p>}
+                                {leg.details && <p className="text-[var(--text-secondary)] text-[11px]">{leg.details}</p>}
                               </div>
                             ))}
                           </div>
@@ -1815,23 +1842,23 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
                       {/* Activities & Sightseeing */}
                       {day.activities && (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-white/5 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[var(--border-subtle)] text-xs">
                           {day.activities.morning && (
-                            <div className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1">Morning</span>
-                              <p className="text-slate-300 text-[11px] leading-relaxed">{day.activities.morning}</p>
+                            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning)] block mb-1">Morning</span>
+                              <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">{day.activities.morning}</p>
                             </div>
                           )}
                           {day.activities.afternoon && (
-                            <div className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 block mb-1">Afternoon</span>
-                              <p className="text-slate-300 text-[11px] leading-relaxed">{day.activities.afternoon}</p>
+                            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-dark)] dark:text-[var(--brand-primary)] block mb-1">Afternoon</span>
+                              <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">{day.activities.afternoon}</p>
                             </div>
                           )}
                           {day.activities.evening && (
-                            <div className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block mb-1">Evening</span>
-                              <p className="text-slate-300 text-[11px] leading-relaxed">{day.activities.evening}</p>
+                            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--status-positive)] block mb-1">Evening</span>
+                              <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">{day.activities.evening}</p>
                             </div>
                           )}
                         </div>
@@ -1839,41 +1866,41 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
                       {/* Accommodation Details & Contacts */}
                       {day.hotelDetails && (
-                        <div className="p-3.5 rounded-xl bg-slate-950/60 border border-emerald-500/20 text-xs space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 font-bold text-white">
-                              <Hotel className="h-4 w-4 text-emerald-400" />
+                        <div className="p-3.5 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--status-positive-border)] text-xs space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
+                              <Hotel className="h-4 w-4 text-[var(--brand-primary)]" />
                               <span>{day.hotelDetails.name}</span>
                             </div>
-                            <span className="text-emerald-400 font-mono font-bold">
-                              ₹{day.hotelDetails.costPerNight} <span className="text-[10px] text-slate-400 font-normal">/ night total</span>
+                            <span className="text-[var(--status-positive)] tabular-nums font-semibold">
+                              ₹{day.hotelDetails.costPerNight} <span className="text-[10px] text-[var(--text-secondary)] font-normal">/ night total</span>
                             </span>
                           </div>
 
                           {day.hotelDetails.breakdownNote && (
-                            <p className="text-slate-300 text-[11px] leading-relaxed">
+                            <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
                               {day.hotelDetails.breakdownNote}
                             </p>
                           )}
 
                           {day.hotelDetails.contact && (
-                            <p className="text-slate-300 text-[11px] flex items-center gap-1.5">
-                              <Phone className="h-3 w-3 text-emerald-400" />
-                              <span>Reception Contact: <strong className="text-white font-mono">{day.hotelDetails.contact}</strong></span>
+                            <p className="text-[var(--text-secondary)] text-[11px] flex items-center gap-1.5">
+                              <Phone className="h-3 w-3 text-[var(--brand-primary)]" />
+                              <span>Reception Contact: <strong className="text-[var(--text-primary)] font-mono">{day.hotelDetails.contact}</strong></span>
                             </p>
                           )}
 
                           {/* Alternate Hostels */}
                           {Array.isArray(day.hotelDetails.alternateHostels) && day.hotelDetails.alternateHostels.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-white/5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1.5">
-                                Verified Alternate Hostels & Homestays:
+                            <div className="mt-2 pt-2 border-t border-[var(--border-subtle)]">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--status-positive)] block mb-1.5">
+                                Verified Alternate Hostels &amp; Homestays:
                               </span>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                 {day.hotelDetails.alternateHostels.map((h: any, hIdx: number) => (
-                                  <div key={hIdx} className="p-2 rounded-lg bg-slate-900 border border-white/5 text-[11px] flex items-center justify-between">
-                                    <span className="text-slate-200">{h.name}</span>
-                                    <span className="text-emerald-300 font-mono font-semibold">₹{h.costPerPerson || 500}/p</span>
+                                  <div key={hIdx} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px] flex items-center justify-between">
+                                    <span className="text-[var(--text-primary)]">{h.name}</span>
+                                    <span className="text-[var(--status-positive)] tabular-nums font-semibold">₹{h.costPerPerson || 500}/p</span>
                                   </div>
                                 ))}
                               </div>
@@ -1886,14 +1913,14 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                 </div>
 
                 {/* Important Group Travel Tips */}
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-3">
-                  <ShieldAlert className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="p-4 rounded-2xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] text-xs flex items-start gap-3">
+                  <ShieldAlert className="h-5 w-5 text-[var(--status-warning)] shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <span className="font-bold text-amber-300 block">Nepal Travel & Border Advisory for All Members:</span>
-                    <p className="text-[11px] text-amber-100/90 leading-relaxed">
+                    <span className="font-semibold text-[var(--status-warning)] block">Nepal Travel &amp; Border Advisory for All Members:</span>
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                       • Every traveler must carry a physical Voter ID card or original Passport for Nepal border clearance.<br />
                       • Carry Indian ₹100 and ₹200 currency notes; Indian ₹500 notes are legally prohibited in Nepal.<br />
-                      • Mountain roads between Pokhara, Marpha & Muktinath average 25–35 km/h; daylight travel is advised.
+                      • Mountain roads between Pokhara, Marpha &amp; Muktinath average 25–35 km/h; daylight travel is advised.
                     </p>
                   </div>
                 </div>
@@ -1930,6 +1957,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       {deletingExpense && (
         <DeleteExpenseModal
           expense={deletingExpense}
+          groupName={group?.name}
           onClose={() => setDeletingExpense(null)}
           onDeleted={() => {
             setDeletingExpense(null);
@@ -1940,7 +1968,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {settleUpData && (
         <SettleUpModal
-          groupId={groupId}
+          groupId={group?.id || groupId}
           members={members}
           groupCreatorId={group?.creatorId}
           transfers={ledger.transfers}

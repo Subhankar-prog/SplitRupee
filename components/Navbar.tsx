@@ -29,6 +29,7 @@ import {
   Trash2,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
+import { getCachedActivities, saveCachedActivities } from "@/lib/offlineSync";
 import ChangePasswordModal from "./ChangePasswordModal";
 import AddUpiModal from "./AddUpiModal";
 import LogoutConfirmModal from "./LogoutConfirmModal";
@@ -98,6 +99,10 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
   async function handleSaveUpi() {
     if (!currentUser) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setIsEditingUpi(false);
+      return;
+    }
     setSavingUpi(true);
     try {
       const res = await fetch("/api/users", {
@@ -129,6 +134,10 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
   async function handleDeleteUpi() {
     if (!currentUser) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setIsEditingUpi(false);
+      return;
+    }
     setSavingUpi(true);
     try {
       const res = await fetch("/api/users", {
@@ -175,61 +184,82 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     }
     const uid: string = userId;
     let isMounted = true;
+    const mapActivitiesToNotifs = (list: any[]) =>
+      list.slice(0, 5).map((a: any) => {
+        const date = new Date(a.createdAt);
+        const diffMins = Math.floor((Date.now() - date.getTime()) / (1000 * 60));
+        let timeStr = "Just now";
+        if (diffMins >= 60 * 24) {
+          timeStr = `${Math.floor(diffMins / (60 * 24))}d ago`;
+        } else if (diffMins >= 60) {
+          timeStr = `${Math.floor(diffMins / 60)}h ago`;
+        } else if (diffMins > 0) {
+          timeStr = `${diffMins}m ago`;
+        }
+
+        const actor = a.user?.name || "Member";
+        let title = "Group Activity";
+        let desc = a.details || a.entityTitle || "Activity recorded";
+
+        if (a.action === "EXPENSE_CREATED") {
+          title = "New expense added";
+          desc = `${actor} added ${a.entityTitle || "an expense"}`;
+        } else if (a.action === "EXPENSE_UPDATED") {
+          title = "Expense updated";
+          desc = `${actor} updated ${a.entityTitle || "an expense"}`;
+        } else if (a.action === "EXPENSE_DELETED") {
+          title = "Expense deleted";
+          desc = `${actor} removed ${a.entityTitle || "an expense"}`;
+        } else if (a.action === "PAYMENT_SETTLED" || a.action === "SETTLEMENT_RECORDED") {
+          title = "Settlement received";
+          desc = `${actor} settled ${a.details || a.entityTitle || ""}`;
+        } else if (a.action === "MEMBER_ADDED") {
+          title = "New member joined";
+          desc = `${actor} joined ${a.group?.name || "the group"}`;
+        }
+
+        return {
+          id: a.id,
+          title,
+          desc,
+          time: timeStr,
+          unread: false,
+        };
+      });
+
+    const cachedInitial = getCachedActivities(uid);
+    if (isMounted && cachedInitial.length > 0) {
+      setNotifications(mapActivitiesToNotifs(cachedInitial));
+    }
+
     async function fetchUserNotifications() {
       try {
         const res = await fetch(`/api/activity?userId=${encodeURIComponent(uid)}&limit=5`);
         const data = await res.json();
         if (isMounted && data.ok && Array.isArray(data.activities)) {
-          const mapped = data.activities.map((a: any) => {
-            const date = new Date(a.createdAt);
-            const diffMins = Math.floor((Date.now() - date.getTime()) / (1000 * 60));
-            let timeStr = "Just now";
-            if (diffMins >= 60 * 24) {
-              timeStr = `${Math.floor(diffMins / (60 * 24))}d ago`;
-            } else if (diffMins >= 60) {
-              timeStr = `${Math.floor(diffMins / 60)}h ago`;
-            } else if (diffMins > 0) {
-              timeStr = `${diffMins}m ago`;
-            }
-
-            const actor = a.user?.name || "Member";
-            let title = "Group Activity";
-            let desc = a.details || a.entityTitle || "Activity recorded";
-
-            if (a.action === "EXPENSE_CREATED") {
-              title = "New expense added";
-              desc = `${actor} added ${a.entityTitle || "an expense"}`;
-            } else if (a.action === "EXPENSE_UPDATED") {
-              title = "Expense updated";
-              desc = `${actor} updated ${a.entityTitle || "an expense"}`;
-            } else if (a.action === "EXPENSE_DELETED") {
-              title = "Expense deleted";
-              desc = `${actor} removed ${a.entityTitle || "an expense"}`;
-            } else if (a.action === "SETTLEMENT_RECORDED") {
-              title = "Settlement received";
-              desc = `${actor} settled ${a.details || ""}`;
-            } else if (a.action === "MEMBER_ADDED") {
-              title = "New member joined";
-              desc = `${actor} joined ${a.group?.name || "the group"}`;
-            }
-
-            return {
-              id: a.id,
-              title,
-              desc,
-              time: timeStr,
-              unread: false,
-            };
-          });
-          setNotifications(mapped);
+          saveCachedActivities(uid, data.activities);
+          setNotifications(mapActivitiesToNotifs(getCachedActivities(uid)));
+        } else if (isMounted) {
+          setNotifications(mapActivitiesToNotifs(getCachedActivities(uid)));
         }
-      } catch (err) {
-        console.error("Failed to load notifications", err);
+      } catch {
+        if (isMounted) {
+          setNotifications(mapActivitiesToNotifs(getCachedActivities(uid)));
+        }
       }
     }
     fetchUserNotifications();
+    const handleQueueOrRefresh = () => {
+      if (isMounted) {
+        setNotifications(mapActivitiesToNotifs(getCachedActivities(uid)));
+      }
+    };
+    window.addEventListener("splitrupee_offline_queue_changed", handleQueueOrRefresh);
+    window.addEventListener("splitrupee_refresh", fetchUserNotifications);
     return () => {
       isMounted = false;
+      window.removeEventListener("splitrupee_offline_queue_changed", handleQueueOrRefresh);
+      window.removeEventListener("splitrupee_refresh", fetchUserNotifications);
     };
   }, [currentUser?.id]);
 
@@ -305,118 +335,116 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 backdrop-blur-xl">
-        {/* =========================================================================
-            MOBILE APP HEADER (Only on mobile < md for logged-in app routes)
-            ========================================================================= */}
+      <header className="sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        {/* MOBILE APP HEADER */}
         {isAppRoute && currentUser ? (
           <div className="md:hidden px-3.5 py-3 space-y-2.5">
-            {/* 1st Logo / Tag line on Left, SplitRupee PRO Button on Right */}
             <div className="flex items-center justify-between gap-2">
-              <Link href="/dashboard" className="flex items-center gap-2 group">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 shadow-md shadow-emerald-500/20">
-                  <span className="text-base font-black">₹</span>
-                </div>
-                <div className="leading-tight">
-                  <span className="font-extrabold tracking-tight text-slate-900 dark:text-white text-sm block">
-                    SplitRupee
-                  </span>
-                  <span className="text-[9px] text-slate-400 tracking-wider uppercase font-semibold block -mt-0.5">
-                    Expense Mgmt
-                  </span>
-                </div>
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleSidebar}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)]"
+                  title="Open menu"
+                  aria-label="Open navigation"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
+                <Link href="/dashboard" className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] keep-white">
+                    <span className="text-base">₹</span>
+                  </div>
+                  <div className="leading-tight">
+                    <span className="font-display font-bold tracking-tight text-[var(--text-primary)] text-sm block">
+                      SplitRupee
+                    </span>
+                    <span className="text-[9px] text-[var(--text-secondary)] tracking-wider uppercase font-medium block -mt-0.5">
+                      Expense Ledger
+                    </span>
+                  </div>
+                </Link>
+              </div>
 
-              {/* SplitRupee Pro Button (only for non-pro users) */}
               {!currentUser.isPro && (
                 <Link
                   href="/pro"
-                  className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 shadow-md shadow-amber-500/10 active:scale-95 transition"
+                  className="flex items-center gap-1 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--status-warning)]"
                 >
-                  <Crown className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                  <span>SplitRupee Pro</span>
+                  <Crown className="h-3 w-3" />
+                  <span>Upgrade Pro</span>
                 </Link>
               )}
             </div>
 
             {/* Profile Holder Card */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-xl shadow-lg">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3">
               <div className="flex items-center justify-between gap-2">
-                {/* Left: Avatar + Welcome back + Name + Phone/Email + UPI ID */}
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div
-                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm shadow-md ${
-                      currentUser.isPro
-                        ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-slate-950 ring-2 ring-amber-400/90 shadow-amber-500/20"
-                        : "text-slate-950"
-                    }`}
-                    style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
+                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-semibold text-sm text-white keep-white"
+                    style={{ background: currentUser.isPro ? "var(--accent-sand)" : (currentUser.avatarColor || "#739B83") }}
                   >
-                    {currentUser.name.charAt(0).toUpperCase()}
+                    <span className={currentUser.isPro ? "!text-[#171F1D]" : ""}>
+                      {currentUser.name.charAt(0).toUpperCase()}
+                    </span>
                     {currentUser.isPro && (
                       <span
-                        className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 border border-amber-400 text-[10px] shadow-md ring-1 ring-slate-950/80 select-none"
+                        className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-surface)] border border-[var(--accent-sand)] text-[var(--accent-sand)]"
                         title="SplitRupee Pro Member"
                       >
-                        👑
+                        <Crown className="h-2.5 w-2.5" />
                       </span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                      Welcome back 👋
+                    <p className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">
+                      {getGreeting()}
                     </p>
-                    <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                    <p className="font-display font-semibold text-[var(--text-primary)] text-xs sm:text-sm truncate">
                       {currentUser.name}
                     </p>
-                    <p className="text-[10px] text-slate-400 truncate">
-                      {currentUser.phone || currentUser.email || "Registered Member"}
-                    </p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <QrCode className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
-                      <span className="text-[10px] font-mono text-emerald-400 truncate">
+                      <QrCode className="h-2.5 w-2.5 text-[var(--status-positive)] shrink-0" />
+                      <span className="text-[10px] font-mono text-[var(--status-positive)] truncate">
                         {currentUser.upiId || "No UPI linked"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Small Circle Action Buttons (UPI, Notifications, Theme, Password, Logout) */}
-                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                  {/* Add / Edit UPI Circle Button */}
+                {/* Right: Restrained Compact Circle Controls */}
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowAddUpiModal(true)}
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center justify-center p-0 hover:bg-emerald-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--status-positive)] flex items-center justify-center hover:bg-[var(--bg-surface-hover)] transition-colors"
                     title="Add or Edit UPI ID"
                     aria-label="Add or Edit UPI ID"
                   >
                     <QrCode className="h-3.5 w-3.5" />
                   </button>
 
-                  {/* Notifications Circle Button & Mobile Dropdown */}
                   <div className="relative shrink-0">
                     <button
                       type="button"
                       onClick={() => setNotificationsOpen(!notificationsOpen)}
-                      className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-white/10 bg-white/5 text-slate-300 flex items-center justify-center p-0 relative hover:bg-white/10 active:scale-95 transition shadow-sm"
+                      className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] flex items-center justify-center relative hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors"
                       title="Notifications"
                       aria-label="Notifications"
                     >
                       <Bell className="h-3.5 w-3.5" />
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 font-bold text-[8px] text-white shadow">
+                        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--status-negative)] font-semibold text-[8px] text-white keep-white">
                           {unreadCount}
                         </span>
                       )}
                     </button>
 
-                    {/* Mobile Notifications Popup */}
                     {notificationsOpen && (
-                      <div className="fixed inset-x-3 top-28 rounded-2xl border border-white/15 bg-slate-900/98 p-4 shadow-2xl space-y-3 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-[70vh] overflow-y-auto backdrop-blur-xl">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                          <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                            <Bell className="h-3.5 w-3.5 text-emerald-400" /> Notifications
+                      <div className="fixed inset-x-3 top-28 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-popover)] space-y-3 z-50 max-h-[70vh] overflow-y-auto">
+                        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+                          <h4 className="font-display text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                            <Bell className="h-3.5 w-3.5 text-[var(--status-positive)]" /> Notifications
                           </h4>
                           <div className="flex items-center gap-2">
                             <button
@@ -425,13 +453,13 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                                   prev.map((n) => ({ ...n, unread: false }))
                                 )
                               }
-                              className="text-[10px] text-emerald-400 hover:underline"
+                              className="text-[10px] font-medium text-[var(--status-positive)] hover:underline"
                             >
                               Mark read
                             </button>
                             <button
                               onClick={() => setNotificationsOpen(false)}
-                              className="text-slate-400 hover:text-white"
+                              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -443,21 +471,24 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                             {notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`rounded-xl p-2.5 text-xs transition ${n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
-                                  }`}
+                                className={`rounded-xl p-2.5 text-xs border ${
+                                  n.unread
+                                    ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]"
+                                    : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]"
+                                }`}
                               >
                                 <div className="flex items-center justify-between">
-                                  <p className="font-bold text-white text-[11px]">{n.title}</p>
-                                  <span className="text-[9px] text-slate-400">{n.time}</span>
+                                  <p className="font-semibold text-[var(--text-primary)] text-[11px]">{n.title}</p>
+                                  <span className="text-[9px] text-[var(--text-secondary)]">{n.time}</span>
                                 </div>
-                                <p className="text-[11px] text-slate-300 mt-0.5">{n.desc}</p>
+                                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{n.desc}</p>
                               </div>
                             ))}
                           </div>
                         ) : (
                           <div className="py-5 text-center space-y-1.5">
-                            <p className="text-xs font-semibold text-white">No notifications yet</p>
-                            <p className="text-[10px] text-slate-400">
+                            <p className="text-xs font-semibold text-[var(--text-primary)]">No notifications yet</p>
+                            <p className="text-[10px] text-[var(--text-secondary)]">
                               Activity from your groups will show up here.
                             </p>
                           </div>
@@ -466,7 +497,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         <Link
                           href="/activity"
                           onClick={() => setNotificationsOpen(false)}
-                          className="block text-center text-[11px] font-semibold text-emerald-400 hover:underline pt-1"
+                          className="block text-center text-[11px] font-semibold text-[var(--status-positive)] hover:underline pt-1"
                         >
                           View Full Activity Feed →
                         </Link>
@@ -474,33 +505,34 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     )}
                   </div>
 
-                  {/* Theme Toggle Circle Button — Mobile */}
                   <button
                     type="button"
                     onClick={toggleTheme}
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 flex items-center justify-center p-0 hover:bg-indigo-500/20 active:scale-95 transition shadow-sm"
-                    title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] flex items-center justify-center hover:bg-[var(--bg-surface-hover)] transition-colors"
+                    title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                     aria-label="Toggle theme"
                   >
-                    {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-400" />}
+                    {isDarkMode ? (
+                      <Sun className="h-3.5 w-3.5 text-[var(--accent-sand)]" />
+                    ) : (
+                      <Moon className="h-3.5 w-3.5 text-[var(--brand-dark)]" />
+                    )}
                   </button>
 
-                  {/* Change Password Circle Button */}
                   <button
                     type="button"
                     onClick={() => setShowChangePassword(true)}
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 flex items-center justify-center p-0 hover:bg-amber-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] flex items-center justify-center hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors"
                     title="Change Password"
                     aria-label="Change Password"
                   >
                     <KeyRound className="h-3.5 w-3.5" />
                   </button>
 
-                  {/* Logout Circle Button */}
                   <button
                     type="button"
                     onClick={() => setShowLogoutConfirm(true)}
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] shrink-0 aspect-square rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-400 flex items-center justify-center p-0 hover:bg-rose-500/20 active:scale-95 transition shadow-sm"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--status-negative)] flex items-center justify-center hover:bg-[var(--status-negative-bg)] transition-colors"
                     title="Log Out"
                     aria-label="Log Out"
                   >
@@ -509,15 +541,18 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 </div>
               </div>
 
-              {/* Online / Offline Mode & Synced Status Strip */}
-              <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+              <div className="mt-2 pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px]">
                 <div className="flex items-center gap-1.5 font-medium">
-                  <span className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-                  <span className={isOnline ? "text-emerald-300" : "text-rose-300"}>
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      isOnline ? "bg-[var(--status-positive)]" : "bg-[var(--status-warning)]"
+                    }`}
+                  />
+                  <span className="text-[var(--text-secondary)]">
                     {isOnline
                       ? pendingQueueCount > 0
                         ? `Online • ${pendingQueueCount} pending sync`
-                        : "Online • Synced ✓"
+                        : "Online • Synced"
                       : "Offline Mode • Local Storage"}
                   </span>
                 </div>
@@ -525,30 +560,38 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             </div>
           </div>
         ) : (
-          /* Public pages / Logged out mobile navigation */
-          <div className="md:hidden flex h-14 w-full items-center justify-between px-3">
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 shadow-lg shadow-emerald-500/20">
-                <span className="text-base font-black">₹</span>
+          /* Public / Logged Out Mobile Header */
+          <div className="md:hidden flex h-14 w-full items-center justify-between px-4">
+            <Link href="/" className="flex items-center gap-2 shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] keep-white">
+                <span className="text-base">₹</span>
               </div>
               <div className="leading-tight">
-                <span className="font-extrabold tracking-tight text-white text-sm">SplitRupee</span>
-                <span className="text-[9px] text-slate-400 block -mt-0.5 tracking-wider uppercase font-semibold">Expense Mgmt</span>
+                <span className="font-display font-bold tracking-tight text-[var(--text-primary)] text-sm block">
+                  SplitRupee
+                </span>
+                <span className="text-[9px] text-[var(--text-secondary)] block -mt-0.5 tracking-wider uppercase font-medium">
+                  Expense Ledger
+                </span>
               </div>
             </Link>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:text-amber-400 active:scale-95 transition"
-                title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
+                className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)]"
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 aria-label="Toggle theme"
               >
-                {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+                {isDarkMode ? (
+                  <Sun className="h-4 w-4 text-[var(--accent-sand)]" />
+                ) : (
+                  <Moon className="h-4 w-4 text-[var(--brand-dark)]" />
+                )}
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)]"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -557,154 +600,140 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           </div>
         )}
 
-        {/* =========================================================================
-            DESKTOP NAVBAR (Untouched on md+ screens)
-            ========================================================================= */}
-        <div className="hidden md:flex mx-auto h-14 sm:h-16 w-full items-center justify-between px-3 sm:px-4 md:px-6">
-          {/* ================= LEFT SECTION ================= */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            {/* Sidebar / Menu toggle — ONLY show on mobile screens (< md) */}
-            {isAppRoute ? (
-              <button
-                onClick={onToggleSidebar}
-                className="md:hidden grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition shrink-0"
-                title="Toggle Sidebar"
-                aria-label="Toggle navigation"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-            ) : (
-              /* Public pages: show hamburger only on mobile (< md) */
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 shrink-0"
-                aria-label="Toggle menu"
-              >
-                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-              </button>
-            )}
-
-            {/* Brand Logo & Name */}
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 font-bold text-slate-950 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition">
-                <span className="text-base sm:text-lg">₹</span>
+        {/* DESKTOP NAVBAR */}
+        <div className="hidden md:flex mx-auto h-16 w-full max-w-7xl items-center justify-between px-6">
+          {/* LEFT SECTION */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Link href={currentUser ? "/dashboard" : "/"} className="flex items-center gap-2.5 shrink-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] keep-white">
+                <span className="text-base">₹</span>
               </div>
-              <div className="leading-tight hidden xs:block">
+              <div className="leading-tight">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold tracking-tight text-slate-900 dark:text-white text-sm sm:text-base">
+                  <span className="font-display font-bold tracking-tight text-[var(--text-primary)] text-base">
                     SplitRupee
                   </span>
                   {currentUser?.isPro && (
-                    <span className="rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-1.5 py-0.5 text-[9px] font-extrabold text-slate-950 shadow-sm shadow-amber-500/30 flex items-center gap-0.5 animate-in fade-in duration-200">
-                      <Crown className="h-2.5 w-2.5 fill-slate-950" />
+                    <span className="rounded-full bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--status-warning)] flex items-center gap-0.5">
+                      <Crown className="h-2.5 w-2.5" />
                       PRO
                     </span>
                   )}
                 </div>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 block -mt-0.5 tracking-wider uppercase font-semibold">
-                  Expense Mgmt
+                <span className="text-[10px] text-[var(--text-secondary)] block -mt-0.5 tracking-wider uppercase font-medium">
+                  Expense Ledger
                 </span>
               </div>
-              {/* Show just "SR" brand mark on very small screens */}
-              <span className="xs:hidden font-extrabold tracking-tight text-slate-900 dark:text-white text-base">SR</span>
             </Link>
 
-            {/* Dynamic Greeting: Good Evening, Name (desktop only) */}
-            {currentUser && (
-              <div className="hidden md:flex items-center gap-2 ml-2 pl-3 border-l border-white/10 text-xs text-slate-300">
+            {currentUser && isAppRoute && (
+              <div className="hidden lg:flex items-center gap-2 ml-2 pl-3 border-l border-[var(--border-subtle)] text-xs text-[var(--text-secondary)]">
                 <span>
                   {getGreeting()},{" "}
-                  <span className="font-bold text-slate-900 dark:text-white">{currentUser.name.split(" ")[0]}</span>
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {currentUser.name.split(" ")[0]}
+                  </span>
                 </span>
               </div>
             )}
 
-            {/* Desktop Navigation Links for Public Pages */}
             {!isAppRoute && (
-              <nav className="hidden md:flex items-center gap-1 ml-3 pl-3 border-l border-white/10 text-xs font-medium text-slate-300">
-                <Link href="/#features" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition">
+              <nav className="hidden md:flex items-center gap-1 ml-3 pl-3 border-l border-[var(--border-subtle)] text-xs font-medium text-[var(--text-secondary)]">
+                <Link
+                  href="/#features"
+                  className="rounded-lg px-2.5 py-1.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+                >
                   Features
                 </Link>
-                <Link href="/calculator" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition">
+                <Link
+                  href="/calculator"
+                  className="rounded-lg px-2.5 py-1.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+                >
                   Calculator
                 </Link>
-                <Link href="/itinerary" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition flex items-center gap-1">
-                  <Plane className="h-3 w-3 text-emerald-400" />
+                <Link
+                  href="/itinerary"
+                  className="rounded-lg px-2.5 py-1.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors flex items-center gap-1.5"
+                >
+                  <Plane className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                   <span>Itinerary</span>
                 </Link>
                 {!currentUser?.isPro && (
-                  <Link href="/pro" className="rounded-lg px-2.5 py-1.5 text-amber-400 hover:bg-white/5 transition">
+                  <Link
+                    href="/pro"
+                    className="rounded-lg px-2.5 py-1.5 text-[var(--accent-sand)] hover:bg-[var(--bg-surface-secondary)] transition-colors font-semibold"
+                  >
                     Pro
                   </Link>
                 )}
-                <Link href="/faq" className="rounded-lg px-2.5 py-1.5 hover:text-white hover:bg-white/5 transition">
+                <Link
+                  href="/faq"
+                  className="rounded-lg px-2.5 py-1.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+                >
                   FAQ
                 </Link>
               </nav>
             )}
           </div>
 
-          {/* ================= RIGHT SECTION ================= */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Live Clock Pill — only on large screens */}
+          {/* RIGHT SECTION */}
+          <div className="flex items-center gap-2 shrink-0">
             {currentTime && (
-              <div className="hidden xl:flex items-center gap-2.5 rounded-2xl border border-indigo-500/25 bg-indigo-500/10 px-3 py-1.5 text-xs text-indigo-300 shadow-sm">
-                <div className="grid h-6 w-6 place-items-center rounded-lg bg-indigo-500 text-slate-950">
-                  <Clock className="h-3.5 w-3.5 stroke-[2.5]" />
-                </div>
+              <div className="hidden xl:flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                 <div className="leading-tight text-left">
-                  <p className="font-bold font-mono text-slate-900 dark:text-white text-[11px] tracking-wider">
+                  <p className="font-semibold font-mono text-[var(--text-primary)] text-[11px] tabular-nums">
                     {currentTime}
                   </p>
-                  <p className="text-[9px] text-indigo-300/80 font-medium">
+                  <p className="text-[9px] text-[var(--text-secondary)] tabular-nums">
                     {currentDate}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Fullscreen Toggle — hidden on small mobile */}
             <button
               onClick={toggleFullscreen}
-              className="hidden md:grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition"
+              className="hidden md:grid h-9 w-9 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
               title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
 
-            {/* Theme Toggle — desktop */}
             <button
               type="button"
               onClick={toggleTheme}
-              className="hidden md:grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-amber-400 transition"
-              title={isDarkMode ? "Switch to Eye-Comfort Light Mode" : "Switch to Dark Mode"}
+              className="hidden md:grid h-9 w-9 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               aria-label="Toggle theme"
             >
-              {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+              {isDarkMode ? (
+                <Sun className="h-4 w-4 text-[var(--accent-sand)]" />
+              ) : (
+                <Moon className="h-4 w-4 text-[var(--brand-dark)]" />
+              )}
             </button>
 
-            {/* Notification Bell */}
             {currentUser && (
               <div className="relative" ref={notifRef}>
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition"
+                  className="relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
                   title="Notifications"
                 >
                   <Bell className="h-4 w-4" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 font-bold text-[9px] text-white shadow">
+                    <span className="absolute -top-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--status-negative)] font-semibold text-[9px] text-white keep-white">
                       {unreadCount}
                     </span>
                   )}
                 </button>
 
-                {/* Notifications Dropdown */}
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl border border-white/15 bg-slate-900 p-4 shadow-2xl space-y-3 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] overflow-y-auto">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Bell className="h-3.5 w-3.5 text-emerald-400" /> Notifications
+                  <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-popover)] space-y-3 z-50 max-h-[80vh] overflow-y-auto">
+                    <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+                      <h4 className="font-display text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                        <Bell className="h-3.5 w-3.5 text-[var(--status-positive)]" /> Notifications
                       </h4>
                       <button
                         onClick={() =>
@@ -712,7 +741,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                             prev.map((n) => ({ ...n, unread: false }))
                           )
                         }
-                        className="text-[10px] text-emerald-400 hover:underline"
+                        className="text-[11px] font-medium text-[var(--status-positive)] hover:underline"
                       >
                         Mark all as read
                       </button>
@@ -723,24 +752,27 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         {notifications.map((n) => (
                           <div
                             key={n.id}
-                            className={`rounded-xl p-2.5 text-xs transition ${n.unread ? "bg-white/10 border border-emerald-500/30" : "bg-white/5"
-                              }`}
+                            className={`rounded-xl p-2.5 text-xs border ${
+                              n.unread
+                                ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]"
+                                : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]"
+                            }`}
                           >
                             <div className="flex items-center justify-between">
-                              <p className="font-bold text-white text-[11px]">{n.title}</p>
-                              <span className="text-[9px] text-slate-400">{n.time}</span>
+                              <p className="font-semibold text-[var(--text-primary)] text-[11px]">{n.title}</p>
+                              <span className="text-[9px] text-[var(--text-secondary)]">{n.time}</span>
                             </div>
-                            <p className="text-[11px] text-slate-300 mt-0.5">{n.desc}</p>
+                            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{n.desc}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="py-6 text-center space-y-2">
-                        <div className="mx-auto w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                        <div className="mx-auto w-9 h-9 rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)]">
                           <Bell className="h-4 w-4" />
                         </div>
-                        <p className="text-xs font-semibold text-white">No notifications yet</p>
-                        <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto leading-relaxed">
+                        <p className="text-xs font-semibold text-[var(--text-primary)]">No notifications yet</p>
+                        <p className="text-[11px] text-[var(--text-secondary)] max-w-[210px] mx-auto leading-relaxed">
                           When activity occurs in your groups, you will see it here.
                         </p>
                       </div>
@@ -749,7 +781,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                     <Link
                       href="/activity"
                       onClick={() => setNotificationsOpen(false)}
-                      className="block text-center text-[11px] font-semibold text-emerald-400 hover:underline pt-1"
+                      className="block text-center text-[11px] font-semibold text-[var(--status-positive)] hover:underline pt-1"
                     >
                       View Full Activity Feed →
                     </Link>
@@ -758,108 +790,90 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
               </div>
             )}
 
-            {/* Add Expense CTA Button — desktop only */}
             {currentUser && (
               <button
                 onClick={() => setShowGlobalAddExpense(true)}
-                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
+                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3.5 py-2 text-xs font-semibold text-white dark:text-[#171F1D] keep-white hover:opacity-95 transition-opacity"
               >
-                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <Plus className="h-3.5 w-3.5 stroke-[2.25]" />
                 <span className="hidden md:inline">Add Expense</span>
                 <span className="sm:inline md:hidden">Add</span>
               </button>
             )}
 
-            {/* USER PROFILE PILL & DROPDOWN */}
             {currentUser ? (
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className={`flex items-center gap-1.5 sm:gap-2 rounded-2xl border p-1 sm:p-1.5 sm:pr-2.5 text-left transition shadow-sm ${currentUser.isPro
-                      ? "border-amber-500/40 bg-amber-500/[0.08] hover:border-amber-400 hover:bg-amber-500/15 shadow-amber-500/10"
-                      : "border-white/15 bg-white/[0.06] hover:border-emerald-500/40 hover:bg-white/10"
-                    }`}
+                  className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 pr-2.5 text-left hover:bg-[var(--bg-surface-secondary)] transition-colors"
                 >
-                  {/* Avatar */}
                   <div className="relative">
                     <div
-                      className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl font-bold text-xs shadow transition-all ${currentUser.isPro
-                          ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-slate-950 ring-2 ring-amber-400/90 shadow-lg shadow-amber-500/30"
-                          : "text-slate-950 shadow"
-                        }`}
-                      style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg font-semibold text-xs text-white keep-white"
+                      style={{ background: currentUser.isPro ? "var(--accent-sand)" : (currentUser.avatarColor || "#739B83") }}
                     >
-                      {currentUser.name.charAt(0).toUpperCase()}
-                    </div>
-                    {currentUser.isPro ? (
-                      <span
-                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 border border-amber-400 text-[10px] shadow-md ring-1 ring-slate-950/80 select-none"
-                        title="SplitRupee Pro Member"
-                      >
-                        👑
+                      <span className={currentUser.isPro ? "!text-[#171F1D]" : ""}>
+                        {currentUser.name.charAt(0).toUpperCase()}
                       </span>
-                    ) : (
-                      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
-                    )}
+                    </div>
                   </div>
 
-                  {/* Name — hidden on small mobile */}
                   <div className="hidden sm:block leading-tight text-left min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="font-bold text-slate-900 dark:text-white text-xs truncate max-w-[100px] sm:max-w-[120px]">
+                      <p className="font-semibold text-[var(--text-primary)] text-xs truncate max-w-[110px]">
                         {currentUser.name.split(" ")[0]}
                       </p>
                       {currentUser.isPro && (
-                        <span className="text-[8px] font-extrabold text-amber-400 bg-amber-500/20 px-1 rounded border border-amber-500/30">
+                        <span className="text-[9px] font-semibold text-[var(--status-warning)] bg-[var(--status-warning-bg)] px-1 rounded border border-[var(--status-warning-border)]">
                           PRO
                         </span>
                       )}
                     </div>
-                    <p className={`text-[10px] truncate font-medium ${currentUser.isPro ? "text-amber-400/90" : "text-slate-400"}`}>
+                    <p className="text-[10px] truncate text-[var(--text-secondary)]">
                       {currentUser.isPro ? "Pro Member" : "Active"}
                     </p>
                   </div>
 
-                  <ChevronDown className={`hidden sm:block h-3.5 w-3.5 transition-transform ${currentUser.isPro ? "text-amber-400" : "text-slate-400"} ${profileDropdownOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`hidden sm:block h-3.5 w-3.5 text-[var(--text-secondary)] transition-transform ${
+                      profileDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
-                {/* Profile Dropdown Menu */}
                 {profileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-60 sm:w-64 rounded-2xl border border-white/15 bg-slate-900 p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                    {/* User Header Box */}
-                    <div className={`rounded-xl p-3 space-y-2 mb-2 ${currentUser.isPro ? "bg-gradient-to-br from-amber-500/10 via-white/5 to-transparent border border-amber-500/20" : "bg-white/5"}`}>
+                  <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-popover)] z-50">
+                    <div className="rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] p-3 space-y-2 mb-2">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`h-7 w-7 rounded-lg grid place-items-center text-xs font-bold shrink-0 ${currentUser.isPro
-                              ? "bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-950 ring-1 ring-amber-400"
-                              : "text-slate-950"
-                            }`}
-                          style={{ background: currentUser.isPro ? undefined : (currentUser.avatarColor || "#10b981") }}
+                          className="h-7 w-7 rounded-lg grid place-items-center text-xs font-semibold shrink-0 text-white keep-white"
+                          style={{ background: currentUser.isPro ? "var(--accent-sand)" : (currentUser.avatarColor || "#739B83") }}
                         >
-                          {currentUser.name.charAt(0)}
+                          <span className={currentUser.isPro ? "!text-[#171F1D]" : ""}>
+                            {currentUser.name.charAt(0)}
+                          </span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                            <p className="font-semibold text-[var(--text-primary)] text-xs truncate">
                               {currentUser.name}
                             </p>
                             {currentUser.isPro && (
-                              <span className="rounded-full bg-amber-400/20 px-1.5 py-0.2 text-[8px] font-extrabold text-amber-400 border border-amber-400/30">
-                                👑 PRO
+                              <span className="rounded-full bg-[var(--status-warning-bg)] px-1.5 py-0.2 text-[9px] font-semibold text-[var(--status-warning)] border border-[var(--status-warning-border)] inline-flex items-center gap-0.5">
+                                <Crown className="h-2.5 w-2.5" /> PRO
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate">
-                            {currentUser.email || currentUser.phone || "SplitRupee User"}
+                          <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                            {currentUser.email || currentUser.phone || "SplitRupee Member"}
                           </p>
                         </div>
                       </div>
 
-                      {/* Active UPI Address Card with Quick Edit */}
-                      <div className="pt-2 border-t border-white/10">
+                      <div className="pt-2 border-t border-[var(--border-subtle)]">
                         <div className="flex items-center justify-between text-[11px] mb-1">
-                          <span className="text-slate-400 flex items-center gap-1 font-medium">
-                            <QrCode className="h-3 w-3 text-emerald-400" />
+                          <span className="text-[var(--text-secondary)] flex items-center gap-1 font-medium">
+                            <QrCode className="h-3 w-3 text-[var(--status-positive)]" />
                             UPI Address:
                           </span>
                           {!isEditingUpi && (
@@ -869,7 +883,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                                 setUpiInput(currentUser.upiId || "");
                                 setIsEditingUpi(true);
                               }}
-                              className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition"
+                              className="text-[10px] font-semibold text-[var(--status-positive)] hover:underline"
                             >
                               {currentUser.upiId ? "Edit" : "+ Add UPI"}
                             </button>
@@ -883,10 +897,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                               value={upiInput}
                               onChange={(e) => setUpiInput(e.target.value.toLowerCase().trim())}
                               placeholder="e.g. 9876543210@ybl"
-                              className="w-full text-[11px] font-mono bg-slate-950 border border-emerald-500/60 rounded-lg px-2.5 py-1.5 text-white outline-none focus:ring-1 focus:ring-emerald-500"
+                              className="w-full text-[11px] font-mono bg-[var(--bg-surface)] border border-[var(--brand-primary)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] outline-none"
                               autoFocus
                             />
-                            {/* Quick handle suggestions */}
                             <div className="flex flex-wrap gap-1">
                               {["@ybl", "@paytm", "@okaxis", "@okhdfcbank"].map((h) => (
                                 <button
@@ -898,7 +911,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                                       : upiInput || (currentUser.phone ? currentUser.phone.slice(-10) : currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, ""));
                                     setUpiInput(`${base}${h}`);
                                   }}
-                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 hover:border-emerald-500 hover:text-white"
+                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)]"
                                 >
                                   {h}
                                 </button>
@@ -908,16 +921,16 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                               <button
                                 onClick={handleSaveUpi}
                                 disabled={savingUpi}
-                                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-bold py-1 rounded-md transition shadow flex items-center justify-center gap-1"
+                                className="flex-1 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] keep-white text-[10px] font-semibold py-1 rounded-md transition flex items-center justify-center gap-1"
                               >
-                                {savingUpi ? "Saving..." : upiSaved ? "Saved! ✓" : upiInput.trim() ? "Save UPI" : "Clear UPI"}
+                                {savingUpi ? "Saving..." : upiSaved ? "Saved!" : upiInput.trim() ? "Save UPI" : "Clear UPI"}
                               </button>
                               {currentUser.upiId && (
                                 <button
                                   type="button"
                                   onClick={handleDeleteUpi}
                                   disabled={savingUpi}
-                                  className="text-[10px] text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 border border-rose-500/30 px-2 py-1 rounded-md transition flex items-center gap-1"
+                                  className="text-[10px] text-[var(--status-negative)] bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] px-2 py-1 rounded-md flex items-center gap-1"
                                   title="Delete UPI ID"
                                 >
                                   <Trash2 className="h-3 w-3" />
@@ -926,49 +939,47 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                               )}
                               <button
                                 onClick={() => setIsEditingUpi(false)}
-                                className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-white/10 transition"
+                                className="text-[10px] text-[var(--text-secondary)] px-2 py-1 rounded-md hover:bg-[var(--bg-surface-hover)]"
                               >
                                 Cancel
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-between bg-black/40 rounded-lg px-2 py-1.5 border border-white/5">
-                            <span className="text-[11px] font-mono font-medium text-emerald-300 truncate">
+                          <div className="flex items-center justify-between bg-[var(--bg-surface)] rounded-lg px-2 py-1.5 border border-[var(--border-subtle)]">
+                            <span className="text-[11px] font-mono font-medium text-[var(--status-positive)] truncate">
                               {currentUser.upiId || (
-                                <span className="text-slate-500 italic font-sans text-[10px]">
+                                <span className="text-[var(--text-secondary)] italic font-sans text-[10px]">
                                   No UPI linked yet
                                 </span>
                               )}
                             </span>
                             {currentUser.upiId ? (
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0 ml-1.5" />
+                              <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-positive)] shrink-0 ml-1.5" />
                             ) : null}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Actions Menu */}
                     <div className="space-y-0.5 text-xs">
-                      {/* Mobile-only: Add Expense */}
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
                           setShowGlobalAddExpense(true);
                         }}
-                        className="sm:hidden w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-slate-200 hover:bg-white/10 transition text-left"
+                        className="sm:hidden w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors text-left"
                       >
-                        <Plus className="h-4 w-4 text-emerald-400" />
+                        <Plus className="h-4 w-4 text-[var(--status-positive)]" />
                         <span>Add Expense</span>
                       </button>
 
                       <Link
                         href="/dashboard"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-slate-200 hover:bg-white/10 transition"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
                       >
-                        <LayoutDashboard className="h-4 w-4 text-emerald-400" />
+                        <LayoutDashboard className="h-4 w-4 text-[var(--brand-primary)]" />
                         <span>My Dashboard</span>
                       </Link>
 
@@ -977,9 +988,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                           setProfileDropdownOpen(false);
                           setShowProfileSettings(true);
                         }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-slate-200 hover:bg-white/10 transition text-left"
+                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors text-left"
                       >
-                        <User className="h-4 w-4 text-emerald-400" />
+                        <User className="h-4 w-4 text-[var(--brand-primary)]" />
                         <span>Profile Settings</span>
                       </button>
 
@@ -988,9 +999,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                           setProfileDropdownOpen(false);
                           setShowChangePassword(true);
                         }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-slate-200 hover:bg-white/10 transition text-left"
+                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors text-left"
                       >
-                        <KeyRound className="h-4 w-4 text-amber-400" />
+                        <KeyRound className="h-4 w-4 text-[var(--accent-sand)]" />
                         <span>Change Password</span>
                       </button>
 
@@ -998,24 +1009,24 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         <Link
                           href="/pro"
                           onClick={() => setProfileDropdownOpen(false)}
-                          className="flex items-center justify-between rounded-xl px-3 py-2.5 text-amber-400 hover:bg-white/10 transition"
+                          className="flex items-center justify-between rounded-xl px-3 py-2 text-[var(--status-warning)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
                         >
                           <div className="flex items-center gap-2.5">
                             <Crown className="h-4 w-4" />
                             <span>SplitRupee Pro</span>
                           </div>
-                          <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded font-bold">PRO</span>
+                          <span className="text-[9px] bg-[var(--status-warning-bg)] px-1.5 py-0.5 rounded font-semibold">PRO</span>
                         </Link>
                       )}
 
-                      <div className="border-t border-white/10 my-1" />
+                      <div className="border-t border-[var(--border-subtle)] my-1" />
 
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
                           setShowLogoutConfirm(true);
                         }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-rose-400 hover:bg-rose-500/10 transition text-left font-semibold"
+                        className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-[var(--status-negative)] hover:bg-[var(--status-negative-bg)] transition-colors text-left font-medium"
                       >
                         <LogOut className="h-4 w-4" />
                         <span>Log Out</span>
@@ -1025,63 +1036,62 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                 )}
               </div>
             ) : (
-              /* Public / Logged Out Action Buttons */
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className="hidden sm:block rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition"
+                  className="hidden sm:block rounded-xl px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
                 >
                   Log In
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:opacity-95 transition"
+                  className="rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3.5 py-2 text-xs font-semibold text-white dark:text-[#171F1D] keep-white hover:opacity-95 transition-opacity"
                 >
                   Sign Up
                 </Link>
               </div>
             )}
-
-
           </div>
         </div>
 
         {/* Mobile Dropdown Menu — Public pages */}
         {mobileMenuOpen && !isAppRoute && (
-          <div className="border-t border-white/10 bg-slate-950/98 px-4 py-4 space-y-1 backdrop-blur-xl">
+          <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-4 space-y-1">
             {currentTime && (
-              <div className="flex items-center justify-between rounded-xl bg-white/5 p-2.5 text-xs text-indigo-300 mb-3">
-                <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Time</span>
-                <span className="font-mono font-bold text-white">{currentTime}</span>
+              <div className="flex items-center justify-between rounded-xl bg-[var(--bg-surface-secondary)] p-2.5 text-xs text-[var(--text-secondary)] mb-3">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-[var(--brand-primary)]" /> Local Time
+                </span>
+                <span className="font-mono font-semibold text-[var(--text-primary)] tabular-nums">{currentTime}</span>
               </div>
             )}
             <Link
               href="/#features"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition"
+              className="block rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
             >
               Features
             </Link>
             <Link
               href="/calculator"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition"
+              className="block rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
             >
-              Bill & Tip Split Calculator
+              Bill &amp; Tip Split Calculator
             </Link>
             <Link
               href="/itinerary"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition flex items-center gap-2"
+              className="block rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] flex items-center gap-2"
             >
-              <Plane className="h-4 w-4 text-emerald-400" />
-              <span>Travel Planner & Guide</span>
+              <Plane className="h-4 w-4 text-[var(--brand-primary)]" />
+              <span>Travel Planner &amp; Guide</span>
             </Link>
             {!currentUser?.isPro && (
               <Link
                 href="/pro"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block rounded-xl px-3 py-2.5 text-sm text-amber-400 hover:bg-white/5 transition"
+                className="block rounded-xl px-3 py-2.5 text-sm text-[var(--status-warning)] hover:bg-[var(--bg-surface-secondary)] font-medium"
               >
                 SplitRupee Pro
               </Link>
@@ -1089,27 +1099,30 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <Link
               href="/faq"
               onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition"
+              className="block rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
             >
               FAQ
             </Link>
 
-            {/* Quick theme toggle in mobile menu */}
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5 transition text-left"
+              className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] text-left"
             >
               <span className="flex items-center gap-2">
-                {isDarkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
-                <span>{isDarkMode ? "Eye-Comfort Light Mode" : "Dark Mode"}</span>
+                {isDarkMode ? (
+                  <Sun className="h-4 w-4 text-[var(--accent-sand)]" />
+                ) : (
+                  <Moon className="h-4 w-4 text-[var(--brand-dark)]" />
+                )}
+                <span>{isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}</span>
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-lg border border-white/10 bg-white/5">
+              <span className="text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]">
                 {isDarkMode ? "Dark" : "Light"}
               </span>
             </button>
 
-            <div className="pt-3 border-t border-white/10 space-y-2">
+            <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
               {currentUser ? (
                 <>
                   <button
@@ -1117,7 +1130,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                       setMobileMenuOpen(false);
                       setShowProfileSettings(true);
                     }}
-                    className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-center text-xs font-bold text-emerald-300 flex items-center justify-center gap-2"
+                    className="w-full rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] py-2.5 text-center text-xs font-semibold text-[var(--status-positive)] flex items-center justify-center gap-2"
                   >
                     <User className="h-4 w-4" />
                     <span>Profile Settings</span>
@@ -1128,7 +1141,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         setMobileMenuOpen(false);
                         setShowChangePassword(true);
                       }}
-                      className="flex-1 rounded-xl border border-white/15 bg-white/5 py-2.5 text-center text-xs font-semibold text-white"
+                      className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] py-2.5 text-center text-xs font-semibold text-[var(--text-primary)]"
                     >
                       Change Password
                     </button>
@@ -1137,29 +1150,29 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                         setMobileMenuOpen(false);
                         setShowLogoutConfirm(true);
                       }}
-                      className="flex-1 rounded-xl bg-rose-500/20 border border-rose-500/30 py-2.5 text-center text-xs font-bold text-rose-400"
+                      className="flex-1 rounded-xl bg-[var(--status-negative-bg)] border border-[var(--status-negative-border)] py-2.5 text-center text-xs font-semibold text-[var(--status-negative)]"
                     >
                       Log Out
                     </button>
                   </div>
                 </>
               ) : (
-                <>
+                <div className="flex gap-2">
                   <Link
                     href="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-center text-xs font-semibold text-white"
+                    className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] py-2.5 text-center text-xs font-semibold text-[var(--text-primary)]"
                   >
                     Log In
                   </Link>
                   <Link
                     href="/signup"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-center text-xs font-bold text-slate-950"
+                    className="flex-1 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] py-2.5 text-center text-xs font-semibold text-white dark:text-[#171F1D] keep-white"
                   >
                     Sign Up
                   </Link>
-                </>
+                </div>
               )}
             </div>
           </div>

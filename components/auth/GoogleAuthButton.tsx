@@ -18,7 +18,7 @@ export default function GoogleAuthButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`w-full h-12 flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-slate-100 hover:bg-white/[0.08] hover:border-white/20 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm ${className}`}
+      className={`w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] hover:border-[var(--border-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
     >
       <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
         <path

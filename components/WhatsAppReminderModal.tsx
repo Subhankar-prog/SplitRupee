@@ -105,27 +105,29 @@ Thanks! 🙌`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 p-0 sm:p-4 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-150">
       <div
-        className="w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom-4 duration-200"
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-white/10 bg-emerald-500/5">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 grid place-items-center text-emerald-500">
-              <MessageCircle className="h-5 w-5 fill-emerald-500/20 stroke-[2.5]" />
+            <div className="h-9 w-9 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] grid place-items-center text-[var(--status-positive)]">
+              <MessageCircle className="h-4 w-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">
                   WhatsApp UPI Reminder
                 </h3>
-                <span className="rounded-full bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 text-[9px] font-extrabold px-1.5 py-0.2 flex items-center gap-1">
-                  <Sparkles className="h-2.5 w-2.5 text-amber-400" /> PRO
+                <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] text-[9px] font-semibold px-1.5 py-0.5 flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5" /> PRO
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-[var(--text-secondary)]">
                 1-tap settle up notification with UPI payment details
               </p>
             </div>
@@ -133,7 +135,8 @@ Thanks! 🙌`;
           <button
             type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-full border border-slate-200 dark:border-white/10 grid place-items-center text-slate-400 hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition"
+            aria-label="Close modal"
+            className="h-8 w-8 rounded-lg border border-[var(--border-subtle)] grid place-items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -142,26 +145,26 @@ Thanks! 🙌`;
         {/* Content Body */}
         <div className="p-5 space-y-4 overflow-y-auto">
           {/* Summary Card */}
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 flex items-center justify-between">
+          <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3.5 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--status-positive)]">
                 Obligation to {creditorName}
               </p>
-              <p className="text-xl font-extrabold text-slate-900 dark:text-white tabular-nums">
+              <p className="font-display text-xl font-semibold text-[var(--text-primary)] tabular-nums">
                 {formattedAmount}
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Debtor: <strong className="text-slate-700 dark:text-slate-200">{debtorName}</strong>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                Debtor: <strong className="text-[var(--text-primary)]">{debtorName}</strong>
               </p>
             </div>
             {creditorUpiId && (
               <button
                 type="button"
                 onClick={() => setShowQR(!showQR)}
-                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold transition border ${
+                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${
                   showQR
-                    ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow"
-                    : "bg-white dark:bg-slate-800 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                    ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] border-transparent"
+                    : "bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                 }`}
               >
                 <QrCode className="h-4 w-4" />
@@ -172,18 +175,18 @@ Thanks! 🙌`;
 
           {/* Optional On-Screen UPI QR Code */}
           {showQR && creditorUpiId && (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-center space-y-2 animate-in fade-in">
-              <p className="text-xs font-semibold text-slate-300">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 text-center space-y-2 animate-in fade-in">
+              <p className="text-xs font-medium text-[var(--text-secondary)]">
                 Scan with any UPI App (GPay, PhonePe, Paytm, BHIM)
               </p>
-              <div className="flex justify-center p-2 bg-white rounded-xl w-fit mx-auto shadow-lg">
+              <div className="flex justify-center p-2 bg-white rounded-xl border border-[#E6E9E3] w-fit mx-auto">
                 <img
                   src={qrCodeUrl}
                   alt="UPI QR Code"
                   className="h-44 w-44 object-contain"
                 />
               </div>
-              <p className="text-[11px] font-mono text-emerald-400 font-semibold">
+              <p className="text-[11px] font-mono text-[var(--status-positive)] font-semibold">
                 {creditorUpiId}
               </p>
             </div>
@@ -191,18 +194,18 @@ Thanks! 🙌`;
 
           {/* Formatted Message Preview */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
+            <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+              <span className="font-medium text-[var(--text-primary)]">
                 WhatsApp Message Preview:
               </span>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex items-center gap-1 text-[11px] text-emerald-500 hover:underline font-semibold"
+                className="flex items-center gap-1 text-[11px] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline font-medium"
               >
                 {copied ? (
                   <>
-                    <Check className="h-3 w-3 stroke-[3]" /> Copied!
+                    <Check className="h-3 w-3 stroke-[2.5]" /> Copied!
                   </>
                 ) : (
                   <>
@@ -212,27 +215,27 @@ Thanks! 🙌`;
               </button>
             </div>
 
-            <div className="relative rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950 p-3.5 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line font-sans leading-relaxed select-text">
+            <div className="relative rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 text-xs text-[var(--text-primary)] whitespace-pre-line font-sans leading-relaxed select-text">
               {messageText}
             </div>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-slate-950/50 flex gap-2.5">
+        <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] flex gap-2.5">
           <button
             type="button"
             onClick={handleCopy}
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition"
+            className="flex-1 flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
             {copied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-emerald-500 stroke-[3]" />
+                <Check className="h-3.5 w-3.5 text-[var(--status-positive)] stroke-[2.5]" />
                 <span>Copied</span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5 text-slate-400" />
+                <Copy className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
                 <span>Copy Message</span>
               </>
             )}
@@ -241,9 +244,9 @@ Thanks! 🙌`;
           <button
             type="button"
             onClick={handleOpenWhatsApp}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20ba59] py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 active:scale-95 transition"
+            className="flex-1 flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-xs font-semibold text-white dark:text-[#171F1D] transition-opacity"
           >
-            <Send className="h-3.5 w-3.5 fill-white" />
+            <Send className="h-3.5 w-3.5" />
             <span>Open WhatsApp</span>
           </button>
         </div>

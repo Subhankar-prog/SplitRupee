@@ -32,8 +32,8 @@ const TYPE_ICONS: Record<string, any> = {
 export default function GroupsPage() {
   const router = useRouter();
   const { currentUser, isLoading: usersLoading } = useUser();
-  const [groups, setGroups] = useState<GroupDTO[]>(() => getCachedGroupsList());
-  const [loading, setLoading] = useState(() => getCachedGroupsList().length === 0);
+  const [groups, setGroups] = useState<GroupDTO[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -49,8 +49,13 @@ export default function GroupsPage() {
       if (!usersLoading) setLoading(false);
       return;
     }
+    const cachedInitial = getCachedGroupsList();
+    if (isInitial && cachedInitial.length > 0) {
+      setGroups(cachedInitial);
+      setLoading(false);
+    }
     try {
-      if (isInitial && groupsRef.current.length === 0) setLoading(true);
+      if (isInitial && groupsRef.current.length === 0 && cachedInitial.length === 0) setLoading(true);
       const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
       const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
       const res = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`, {
@@ -91,6 +96,10 @@ export default function GroupsPage() {
   const handleJoinGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!joinCodeInput.trim() || !currentUser) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setJoinError("You're offline. Internet connection is required to join a group.");
+      return;
+    }
     try {
       setJoining(true);
       setJoinError("");
@@ -110,7 +119,11 @@ export default function GroupsPage() {
           router.push(`/groups/${data.group.id}`);
         }
       } else {
-        setJoinError(data.error || "Invalid invite code");
+        setJoinError(
+          data.offline
+            ? "You're offline. Internet connection is required to join a group."
+            : data.error || "Invalid invite code"
+        );
       }
     } catch (err) {
       setJoinError("Network error. Please try again.");
@@ -121,34 +134,35 @@ export default function GroupsPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl space-y-8 pb-12">
+      <div className="mx-auto max-w-6xl space-y-6 pb-12">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl bg-slate-900/60 p-6 md:p-8 border border-white/10 backdrop-blur-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-[var(--bg-surface)] p-6 border border-[var(--border-subtle)] shadow-[var(--shadow-card)]">
           <div>
-            <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm mb-1">
+            <div className="flex items-center gap-2 text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold text-xs mb-1">
               <Users className="h-4 w-4" />
               <span>SplitRupee Trip & Shared Groups</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white">Your Groups</h1>
-            <p className="text-slate-400 text-sm mt-1">
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--text-primary)]">Your Groups</h1>
+            <p className="text-[var(--text-secondary)] text-xs sm:text-sm mt-1">
               Manage expenses, track balances, and plan AI itineraries with your travel buddies.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={() => setShowCreateGroup(true)}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition"
+            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-5 font-semibold text-xs sm:text-sm text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity shrink-0"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             <span>Create New Group</span>
           </button>
         </div>
 
         {/* Join Group Bar */}
-        <div className="rounded-2xl bg-slate-900/40 p-4 border border-white/5 backdrop-blur-md">
+        <div className="rounded-2xl bg-[var(--bg-surface)] p-4 border border-[var(--border-subtle)] shadow-[var(--shadow-card)]">
           <form onSubmit={handleJoinGroup} className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="flex items-center gap-2 text-slate-300 text-sm font-medium shrink-0">
-              <UserPlus className="h-4 w-4 text-emerald-400" />
+            <div className="flex items-center gap-2 text-[var(--text-primary)] text-xs sm:text-sm font-medium shrink-0 w-full sm:w-auto">
+              <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
               <span>Have an Invite Code?</span>
             </div>
             <div className="flex-1 w-full flex items-center gap-2">
@@ -157,18 +171,18 @@ export default function GroupsPage() {
                 value={joinCodeInput}
                 onChange={(e) => setJoinCodeInput(e.target.value)}
                 placeholder="Enter 8-digit invite code (e.g. TRIP2026)"
-                className="w-full rounded-xl bg-slate-950 border border-white/10 px-4 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
               />
               <button
                 type="submit"
                 disabled={joining || !joinCodeInput.trim()}
-                className="rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-4 py-2 text-sm font-semibold text-emerald-400 transition disabled:opacity-50 shrink-0"
+                className="h-10 rounded-xl bg-[var(--status-positive-bg)] hover:opacity-90 border border-[var(--status-positive-border)] px-4 text-xs sm:text-sm font-semibold text-[var(--status-positive)] transition-opacity disabled:opacity-50 shrink-0"
               >
                 {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
               </button>
             </div>
           </form>
-          {joinError && <p className="text-rose-400 text-xs mt-2 pl-1">{joinError}</p>}
+          {joinError && <p className="text-[var(--status-negative)] text-xs mt-2 pl-1">{joinError}</p>}
         </div>
 
         {/* Loading State */}
@@ -179,44 +193,45 @@ export default function GroupsPage() {
             subtext="Loading your active expense groups..."
           />
         ) : !currentUser ? (
-          <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-12 text-center backdrop-blur-xl">
-            <Users className="mx-auto h-12 w-12 text-emerald-400/60 mb-4" />
-            <h2 className="text-xl font-bold text-white mb-2">Login Required</h2>
-            <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-12 text-center shadow-[var(--shadow-card)]">
+            <Users className="mx-auto h-10 w-10 text-[var(--brand-primary)] mb-3" />
+            <h2 className="font-display text-xl font-semibold text-[var(--text-primary)] mb-2">Login Required</h2>
+            <p className="text-[var(--text-secondary)] text-sm max-w-md mx-auto mb-6">
               Please login or sign up to view and manage your trip groups and shared expenses.
             </p>
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-3">
               <Link
                 href="/login"
-                className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 transition"
+                className="h-10 inline-flex items-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-6 text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
               >
                 Login
               </Link>
               <Link
                 href="/signup"
-                className="rounded-xl bg-white/10 px-6 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition"
+                className="h-10 inline-flex items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-6 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
                 Sign Up
               </Link>
             </div>
           </div>
         ) : groups.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-slate-900/30 p-12 text-center backdrop-blur-xl">
-            <Users className="mx-auto h-14 w-14 text-slate-600 mb-4" />
-            <h2 className="text-xl font-bold text-white mb-2">No Groups Yet</h2>
-            <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">
+          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-12 text-center">
+            <Users className="mx-auto h-11 w-11 text-[var(--text-secondary)] mb-3" />
+            <h2 className="font-display text-xl font-semibold text-[var(--text-primary)] mb-2">No Groups Yet</h2>
+            <p className="text-[var(--text-secondary)] text-sm max-w-md mx-auto mb-6">
               You haven&apos;t joined or created any trip groups. Start a group with friends to split costs and plan itineraries together!
             </p>
             <button
+              type="button"
               onClick={() => setShowCreateGroup(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3 font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 transition"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-5 text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-4 w-4" />
               <span>Create Your First Group</span>
             </button>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((g) => {
               const IconComponent = TYPE_ICONS[g.type] || Users;
               return (
@@ -224,43 +239,43 @@ export default function GroupsPage() {
                   key={g.id}
                   href={`/groups/${g.id}`}
                   prefetch={false}
-                  className="group relative flex flex-col justify-between rounded-3xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-xl transition hover:border-emerald-500/40 hover:bg-slate-900/80 shadow-lg hover:shadow-emerald-500/5"
+                  className="group relative flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--brand-primary)]"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 group-hover:scale-110 transition">
-                        <IconComponent className="h-6 w-6" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+                        <IconComponent className="h-5 w-5" />
                       </div>
-                      <span className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      <span className="rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                         {g.type}
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition line-clamp-1">
+                    <h3 className="font-display text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors line-clamp-1">
                       {g.name}
                     </h3>
                     {(g as any).description && (
-                      <p className="text-xs text-slate-300/80 mt-1 line-clamp-2 italic">
-                        &ldquo;{(g as any).description}&rdquo;
+                      <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">
+                        {(g as any).description}
                       </p>
                     )}
-                    <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                    <p className="text-xs text-[var(--text-secondary)] mt-2 flex items-center gap-1.5">
                       <Users className="h-3.5 w-3.5" />
                       <span>{g.members?.length || 1} Members</span>
                     </p>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                  <div className="mt-5 pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block">
+                      <span className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-semibold block">
                         Invite Code
                       </span>
-                      <span className="text-xs font-mono text-emerald-400 font-medium">
+                      <span className="text-xs font-mono text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold">
                         {(g as any).inviteCode || g.id.slice(0, 8)}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition">
+                    <div className="flex items-center gap-1 text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] group-hover:translate-x-0.5 transition-transform">
                       <span>View Group</span>
                       <ArrowRight className="h-4 w-4" />
                     </div>
