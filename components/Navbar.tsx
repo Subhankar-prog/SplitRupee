@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import { getShellMode } from "@/lib/routeShell";
 import { getAvatarTextColor, DEFAULT_AVATAR_COLOR } from "@/lib/avatarColors";
+import UserAvatar from "@/components/ui/UserAvatar";
 import {
   Plus,
   Menu,
@@ -36,6 +37,7 @@ import AddUpiModal from "./AddUpiModal";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useTheme } from "@/lib/themeContext";
+import { useBodyScrollLock } from "@/lib/scrollLock";
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const { currentUser, setCurrentUser, logout, refreshUsers } = useUser();
@@ -364,6 +366,9 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
   const unreadCount = notifications.filter((n) => n.unread).length;
   const isAppRoute = getShellMode(pathname, Boolean(currentUser)) === "app";
 
+  // Lock background scroll when public mobile menu drawer is open
+  useBodyScrollLock(mobileMenuOpen && !isAppRoute);
+
   const desktopRightActions = (
     <div className="flex items-center gap-2 shrink-0">
       <button
@@ -505,19 +510,14 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             className="flex items-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] p-1.5 pr-2.5 text-left hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
             <div className="relative">
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-lg font-semibold text-xs"
-                style={{
-                  background: currentUser.isPro
-                    ? "var(--accent-gold)"
-                    : currentUser.avatarColor || DEFAULT_AVATAR_COLOR,
-                  color: currentUser.isPro
-                    ? "#171613"
-                    : getAvatarTextColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR),
-                }}
-              >
-                <span>{currentUser.name.charAt(0).toUpperCase()}</span>
-              </div>
+              <UserAvatar
+                name={currentUser.name}
+                avatarUrl={currentUser.avatarUrl}
+                avatarColor={currentUser.avatarColor}
+                size="sm"
+                shape="square"
+                isPro={currentUser.isPro}
+              />
             </div>
 
             <div className="hidden sm:block leading-tight text-left min-w-0">
@@ -547,19 +547,15 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
             <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-popover)] z-50">
               <div className="rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] p-3 space-y-2 mb-2">
                 <div className="flex items-start gap-2.5">
-                  <div
-                    className="h-7 w-7 rounded-lg grid place-items-center text-xs font-semibold shrink-0 mt-0.5"
-                    style={{
-                      background: currentUser.isPro
-                        ? "var(--accent-gold)"
-                        : currentUser.avatarColor || DEFAULT_AVATAR_COLOR,
-                      color: currentUser.isPro
-                        ? "#171613"
-                        : getAvatarTextColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR),
-                    }}
-                  >
-                    <span>{currentUser.name.charAt(0)}</span>
-                  </div>
+                  <UserAvatar
+                    name={currentUser.name}
+                    avatarUrl={currentUser.avatarUrl}
+                    avatarColor={currentUser.avatarColor}
+                    size="sm"
+                    shape="square"
+                    isPro={currentUser.isPro}
+                    className="mt-0.5"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="font-semibold text-[var(--text-primary)] text-xs break-words leading-tight">
@@ -812,17 +808,16 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   <Link
                     href="/profile"
                     aria-label="Open Profile Settings"
-                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
-                    style={{
-                      background: currentUser.isPro
-                        ? "var(--accent-gold)"
-                        : currentUser.avatarColor || DEFAULT_AVATAR_COLOR,
-                      color: currentUser.isPro
-                        ? "#171613"
-                        : getAvatarTextColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR),
-                    }}
+                    className="relative shrink-0 transition-opacity hover:opacity-90"
                   >
-                    <span>{currentUser.name.charAt(0).toUpperCase()}</span>
+                    <UserAvatar
+                      name={currentUser.name}
+                      avatarUrl={currentUser.avatarUrl}
+                      avatarColor={currentUser.avatarColor}
+                      size="md"
+                      shape="rounded"
+                      isPro={currentUser.isPro}
+                    />
                     {currentUser.isPro && (
                       <span
                         className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-surface)] border border-[var(--accent-gold-border)] text-[var(--accent-gold-ink)]"

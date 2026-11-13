@@ -15,6 +15,7 @@ import { buildCategoryDistribution } from "@/lib/categoryChart";
 import { buildLedger, computeNetBalances } from "@/lib/debt";
 import { formatINR, formatPaise } from "@/lib/money";
 import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
+import UserAvatar from "@/components/ui/UserAvatar";
 import ScrollReveal from "@/components/ui/ScrollReveal";
 import {
   Users,
@@ -726,15 +727,13 @@ export default function DashboardPage() {
                       className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-semibold text-xs"
-                          style={{
-                            background: user.avatarColor || DEFAULT_AVATAR_COLOR,
-                            color: getAvatarTextColor(user.avatarColor || DEFAULT_AVATAR_COLOR),
-                          }}
-                        >
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar
+                          name={user.name}
+                          avatarUrl={user.avatarUrl}
+                          avatarColor={user.avatarColor}
+                          size="md"
+                          shape="square"
+                        />
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">{user.name}</p>
                           <p

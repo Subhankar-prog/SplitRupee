@@ -2,7 +2,7 @@
 
 import React, { useId, useRef } from "react";
 import { LogOut, X } from "lucide-react";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 
 interface Props {
   isOpen: boolean;
@@ -25,8 +25,9 @@ export default function LogoutConfirmModal({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -37,7 +38,7 @@ export default function LogoutConfirmModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover space-y-5 outline-none sr-modal-panel"
+        className="relative w-full max-w-sm max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover space-y-5 outline-none sr-modal-panel"
       >
         <button
           type="button"
@@ -81,5 +82,6 @@ export default function LogoutConfirmModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

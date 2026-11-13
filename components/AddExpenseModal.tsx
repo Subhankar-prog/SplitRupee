@@ -2,7 +2,7 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import {
   CATEGORIES,
   SPLIT_TYPES,
@@ -21,6 +21,7 @@ import {
 import { formatINR, roundFigure } from "@/lib/money";
 import { addOfflineExpense, getCachedGroupsList } from "@/lib/offlineSync";
 import CurrencyPickerModal from "@/components/CurrencyPickerModal";
+import UserAvatar from "@/components/ui/UserAvatar";
 import {
   getCurrency,
   getRateToINR,
@@ -497,8 +498,9 @@ export default function AddExpenseModal({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 overflow-hidden sr-modal-backdrop"
+      <ModalPortal>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
         onClick={(e) => {
           if (e.target === e.currentTarget && !loading && !isCurrencyPickerOpen) onClose();
         }}
@@ -509,22 +511,17 @@ export default function AddExpenseModal({
           aria-modal="true"
           aria-labelledby={`${baseId}-dialog-title`}
           tabIndex={-1}
-          className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sm:my-4 outline-none sr-modal-panel"
+          className="relative w-full max-w-lg max-h-[min(92vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
         >
-          {/* Drag handle on mobile */}
-          <div className="sm:hidden flex justify-center mb-2 -mt-1">
-            <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
-          </div>
-
           {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-subtle)] shrink-0">
             <div>
               <h2
                 id={`${baseId}-dialog-title`}
-                className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
+                className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
               >
-                <Sparkles className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
-                {initialExpense ? "Edit Expense" : "Add an Expense"}
+                <Sparkles className="h-5 w-5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" />
+                <span>{initialExpense ? "Edit Expense" : "Add an Expense"}</span>
               </h2>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                 {initialExpense
@@ -536,13 +533,13 @@ export default function AddExpenseModal({
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <form id={`${baseId}-form`} onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
             {offlineNotice && (
               <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-xs text-[var(--status-warning)] flex items-center gap-2">
                 <Cloud className="h-4 w-4 shrink-0" />
@@ -792,12 +789,23 @@ export default function AddExpenseModal({
 
             {/* Paid by */}
             <div>
-              <label htmlFor={`${baseId}-paidby`} className="text-xs font-medium text-[var(--text-secondary)]">Paid By</label>
+              <div className="flex items-center gap-1.5 mb-1">
+                {members.find((m) => m.id === paidById) && (
+                  <UserAvatar
+                    name={members.find((m) => m.id === paidById)?.name}
+                    avatarUrl={members.find((m) => m.id === paidById)?.avatarUrl}
+                    avatarColor={members.find((m) => m.id === paidById)?.avatarColor}
+                    size="xs"
+                    shape="circle"
+                  />
+                )}
+                <label htmlFor={`${baseId}-paidby`} className="text-xs font-medium text-[var(--text-secondary)]">Paid By</label>
+              </div>
               <select
                 id={`${baseId}-paidby`}
                 value={paidById}
                 onChange={(e) => setPaidById(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
+                className="h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -875,6 +883,13 @@ export default function AddExpenseModal({
                           >
                             {isIncluded && <Check className="h-3 w-3 stroke-[2.5]" />}
                           </div>
+                          <UserAvatar
+                            name={m.name}
+                            avatarUrl={m.avatarUrl}
+                            avatarColor={m.avatarColor}
+                            size="xs"
+                            shape="circle"
+                          />
                           <span className="font-medium text-[var(--text-primary)] break-words leading-tight">{m.name}</span>
                         </button>
 
@@ -1066,27 +1081,29 @@ export default function AddExpenseModal({
                 className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
               />
             </div>
-
-            {/* Actions */}
-            <div className="flex gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
-              >
-                {loading ? "Saving..." : initialExpense ? "Save Changes" : "Create Expense"}
-              </button>
-            </div>
           </form>
+
+          {/* Fixed Action Footer */}
+          <div className="flex gap-2.5 p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form={`${baseId}-form`}
+              disabled={loading}
+              className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {loading ? "Saving..." : initialExpense ? "Save Changes" : "Create Expense"}
+            </button>
+          </div>
         </div>
       </div>
+    </ModalPortal>
 
       {/* Global Currency Picker Modal with Instant Search */}
       <CurrencyPickerModal

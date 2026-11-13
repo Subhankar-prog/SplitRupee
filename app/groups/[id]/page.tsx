@@ -17,6 +17,7 @@ import { buildWhatsAppSummary, buildGroupLedgerCSV } from "@/lib/export";
 import { exportGroupLedgerPDF } from "@/lib/pdfExport";
 import { formatINR, formatPaise } from "@/lib/money";
 import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { getCurrency, formatCurrencyAmount } from "@/lib/currencies";
 import {
   Users,
@@ -949,15 +950,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="h-7 w-7 rounded-lg grid place-items-center font-semibold text-xs shrink-0"
-                            style={{
-                              background: m.avatarColor || DEFAULT_AVATAR_COLOR,
-                              color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
-                            }}
-                          >
-                            {m.name.charAt(0)}
-                          </span>
+                          <UserAvatar
+                            name={m.name}
+                            avatarUrl={m.avatarUrl}
+                            avatarColor={m.avatarColor}
+                            size="sm"
+                            shape="square"
+                          />
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <span className="font-semibold text-[var(--text-primary)] break-words leading-tight">{m.name}</span>
@@ -1063,15 +1062,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         <tr key={m.id} className="hover:bg-[var(--bg-surface-secondary)] transition-colors">
                           <td className="p-3 pl-4 align-middle font-semibold text-[var(--text-primary)] whitespace-nowrap">
                             <div className="flex items-center gap-2 min-w-max">
-                              <span
-                                className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-[10px] shrink-0"
-                                style={{
-                                  background: m.avatarColor || DEFAULT_AVATAR_COLOR,
-                                  color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
-                                }}
-                              >
-                                {m.name.charAt(0)}
-                              </span>
+                              <UserAvatar
+                                name={m.name}
+                                avatarUrl={m.avatarUrl}
+                                avatarColor={m.avatarColor}
+                                size="xs"
+                                shape="square"
+                              />
                               <span className="font-semibold text-[var(--text-primary)] break-words">{m.name}</span>
                               {currentUser?.id === m.id && (
                                 <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
@@ -1265,15 +1262,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                   <div key={m.id} className="p-4 space-y-3 text-xs">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className="h-8 w-8 rounded-lg grid place-items-center font-semibold text-xs shrink-0"
-                          style={{
-                            background: m.avatarColor || DEFAULT_AVATAR_COLOR,
-                            color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
-                          }}
-                        >
-                          {m.name.charAt(0)}
-                        </span>
+                        <UserAvatar
+                          name={m.name}
+                          avatarUrl={m.avatarUrl}
+                          avatarColor={m.avatarColor}
+                          size="md"
+                          shape="square"
+                        />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="font-semibold text-[var(--text-primary)] break-words leading-tight">{m.name}</span>
@@ -1388,15 +1383,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       <tr key={m.id} className="hover:bg-[var(--bg-surface-secondary)] transition-colors">
                         <td className="p-3.5 pl-5 align-middle font-semibold text-[var(--text-primary)] whitespace-nowrap">
                           <div className="flex items-center gap-2.5 min-w-max">
-                            <span
-                              className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-[10px] shrink-0"
-                              style={{
-                                background: m.avatarColor || DEFAULT_AVATAR_COLOR,
-                                color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
-                              }}
-                            >
-                              {m.name.charAt(0)}
-                            </span>
+                            <UserAvatar
+                              name={m.name}
+                              avatarUrl={m.avatarUrl}
+                              avatarColor={m.avatarColor}
+                              size="xs"
+                              shape="square"
+                            />
                             <span className="font-semibold text-[var(--text-primary)] break-words">{m.name}</span>
                             {currentUser?.id === m.id && (
                               <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
@@ -1719,8 +1712,17 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1">
-                            <span className="font-semibold text-[var(--text-primary)]">{exp.paidBy.name}</span> paid{" "}
+                          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 font-semibold text-[var(--text-primary)]">
+                              <UserAvatar
+                                name={exp.paidBy.name}
+                                avatarUrl={exp.paidBy.avatarUrl}
+                                avatarColor={exp.paidBy.avatarColor}
+                                size="xs"
+                                shape="circle"
+                              />
+                              <span>{exp.paidBy.name}</span>
+                            </span> paid{" "}
                             <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(exp.totalAmount)}</span>
                             {exp.currency && exp.currency !== "INR" && (
                               <span className="inline-flex items-center gap-1 rounded-md bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
@@ -1941,15 +1943,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                 key={m.id}
                 className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-card)] sr-card-interactive"
               >
-                <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-semibold text-sm"
-                  style={{
-                    background: m.avatarColor || DEFAULT_AVATAR_COLOR,
-                    color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
-                  }}
-                >
-                  {m.name.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar
+                  name={m.name}
+                  avatarUrl={m.avatarUrl}
+                  avatarColor={m.avatarColor}
+                  size="lg"
+                  shape="rounded"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">{m.name}</p>

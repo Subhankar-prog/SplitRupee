@@ -13,7 +13,7 @@ import {
   Send,
 } from "lucide-react";
 import { formatINR, roundFigure } from "@/lib/money";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import QrCodeImage from "@/components/ui/QrCodeImage";
 
 interface WhatsAppReminderModalProps {
@@ -110,8 +110,9 @@ Thanks! 🙌`;
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -121,7 +122,8 @@ Thanks! 🙌`;
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[90vh] overflow-hidden"
+        tabIndex={-1}
+        className="w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-hidden outline-none sr-modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -263,5 +265,6 @@ Thanks! 🙌`;
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

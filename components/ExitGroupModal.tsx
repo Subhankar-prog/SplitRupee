@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { LogOut, AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 
 interface Props {
   isOpen: boolean;
@@ -69,8 +69,9 @@ export default function ExitGroupModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) onClose();
       }}
@@ -81,10 +82,10 @@ export default function ExitGroupModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover space-y-5 outline-none sr-modal-panel"
+        className="w-full max-w-md max-h-[min(90vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-subtle)] shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="p-2 rounded-xl bg-[var(--status-negative-bg)] text-[var(--status-negative)] border border-[var(--status-negative-border)]">
               <LogOut className="h-4 w-4" aria-hidden="true" />
@@ -96,14 +97,14 @@ export default function ExitGroupModal({
             onClick={onClose}
             disabled={loading}
             aria-label="Close modal"
-            className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors shrink-0"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
         {/* Message */}
-        <div className="space-y-3 text-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4 text-sm">
           <p className="text-[var(--text-secondary)]">
             Are you sure you want to leave <strong className="text-[var(--text-primary)] font-semibold">{groupName}</strong>?
           </p>
@@ -161,7 +162,7 @@ export default function ExitGroupModal({
         )}
 
         {/* Buttons */}
-        <div className="flex items-center justify-end gap-2.5 pt-2">
+        <div className="flex items-center justify-end gap-2.5 p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -182,5 +183,6 @@ export default function ExitGroupModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

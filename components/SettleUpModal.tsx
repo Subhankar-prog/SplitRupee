@@ -21,8 +21,9 @@ import type { MemberDTO } from "@/lib/types";
 import type { Transfer } from "@/lib/debt";
 import { formatINR, roundFigure } from "@/lib/money";
 import { addOfflinePayment, getCachedGroup } from "@/lib/offlineSync";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import QrCodeImage from "@/components/ui/QrCodeImage";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface Props {
   groupId: string;
@@ -368,8 +369,9 @@ export default function SettleUpModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 overflow-hidden sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) onClose();
       }}
@@ -379,18 +381,15 @@ export default function SettleUpModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sr-modal-panel"
+        tabIndex={-1}
+        className="relative w-full max-w-lg max-h-[min(92vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
       >
-        <div className="sm:hidden flex justify-center mb-2 -mt-1">
-          <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
-        </div>
-
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-subtle)] shrink-0">
           <div>
-            <h2 id={titleId} className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-[var(--brand-primary)]" />
-              Settle Up with UPI / Cash
+            <h2 id={titleId} className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-[var(--brand-primary)] shrink-0" />
+              <span>Settle Up with UPI / Cash</span>
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Pay directly via UPI or record an offline cash payment
@@ -400,13 +399,13 @@ export default function SettleUpModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-4">
+        <form id={`${baseId}-form`} onSubmit={handleSubmit} noValidate className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           {offlineNotice && (
             <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-xs text-[var(--status-warning)] flex items-center gap-2">
               <Cloud className="h-4 w-4 shrink-0" />
@@ -463,9 +462,18 @@ export default function SettleUpModal({
           <div className="grid grid-cols-1 sm:grid-cols-11 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3">
             <div className="sm:col-span-5">
               <div className="flex items-center justify-between">
-                <label htmlFor={`${baseId}-payer`} className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Payer (Who pays)
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <UserAvatar
+                    name={payer?.name || "Payer"}
+                    avatarUrl={payer?.avatarUrl}
+                    avatarColor={payer?.avatarColor}
+                    size="xs"
+                    shape="circle"
+                  />
+                  <label htmlFor={`${baseId}-payer`} className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Payer (Who pays)
+                  </label>
+                </div>
                 {!isAdmin && <Lock className="h-3 w-3 text-[var(--text-secondary)]" aria-hidden="true" />}
               </div>
               <select
@@ -491,9 +499,18 @@ export default function SettleUpModal({
 
             <div className="sm:col-span-5">
               <div className="flex items-center justify-between">
-                <label htmlFor={`${baseId}-receiver`} className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Receiver (Gets paid)
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <UserAvatar
+                    name={receiver?.name || "Receiver"}
+                    avatarUrl={receiver?.avatarUrl}
+                    avatarColor={receiver?.avatarColor}
+                    size="xs"
+                    shape="circle"
+                  />
+                  <label htmlFor={`${baseId}-receiver`} className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Receiver (Gets paid)
+                  </label>
+                </div>
                 {!isAdmin && <Lock className="h-3 w-3 text-[var(--text-secondary)]" aria-hidden="true" />}
               </div>
               <select
@@ -726,26 +743,28 @@ export default function SettleUpModal({
               className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
             />
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || numAmount <= 0}
-              className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
-            >
-              {loading ? "Recording..." : "Record as Settled"}
-            </button>
-          </div>
         </form>
+
+        {/* Fixed Action Footer */}
+        <div className="flex gap-2.5 p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={`${baseId}-form`}
+            disabled={loading || numAmount <= 0}
+            className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {loading ? "Recording..." : "Record as Settled"}
+          </button>
+        </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

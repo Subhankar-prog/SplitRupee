@@ -2,7 +2,7 @@
 
 import React, { useId, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import { X, Plane, Home, Heart, Tag, Check, Users, Plus, UserPlus, Info } from "lucide-react";
 import type { GroupTypeName } from "@/lib/types";
 
@@ -81,8 +81,9 @@ export default function CreateGroupModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) onClose();
       }}
@@ -93,16 +94,16 @@ export default function CreateGroupModal({
         aria-modal="true"
         aria-labelledby={`${baseId}-title`}
         tabIndex={-1}
-        className="relative w-full max-w-lg rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover outline-none sr-modal-panel"
+        className="relative w-full max-w-lg max-h-[min(92vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
       >
-        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-subtle)] shrink-0">
           <div>
             <h2
               id={`${baseId}-title`}
-              className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
+              className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
             >
-              <Users className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
-              Create New Group
+              <Users className="h-5 w-5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" />
+              <span>Create New Group</span>
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Organize expenses with roommates, trips, or friends
@@ -112,13 +113,13 @@ export default function CreateGroupModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form id={`${baseId}-form`} onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           {error && (
             <div className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]">
               {error}
@@ -191,26 +192,28 @@ export default function CreateGroupModal({
               You will automatically be added as the group creator. Once the group is created, you can invite your flatmates, friends, or travel companions anytime via private invite link or WhatsApp.
             </p>
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
-            >
-              {loading ? "Creating..." : "Create Group"}
-            </button>
-          </div>
         </form>
+
+        {/* Fixed Action Footer */}
+        <div className="flex gap-2.5 p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={`${baseId}-form`}
+            disabled={loading}
+            className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {loading ? "Creating..." : "Create Group"}
+          </button>
+        </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

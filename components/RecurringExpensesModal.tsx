@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { formatINR, roundFigure } from "@/lib/money";
 import type { MemberDTO } from "@/lib/types";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface RecurringItem {
   id: string;
@@ -41,6 +42,7 @@ interface RecurringItem {
     id: string;
     name: string;
     avatarColor?: string;
+    avatarUrl?: string | null;
   };
 }
 
@@ -196,8 +198,9 @@ export default function RecurringExpensesModal({
 
   if (!currentUser?.isPro) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4"
+      <ModalPortal>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -207,7 +210,8 @@ export default function RecurringExpensesModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="relative w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-center space-y-4 shadow-popover"
+          tabIndex={-1}
+          className="relative w-full max-w-md max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-center space-y-4 shadow-popover outline-none sr-modal-panel"
         >
           <button
             type="button"
@@ -234,12 +238,14 @@ export default function RecurringExpensesModal({
           </Link>
         </div>
       </div>
+    </ModalPortal>
     );
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4"
+    <ModalPortal>
+      <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -249,7 +255,8 @@ export default function RecurringExpensesModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[88vh] overflow-hidden"
+        tabIndex={-1}
+        className="w-full max-w-lg rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-hidden outline-none sr-modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -487,8 +494,17 @@ export default function RecurringExpensesModal({
                             Active
                           </span>
                         </div>
-                        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                          Paid by <strong className="text-[var(--text-primary)]">{item.paidBy.name}</strong> · Day {item.dayOfMonth}th of month
+                        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1">
+                          <span>Paid by</span>
+                          <UserAvatar
+                            name={item.paidBy.name}
+                            avatarUrl={item.paidBy.avatarUrl}
+                            avatarColor={item.paidBy.avatarColor}
+                            size="xs"
+                            shape="circle"
+                          />
+                          <strong className="text-[var(--text-primary)]">{item.paidBy.name}</strong>
+                          <span>· Day {item.dayOfMonth}th of month</span>
                         </p>
                         <p className="text-[10px] text-[var(--text-secondary)]/85 flex items-center gap-1 mt-0.5">
                           <Clock className="h-2.5 w-2.5" />
@@ -519,5 +535,6 @@ export default function RecurringExpensesModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

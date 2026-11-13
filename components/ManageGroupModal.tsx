@@ -26,7 +26,8 @@ import {
 } from "lucide-react";
 import type { MemberDTO, GroupTypeName } from "@/lib/types";
 import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface Props {
   isOpen: boolean;
@@ -373,8 +374,9 @@ export default function ManageGroupModal({
   const myBalance = balances[currentUser.id] ?? 0;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving && !deleting) onClose();
       }}
@@ -384,7 +386,8 @@ export default function ManageGroupModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${baseId}-modal-title`}
-        className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden sr-modal-panel"
+        tabIndex={-1}
+        className="w-full max-w-xl max-h-[min(90vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--border-subtle)] shrink-0">
@@ -793,15 +796,13 @@ export default function ManageGroupModal({
                       className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-semibold shrink-0"
-                          style={{
-                            backgroundColor: m.avatarColor || DEFAULT_AVATAR_COLOR,
-                            color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
-                          }}
-                        >
-                          {m.name.slice(0, 2).toUpperCase()}
-                        </div>
+                        <UserAvatar
+                          name={m.name}
+                          avatarUrl={m.avatarUrl}
+                          avatarColor={m.avatarColor}
+                          size="md"
+                          shape="square"
+                        />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] break-words leading-tight">
@@ -1031,5 +1032,6 @@ export default function ManageGroupModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

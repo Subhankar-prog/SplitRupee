@@ -21,7 +21,7 @@ function fail(status: number, error: string, issues: string[] = []) {
 export async function GET(req: Request, { params }: Params) {
   try {
     const { id } = params;
-    const person = { select: { id: true, name: true, avatarColor: true } } as const;
+    const person = { select: { id: true, name: true, avatarColor: true, avatarUrl: true } } as const;
     const expense = await prisma.expense.findUnique({
       where: { id },
       include: {

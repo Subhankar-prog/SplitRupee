@@ -6,7 +6,7 @@ import { Trash2, Cloud } from "lucide-react";
 import type { ExpenseDTO } from "@/lib/types";
 import { formatINR } from "@/lib/money";
 import { addOfflineDeleteExpense } from "@/lib/offlineSync";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 
 export default function DeleteExpenseModal({
   expense,
@@ -89,8 +89,9 @@ export default function DeleteExpenseModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) onClose();
       }}
@@ -101,7 +102,7 @@ export default function DeleteExpenseModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover outline-none sr-modal-panel"
+        className="relative w-full max-w-sm max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover outline-none sr-modal-panel"
       >
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--status-negative-bg)] text-[var(--status-negative)] border border-[var(--status-negative-border)]">
@@ -150,5 +151,6 @@ export default function DeleteExpenseModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

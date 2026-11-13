@@ -97,8 +97,8 @@ export async function POST(req: Request) {
             notes: { contains: `[idempotency:${idempotencyKey}]` },
           },
           include: {
-            payer: { select: { id: true, name: true, avatarColor: true } },
-            receiver: { select: { id: true, name: true, avatarColor: true } },
+            payer: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
+            receiver: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
             group: { select: { id: true, name: true } },
           },
         });
@@ -159,8 +159,8 @@ export async function POST(req: Request) {
           notes: finalNotes,
         },
         include: {
-          payer: { select: { id: true, name: true, avatarColor: true } },
-          receiver: { select: { id: true, name: true, avatarColor: true } },
+          payer: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
+          receiver: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
           group: { select: { id: true, name: true } },
         },
       });

@@ -2,7 +2,7 @@
 
 import React, { useId, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import QrCodeImage from "@/components/ui/QrCodeImage";
 import { X, UserPlus, Check, Mail, Link as LinkIcon, Share2, QrCode, Copy } from "lucide-react";
 import type { MemberDTO } from "@/lib/types";
@@ -133,8 +133,9 @@ export default function AddMemberModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 overflow-hidden sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !loading) onClose();
       }}
@@ -145,19 +146,16 @@ export default function AddMemberModal({
         aria-modal="true"
         aria-labelledby={`${baseId}-title`}
         tabIndex={-1}
-        className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto outline-none sr-modal-panel"
+        className="relative w-full max-w-md max-h-[min(92vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
       >
-        <div className="sm:hidden flex justify-center mb-2 -mt-1">
-          <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
-        </div>
-        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border-subtle)] shrink-0">
           <div>
             <h2
               id={`${baseId}-title`}
-              className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
+              className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
             >
-              <UserPlus className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
-              Invite & Add Members
+              <UserPlus className="h-5 w-5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" />
+              <span>Invite & Add Members</span>
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Share an invite link, add contacts, or invite via email / mobile
@@ -167,20 +165,21 @@ export default function AddMemberModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        {error && (
-          <div className="mt-3 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]">
-            {error}
-          </div>
-        )}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          {error && (
+            <div className="mb-4 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]">
+              {error}
+            </div>
+          )}
 
-        {/* Tab switch */}
-        <div className="mt-4 flex rounded-xl bg-[var(--bg-surface-secondary)] p-1 border border-[var(--border-subtle)]">
+          {/* Tab switch */}
+          <div className="flex rounded-xl bg-[var(--bg-surface-secondary)] p-1 border border-[var(--border-subtle)]">
           <button
             type="button"
             onClick={() => setTab("link")}
@@ -344,7 +343,9 @@ export default function AddMemberModal({
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

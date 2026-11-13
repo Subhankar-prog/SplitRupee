@@ -30,7 +30,7 @@ export async function GET(req: Request, { params }: Params) {
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true, avatarColor: true, upiId: true } },
+            user: { select: { id: true, name: true, email: true, avatarColor: true, avatarUrl: true, upiId: true } },
           },
           orderBy: { joinedAt: "asc" },
         },
@@ -38,10 +38,10 @@ export async function GET(req: Request, { params }: Params) {
           where: { isDeleted: false },
           orderBy: { createdAt: "desc" },
           include: {
-            paidBy: { select: { id: true, name: true, avatarColor: true } },
+            paidBy: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
             splits: {
               include: {
-                user: { select: { id: true, name: true, avatarColor: true } },
+                user: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
               },
             },
           },
@@ -49,15 +49,15 @@ export async function GET(req: Request, { params }: Params) {
         payments: {
           orderBy: { createdAt: "desc" },
           include: {
-            payer: { select: { id: true, name: true, avatarColor: true } },
-            receiver: { select: { id: true, name: true, avatarColor: true } },
+            payer: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
+            receiver: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
           },
         },
         activityLogs: {
           orderBy: { createdAt: "desc" },
           take: 50,
           include: {
-            user: { select: { id: true, name: true, avatarColor: true } },
+            user: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
           },
         },
         itineraries: {

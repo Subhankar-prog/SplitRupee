@@ -25,7 +25,7 @@ export async function GET(req: Request) {
         members: {
           include: {
             user: {
-              select: { id: true, name: true, email: true, avatarColor: true, upiId: true },
+              select: { id: true, name: true, email: true, avatarColor: true, avatarUrl: true, upiId: true },
             },
           },
           orderBy: { joinedAt: "asc" },
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, email: true, avatarColor: true, upiId: true } },
+            user: { select: { id: true, name: true, email: true, avatarColor: true, avatarUrl: true, upiId: true } },
           },
         },
       },

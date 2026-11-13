@@ -28,7 +28,7 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
       take: limit,
       include: {
-        user: { select: { id: true, name: true, avatarColor: true } },
+        user: { select: { id: true, name: true, avatarColor: true, avatarUrl: true } },
         group: { select: { id: true, name: true, type: true } },
       },
     });

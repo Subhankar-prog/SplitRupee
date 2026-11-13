@@ -120,7 +120,7 @@ export async function POST(req: Request, { params }: Params) {
         groupId_userId: { groupId, userId: targetUserId },
       },
       include: {
-        user: { select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true } },
+        user: { select: { id: true, name: true, email: true, phone: true, avatarColor: true, avatarUrl: true, upiId: true } },
       },
     });
 
@@ -136,7 +136,7 @@ export async function POST(req: Request, { params }: Params) {
     const membership = await prisma.groupMember.create({
       data: { groupId, userId: targetUserId },
       include: {
-        user: { select: { id: true, name: true, email: true, phone: true, avatarColor: true, upiId: true } },
+        user: { select: { id: true, name: true, email: true, phone: true, avatarColor: true, avatarUrl: true, upiId: true } },
       },
     });
 

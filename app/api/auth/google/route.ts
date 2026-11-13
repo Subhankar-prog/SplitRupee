@@ -12,6 +12,7 @@ export async function POST(req: Request) {
     let email = "";
     let name = "";
     let avatarUrl = "";
+    let googleId: string | null = null;
 
     // 1. Verify via Google Access Token (Userinfo endpoint)
     if (accessToken) {
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
       email = profile.email || "";
       name = profile.name || profile.given_name || "";
       avatarUrl = profile.picture || "";
+      googleId = profile.sub || null;
     } else if (idToken) {
       // 2. Verify via Google ID Token (Tokeninfo endpoint)
       const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
@@ -43,10 +45,13 @@ export async function POST(req: Request) {
       email = tokenInfo.email || "";
       name = tokenInfo.name || "";
       avatarUrl = tokenInfo.picture || "";
+      googleId = tokenInfo.sub || null;
     } else if (googleUser && googleUser.email) {
       // 3. Fallback for demo mode
       email = googleUser.email;
       name = googleUser.name || "Google User";
+      avatarUrl = googleUser.avatarUrl || "";
+      googleId = googleUser.googleId || null;
     }
 
     if (!email) {
@@ -58,29 +63,66 @@ export async function POST(req: Request) {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Check if user already exists in database with this verified Google email
-    const user = await prisma.user.findFirst({
-      where: {
-        email: cleanEmail,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatarColor: true,
-        upiId: true,
-        createdAt: true,
-      },
-    });
+    // Look up user:
+    // First by verified Google ID (sub) if available, then by verified email address
+    let existingUser = googleId
+      ? await prisma.user.findFirst({
+          where: { OR: [{ googleId }, { email: cleanEmail }] },
+        })
+      : await prisma.user.findFirst({
+          where: { email: cleanEmail },
+        });
 
     // If returning user: direct login!
-    if (user) {
+    if (existingUser) {
+      // Preserve Avatar Priority:
+      // 1. User-uploaded custom avatar (must NEVER be overwritten by Google login)
+      // 2. Google profile picture
+      // 3. Initials fallback
+      const hasCustomAvatar = Boolean(existingUser.customAvatarUrl);
+      const effectiveAvatar = hasCustomAvatar
+        ? existingUser.customAvatarUrl
+        : (avatarUrl || existingUser.avatarUrl || null);
+
+      // Prepare updates if Google ID or Google Avatar is new/updated
+      const updateData: any = {};
+      if (googleId && existingUser.googleId !== googleId) {
+        updateData.googleId = googleId;
+      }
+      if (avatarUrl && existingUser.googleAvatarUrl !== avatarUrl) {
+        updateData.googleAvatarUrl = avatarUrl;
+      }
+      // Only update avatarUrl if user has no custom avatar
+      if (!hasCustomAvatar && avatarUrl && existingUser.avatarUrl !== avatarUrl) {
+        updateData.avatarUrl = avatarUrl;
+      }
+
+      let updatedUser = existingUser;
+      if (Object.keys(updateData).length > 0) {
+        updatedUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: updateData,
+        });
+      }
+
       return NextResponse.json({
         ok: true,
         isNewUser: false,
-        user,
-        avatarUrl,
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+          avatarColor: updatedUser.avatarColor,
+          avatarUrl: effectiveAvatar,
+          googleAvatarUrl: updatedUser.googleAvatarUrl,
+          customAvatarUrl: updatedUser.customAvatarUrl,
+          googleId: updatedUser.googleId,
+          upiId: updatedUser.upiId,
+          isPro: updatedUser.isPro,
+          createdAt: updatedUser.createdAt,
+        },
+        avatarUrl: effectiveAvatar,
       });
     }
 
@@ -94,6 +136,8 @@ export async function POST(req: Request) {
         email: cleanEmail,
         name: name.trim() || cleanEmail.split("@")[0],
         avatarUrl,
+        googleAvatarUrl: avatarUrl,
+        googleId,
       },
     });
   } catch (error: any) {

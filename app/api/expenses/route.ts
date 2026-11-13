@@ -168,7 +168,7 @@ export async function GET(req: Request) {
       ];
     }
 
-    const person = { select: { id: true, name: true, avatarColor: true } } as const;
+    const person = { select: { id: true, name: true, avatarColor: true, avatarUrl: true } } as const;
     const expenses = await prisma.expense.findMany({
       where,
       orderBy: { date: "desc" },

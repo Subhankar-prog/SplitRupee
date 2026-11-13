@@ -52,6 +52,36 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (parsedUser?.id) {
           const freshUser = json.users.find((u: MemberDTO) => u.id === parsedUser.id);
           const activeUser = freshUser || parsedUser;
+
+          // Safe one-time background migration for existing active sessions:
+          // If the user's database record has no avatar yet, but their active session
+          // has a stored Google picture, sync it safely without requiring logout or re-auth.
+          if (
+            freshUser &&
+            !freshUser.avatarUrl &&
+            !freshUser.customAvatarUrl &&
+            parsedUser.avatarUrl
+          ) {
+            fetch("/api/users", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: freshUser.id,
+                syncGoogleAvatar: parsedUser.avatarUrl,
+              }),
+            })
+              .then((r) => r.json())
+              .then((data) => {
+                if (data.ok && data.user) {
+                  setCurrentUser(data.user);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("splitrupee_session_user", JSON.stringify(data.user));
+                  }
+                }
+              })
+              .catch(() => {});
+          }
+
           setCurrentUser((prev) => {
             if (
               prev &&
@@ -61,7 +91,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               prev.phone === activeUser.phone &&
               prev.upiId === activeUser.upiId &&
               prev.isPro === activeUser.isPro &&
-              prev.avatarColor === activeUser.avatarColor
+              prev.avatarColor === activeUser.avatarColor &&
+              prev.avatarUrl === activeUser.avatarUrl &&
+              prev.customAvatarUrl === activeUser.customAvatarUrl &&
+              prev.googleAvatarUrl === activeUser.googleAvatarUrl
             ) {
               return prev;
             }

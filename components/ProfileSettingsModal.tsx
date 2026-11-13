@@ -19,6 +19,9 @@ import {
   ShieldCheck,
   Smartphone,
   Trash2,
+  Camera,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
 import type { MemberDTO } from "@/lib/types";
@@ -27,8 +30,9 @@ import {
   DEFAULT_AVATAR_COLOR,
   getAvatarTextColor,
 } from "@/lib/avatarColors";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import QrCodeImage from "@/components/ui/QrCodeImage";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface Props {
   isOpen: boolean;
@@ -54,6 +58,9 @@ export default function ProfileSettingsModal({
   const [phone, setPhone] = useState("");
   const [upiId, setUpiId] = useState("");
   const [avatarColor, setAvatarColor] = useState(DEFAULT_AVATAR_COLOR);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
+  const [removeCustomAvatar, setRemoveCustomAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
@@ -117,8 +124,31 @@ export default function ProfileSettingsModal({
       setPhone(currentUser.phone || "");
       setUpiId(currentUser.upiId || "");
       setAvatarColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR);
+      setCustomAvatarUrl(currentUser.customAvatarUrl || null);
+      setRemoveCustomAvatar(false);
     }
   }, [currentUser, isOpen]);
+
+  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Please select an image smaller than 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setCustomAvatarUrl(reader.result);
+        setRemoveCustomAvatar(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const effectiveAvatarUrl = removeCustomAvatar
+    ? (currentUser?.googleAvatarUrl || null)
+    : (customAvatarUrl || currentUser?.avatarUrl || null);
 
   // Read currency preference from localStorage
   useEffect(() => {
@@ -182,16 +212,24 @@ export default function ProfileSettingsModal({
       setSuccessMsg("");
       setAutoClaimInfo(null);
 
+      const patchPayload: any = {
+        userId: currentUser.id,
+        name: name.trim(),
+        phone: cleanPhone || null,
+        upiId: upiId.trim() || null,
+        avatarColor,
+      };
+
+      if (removeCustomAvatar) {
+        patchPayload.removeCustomAvatar = true;
+      } else if (customAvatarUrl && customAvatarUrl !== currentUser.customAvatarUrl) {
+        patchPayload.customAvatarUrl = customAvatarUrl;
+      }
+
       const res = await fetch("/api/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          name: name.trim(),
-          phone: cleanPhone || null,
-          upiId: upiId.trim() || null,
-          avatarColor,
-        }),
+        body: JSON.stringify(patchPayload),
       });
 
       const data = await res.json();
@@ -242,8 +280,9 @@ export default function ProfileSettingsModal({
     currentUser.email.includes("@gmail.com");
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) onClose();
       }}
@@ -253,17 +292,20 @@ export default function ProfileSettingsModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden sr-modal-panel"
+        tabIndex={-1}
+        className="w-full max-w-xl max-h-[min(90vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden outline-none sr-modal-panel"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--border-subtle)] shrink-0">
           <div className="flex items-center gap-3">
-            <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
-              style={{ backgroundColor: avatarColor, color: getAvatarTextColor(avatarColor) }}
-            >
-              {name ? name.slice(0, 2).toUpperCase() : currentUser.name.slice(0, 2).toUpperCase()}
-            </div>
+            <UserAvatar
+              name={name || currentUser.name}
+              avatarUrl={effectiveAvatarUrl}
+              avatarColor={avatarColor}
+              size="lg"
+              shape="rounded"
+              isPro={currentUser.isPro}
+            />
             <div>
               <h3 id={titleId} className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
                 <span>Profile Settings</span>
@@ -328,6 +370,77 @@ export default function ProfileSettingsModal({
                 className="h-10 w-full text-xs sm:text-sm bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3.5 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                 required
               />
+            </div>
+
+            {/* Profile Picture & Avatar Priority */}
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">Profile Picture</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)]">
+                  {!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)
+                    ? "Priority 1: Custom Photo"
+                    : currentUser.googleAvatarUrl
+                    ? "Priority 2: Google Photo"
+                    : "Priority 3: Initials Fallback"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3.5">
+                <UserAvatar
+                  name={name || currentUser.name}
+                  avatarUrl={effectiveAvatarUrl}
+                  avatarColor={avatarColor}
+                  size="xl"
+                  shape="rounded"
+                  isPro={currentUser.isPro}
+                  className="shadow-sm border border-[var(--border-subtle)]"
+                />
+
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] text-xs font-semibold text-[var(--text-primary)] transition-colors"
+                    >
+                      <Camera className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+                      <span>Upload Custom Photo</span>
+                    </button>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFile}
+                      className="hidden"
+                      aria-label="Upload custom avatar image"
+                    />
+
+                    {(!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomAvatarUrl(null);
+                          setRemoveCustomAvatar(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] text-[var(--status-negative)] text-xs font-semibold hover:opacity-90 transition-opacity"
+                        title="Remove custom photo and revert to Google profile picture or initials"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Revert to Google Photo</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
+                    {!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)
+                      ? "Custom avatar overrides Google profile photo and won't be replaced on Google login."
+                      : currentUser.googleAvatarUrl
+                      ? "Automatically synced from your Google account. You can override it with a custom photo anytime."
+                      : "Using your initials and theme color. Connect Google or upload a photo to customize."}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Avatar Color Picker */}
@@ -637,6 +750,7 @@ export default function ProfileSettingsModal({
         </form>
       </div>
     </div>
+  </ModalPortal>
   );
 }
 

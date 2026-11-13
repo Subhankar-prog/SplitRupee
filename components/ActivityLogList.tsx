@@ -12,6 +12,7 @@ import {
   Users,
   Clock,
 } from "lucide-react";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 const ACTION_CONFIG = {
   EXPENSE_CREATED: {
@@ -128,9 +129,12 @@ export default function ActivityLogList({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: log.user.avatarColor || "var(--brand-primary)" }}
+                  <UserAvatar
+                    name={log.user.name}
+                    avatarUrl={log.user.avatarUrl}
+                    avatarColor={log.user.avatarColor}
+                    size="xs"
+                    shape="circle"
                   />
                   <span className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">
                     {log.user.name}

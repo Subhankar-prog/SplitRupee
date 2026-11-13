@@ -31,6 +31,10 @@ export interface MemberDTO {
   name: string;
   email?: string;
   avatarColor: string;
+  avatarUrl?: string | null;
+  googleAvatarUrl?: string | null;
+  customAvatarUrl?: string | null;
+  googleId?: string | null;
   phone?: string | null;
   upiId?: string | null;
   isPro?: boolean;

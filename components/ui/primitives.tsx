@@ -1,7 +1,23 @@
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
+import { useBodyScrollLock } from "@/lib/scrollLock";
+
+export { useBodyScrollLock } from "@/lib/scrollLock";
+
+export function ModalPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || typeof document === "undefined") return null;
+
+  return createPortal(children, document.body);
+}
 
 const FOCUSABLE_SELECTOR = [
   'a[href]:not([tabindex="-1"])',
@@ -30,6 +46,9 @@ export function useDialogAccessibility(
   containerRef: React.RefObject<HTMLElement | null>,
   disabled = false
 ) {
+  // Automatically manage global background scroll lock with reference counting
+  useBodyScrollLock(isOpen);
+
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -309,42 +328,44 @@ export function ModalShell({
 
   if (!isOpen) return null;
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <ModalPortal>
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={subtitle ? descId : undefined}
-        tabIndex={-1}
-        className={`relative w-full ${maxWidthClass} rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-6 shadow-[var(--shadow-popover)] max-h-[92dvh] overflow-y-auto outline-none sr-modal-panel`}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
-        <div className="flex items-start justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
-          <div className="min-w-0">
-            <h2
-              id={titleId}
-              className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)]"
-            >
-              {title}
-            </h2>
-            {subtitle && (
-              <p id={descId} className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                {subtitle}
-              </p>
-            )}
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitle ? descId : undefined}
+          tabIndex={-1}
+          className={`relative w-full ${maxWidthClass} max-h-[min(90vh,calc(100dvh-1.5rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-popover)] overflow-hidden outline-none sr-modal-panel`}
+        >
+          <div className="shrink-0 flex items-start justify-between gap-3 p-4 sm:p-5 border-b border-[var(--border-subtle)]">
+            <div className="min-w-0">
+              <h2
+                id={titleId}
+                className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)]"
+              >
+                {title}
+              </h2>
+              {subtitle && (
+                <p id={descId} className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+            <IconButton label="Close dialog" size="sm" variant="ghost" onClick={onClose}>
+              <X className="h-4 w-4" aria-hidden="true" />
+            </IconButton>
           </div>
-          <IconButton label="Close dialog" size="sm" variant="ghost" onClick={onClose}>
-            <X className="h-4 w-4" aria-hidden="true" />
-          </IconButton>
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">{children}</div>
         </div>
-        <div className="pt-4">{children}</div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 

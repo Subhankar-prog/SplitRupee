@@ -7,6 +7,7 @@ import { useUser } from "@/lib/userContext";
 import { DEFAULT_AVATAR_COLOR } from "@/lib/avatarColors";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import GoogleAuthModal from "@/components/GoogleAuthModal";
+import UserAvatar from "@/components/ui/UserAvatar";
 import {
   User,
   Lock,
@@ -128,10 +129,12 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
   // --- GOOGLE ONBOARDING STATE ---
   const [isGoogleOnboarding, setIsGoogleOnboarding] = useState(false);
   const [googleAvatarUrl, setGoogleAvatarUrl] = useState("");
+  const [googleId, setGoogleId] = useState<string | null>(null);
 
   function handleCancelGoogleOnboarding() {
     setIsGoogleOnboarding(false);
     setGoogleAvatarUrl("");
+    setGoogleId(null);
     setSignupName("");
     setSignupIdentifier("");
     setSignupUpiId("");
@@ -161,6 +164,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
       // First-time Google user -> Slide to Signup view with prefilled Name & Email, NO password
       setIsGoogleOnboarding(true);
       setGoogleAvatarUrl(data.googleProfile.avatarUrl || "");
+      setGoogleId(data.googleProfile.googleId || null);
       setSignupName(data.googleProfile.name || "");
       setSignupIdentifier(data.googleProfile.email || "");
       setSignupUpiId("");
@@ -200,6 +204,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         email: trimmedId.toLowerCase(),
         authMethod: "google",
         avatarColor: DEFAULT_AVATAR_COLOR,
+        avatarUrl: googleAvatarUrl || undefined,
+        googleAvatarUrl: googleAvatarUrl || undefined,
+        googleId: googleId || undefined,
         upiId: signupUpiId.trim() || undefined,
       };
 
@@ -566,6 +573,15 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                     d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
                   />
                 </svg>
+                {googleAvatarUrl && (
+                  <UserAvatar
+                    name={signupName || "User"}
+                    avatarUrl={googleAvatarUrl}
+                    size="xs"
+                    shape="circle"
+                    className="ring-1 ring-[var(--border-subtle)]"
+                  />
+                )}
                 <span className="font-semibold text-[var(--text-primary)]">Google Verified:</span>
                 <span className="truncate">{signupIdentifier}</span>
               </div>

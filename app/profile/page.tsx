@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,6 +20,7 @@ import {
   Loader2,
   ExternalLink,
   Trash2,
+  Camera,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
 import {
@@ -28,6 +29,7 @@ import {
   getAvatarTextColor,
 } from "@/lib/avatarColors";
 import QrCodeImage from "@/components/ui/QrCodeImage";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 const UPI_HANDLES = ["@ybl", "@paytm", "@okaxis", "@okhdfcbank", "@icici"];
 
@@ -39,6 +41,9 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [upiId, setUpiId] = useState("");
   const [avatarColor, setAvatarColor] = useState(DEFAULT_AVATAR_COLOR);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
+  const [removeCustomAvatar, setRemoveCustomAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
@@ -96,8 +101,31 @@ export default function ProfilePage() {
       setPhone(currentUser.phone || "");
       setUpiId(currentUser.upiId || "");
       setAvatarColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR);
+      setCustomAvatarUrl(currentUser.customAvatarUrl || null);
+      setRemoveCustomAvatar(false);
     }
   }, [currentUser]);
+
+  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Please select an image smaller than 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setCustomAvatarUrl(reader.result);
+        setRemoveCustomAvatar(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const effectiveAvatarUrl = removeCustomAvatar
+    ? (currentUser?.googleAvatarUrl || null)
+    : (customAvatarUrl || currentUser?.avatarUrl || null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -180,16 +208,24 @@ export default function ProfilePage() {
       setError("");
       setSuccessMsg("");
 
+      const patchPayload: any = {
+        userId: currentUser.id,
+        name: name.trim(),
+        phone: cleanPhone || null,
+        upiId: upiId.trim() || null,
+        avatarColor,
+      };
+
+      if (removeCustomAvatar) {
+        patchPayload.removeCustomAvatar = true;
+      } else if (customAvatarUrl && customAvatarUrl !== currentUser.customAvatarUrl) {
+        patchPayload.customAvatarUrl = customAvatarUrl;
+      }
+
       const res = await fetch("/api/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          name: name.trim(),
-          phone: cleanPhone || null,
-          upiId: upiId.trim() || null,
-          avatarColor,
-        }),
+        body: JSON.stringify(patchPayload),
       });
 
       const data = await res.json();
@@ -243,12 +279,15 @@ export default function ProfilePage() {
         {/* Page Hero Card */}
         <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-            <div
-              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center text-2xl font-display font-semibold transition-colors border border-[var(--border-subtle)]"
-              style={{ backgroundColor: avatarColor, color: getAvatarTextColor(avatarColor) }}
-            >
-              {name ? name.slice(0, 2).toUpperCase() : currentUser.name.slice(0, 2).toUpperCase()}
-            </div>
+            <UserAvatar
+              name={name || currentUser.name}
+              avatarUrl={effectiveAvatarUrl}
+              avatarColor={avatarColor}
+              size="3xl"
+              shape="rounded"
+              isPro={currentUser.isPro}
+              className="border border-[var(--border-subtle)]"
+            />
             <div>
               <div className="flex items-center justify-center sm:justify-start gap-2.5">
                 <h1 className="font-display text-xl sm:text-2xl font-semibold text-[var(--text-primary)]">{name || currentUser.name}</h1>
@@ -333,6 +372,77 @@ export default function ProfilePage() {
                     className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] rounded-xl px-3.5 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                     required
                   />
+                </div>
+
+                {/* Profile Picture & Avatar Priority */}
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">Profile Picture</span>
+                    <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+                      {!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)
+                        ? "Priority 1: Custom Photo"
+                        : currentUser.googleAvatarUrl
+                        ? "Priority 2: Google Photo"
+                        : "Priority 3: Initials Fallback"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                    <UserAvatar
+                      name={name || currentUser.name}
+                      avatarUrl={effectiveAvatarUrl}
+                      avatarColor={avatarColor}
+                      size="2xl"
+                      shape="rounded"
+                      isPro={currentUser.isPro}
+                      className="shadow-sm border border-[var(--border-subtle)]"
+                    />
+
+                    <div className="flex-1 space-y-2 text-center sm:text-left min-w-0">
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] text-xs font-semibold text-[var(--text-primary)] transition-colors"
+                        >
+                          <Camera className="h-4 w-4 text-[var(--brand-primary)]" />
+                          <span>Upload Custom Photo</span>
+                        </button>
+
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarFile}
+                          className="hidden"
+                          aria-label="Upload custom avatar image"
+                        />
+
+                        {(!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomAvatarUrl(null);
+                              setRemoveCustomAvatar(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] text-[var(--status-negative)] text-xs font-semibold hover:opacity-90 transition-opacity"
+                            title="Remove custom photo and revert to Google profile picture or initials"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Revert to Google Photo</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        {!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)
+                          ? "Custom avatar overrides Google profile photo and won't be replaced on Google login."
+                          : currentUser.googleAvatarUrl
+                          ? "Automatically synced from your Google account. You can override it with a custom photo anytime."
+                          : "Using your initials and theme color. Connect Google or upload a photo to customize."}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div role="group" aria-labelledby="profile-avatar-color-label">

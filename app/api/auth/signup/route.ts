@@ -12,7 +12,19 @@ function hashPassword(password: string): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, phone, password, authMethod, avatarColor, upiId } = body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      authMethod,
+      avatarColor,
+      upiId,
+      avatarUrl,
+      googleAvatarUrl,
+      customAvatarUrl,
+      googleId,
+    } = body;
 
     if (!name || typeof name !== "string") {
       return NextResponse.json({ ok: false, error: "Full Name is required" }, { status: 400 });
@@ -67,6 +79,8 @@ export async function POST(req: Request) {
         const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#3b82f6"];
         const chosenColor = avatarColor || existing.avatarColor || colors[Math.floor(Math.random() * colors.length)];
 
+        const effectiveAvatar = customAvatarUrl || avatarUrl || googleAvatarUrl || null;
+
         const user = await prisma.user.update({
           where: { id: existing.id },
           data: {
@@ -75,6 +89,10 @@ export async function POST(req: Request) {
             phone: userPhone || existing.phone,
             passwordHash,
             avatarColor: chosenColor,
+            avatarUrl: effectiveAvatar || existing.avatarUrl,
+            googleAvatarUrl: googleAvatarUrl || existing.googleAvatarUrl,
+            customAvatarUrl: customAvatarUrl || existing.customAvatarUrl,
+            googleId: googleId || existing.googleId,
             upiId: (upiId || "").trim() || existing.upiId,
           },
           select: {
@@ -83,7 +101,12 @@ export async function POST(req: Request) {
             email: true,
             phone: true,
             avatarColor: true,
+            avatarUrl: true,
+            googleAvatarUrl: true,
+            customAvatarUrl: true,
+            googleId: true,
             upiId: true,
+            isPro: true,
             createdAt: true,
           },
         });
@@ -100,6 +123,7 @@ export async function POST(req: Request) {
     const passwordHash = password ? hashPassword(password) : null;
     const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#3b82f6"];
     const chosenColor = avatarColor || colors[Math.floor(Math.random() * colors.length)];
+    const effectiveAvatar = customAvatarUrl || avatarUrl || googleAvatarUrl || null;
 
     const user = await prisma.user.create({
       data: {
@@ -108,6 +132,10 @@ export async function POST(req: Request) {
         phone: userPhone || null,
         passwordHash,
         avatarColor: chosenColor,
+        avatarUrl: effectiveAvatar,
+        googleAvatarUrl: googleAvatarUrl || null,
+        customAvatarUrl: customAvatarUrl || null,
+        googleId: googleId || null,
         upiId: (upiId || "").trim() || null,
       },
       select: {
@@ -116,7 +144,12 @@ export async function POST(req: Request) {
         email: true,
         phone: true,
         avatarColor: true,
+        avatarUrl: true,
+        googleAvatarUrl: true,
+        customAvatarUrl: true,
+        googleId: true,
         upiId: true,
+        isPro: true,
         createdAt: true,
       },
     });

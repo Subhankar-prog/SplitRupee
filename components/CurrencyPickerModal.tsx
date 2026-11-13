@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useId, useRef } from "react";
 import { Search, X, Check, Globe, Sparkles } from "lucide-react";
 import { ALL_CURRENCIES, POPULAR_CURRENCIES, type CurrencyInfo, getCurrency } from "@/lib/currencies";
-import { useDialogAccessibility } from "@/components/ui/primitives";
+import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 
 interface CurrencyPickerModalProps {
   isOpen: boolean;
@@ -48,8 +48,9 @@ export default function CurrencyPickerModal({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4"
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -60,7 +61,7 @@ export default function CurrencyPickerModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[85vh] sm:max-h-[640px] overflow-hidden outline-none"
+        className="w-full max-w-lg rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-hidden outline-none sr-modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -208,5 +209,6 @@ export default function CurrencyPickerModal({
         </div>
       </div>
     </div>
+  </ModalPortal>
   );
 }

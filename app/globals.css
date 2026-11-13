@@ -315,7 +315,7 @@ input:-webkit-autofill:active {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -433,10 +433,25 @@ input:-webkit-autofill:active {
 
 .sr-modal-backdrop {
   animation: sr-backdrop-enter var(--motion-normal) var(--motion-ease-out) forwards;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .sr-modal-panel {
   animation: sr-modal-enter var(--motion-medium) var(--motion-ease-out) forwards;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html[data-sr-scroll-locked="true"] {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+html[data-sr-scroll-locked="true"] body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .sr-page-transition {

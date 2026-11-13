@@ -11,6 +11,7 @@ import {
 import { formatINR } from "@/lib/money";
 import { getCurrency, formatCurrencyAmount } from "@/lib/currencies";
 import { DEFAULT_AVATAR_COLOR } from "@/lib/avatarColors";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { formatSplitType } from "@/lib/displayLabels";
 import {
   Receipt,
@@ -291,8 +292,17 @@ export default function AllExpensesPage() {
                         </Link>
                       )}
                     </div>
-                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1">
-                      <span className="font-semibold text-[var(--text-primary)]">{exp.paidBy.name}</span> paid{" "}
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 font-semibold text-[var(--text-primary)]">
+                        <UserAvatar
+                          name={exp.paidBy.name}
+                          avatarUrl={exp.paidBy.avatarUrl}
+                          avatarColor={exp.paidBy.avatarColor}
+                          size="xs"
+                          shape="circle"
+                        />
+                        <span>{exp.paidBy.name}</span>
+                      </span> paid{" "}
                       <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(exp.totalAmount)}</span>
                       {exp.currency && exp.currency !== "INR" && (
                         <span className="inline-flex items-center gap-1 rounded-md bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
@@ -374,9 +384,12 @@ export default function AllExpensesPage() {
                           className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5"
                         >
                           <div className="flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ background: s.user.avatarColor || DEFAULT_AVATAR_COLOR }}
+                            <UserAvatar
+                              name={s.user.name}
+                              avatarUrl={s.user.avatarUrl}
+                              avatarColor={s.user.avatarColor}
+                              size="xs"
+                              shape="circle"
                             />
                             <span className="font-medium text-[var(--text-primary)]">{s.user.name}</span>
                           </div>

@@ -46,6 +46,10 @@ model User {
   name             String
   email            String         @unique
   avatarColor      String         @default("#10b981")
+  avatarUrl        String?
+  googleAvatarUrl  String?
+  customAvatarUrl  String?
+  googleId         String?        @unique
   upiId            String?
   phone            String?
   passwordHash     String?

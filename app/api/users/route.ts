@@ -22,6 +22,10 @@ export async function GET(req: Request) {
         name: true,
         email: true,
         avatarColor: true,
+        avatarUrl: true,
+        googleAvatarUrl: true,
+        customAvatarUrl: true,
+        googleId: true,
         upiId: true,
         phone: true,
         isPro: true,
@@ -39,7 +43,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, avatarColor, upiId } = body;
+    const { name, email, avatarColor, upiId, avatarUrl, googleAvatarUrl, customAvatarUrl, googleId } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ ok: false, error: "Name is required" }, { status: 400 });
@@ -56,13 +60,31 @@ export async function POST(req: Request) {
 
     const colors = ["#10b981", "#f43f5e", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6"];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const effectiveAvatar = customAvatarUrl || avatarUrl || googleAvatarUrl || null;
 
     const newUser = await prisma.user.create({
       data: {
         name: name.trim(),
         email: cleanEmail,
         avatarColor: avatarColor || randomColor,
+        avatarUrl: effectiveAvatar,
+        googleAvatarUrl: googleAvatarUrl || null,
+        customAvatarUrl: customAvatarUrl || null,
+        googleId: googleId || null,
         upiId: (upiId || "").trim() || null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarColor: true,
+        avatarUrl: true,
+        googleAvatarUrl: true,
+        customAvatarUrl: true,
+        googleId: true,
+        upiId: true,
+        phone: true,
+        isPro: true,
       },
     });
 
@@ -77,7 +99,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { userId, name, phone, upiId, avatarColor } = body;
+    const { userId, name, phone, upiId, avatarColor, customAvatarUrl, removeCustomAvatar, syncGoogleAvatar } = body;
 
     if (!userId) {
       return NextResponse.json({ ok: false, error: "userId is required" }, { status: 400 });
@@ -343,6 +365,28 @@ export async function PATCH(req: Request) {
       }
     }
 
+    // Avatar updates according to priority:
+    // 1. Custom avatar
+    // 2. Google avatar
+    // 3. Initials fallback
+    const avatarUpdates: any = {};
+    if (removeCustomAvatar === true) {
+      avatarUpdates.customAvatarUrl = null;
+      avatarUpdates.avatarUrl = currentUser.googleAvatarUrl || null;
+    } else if (customAvatarUrl !== undefined) {
+      const cleanCustom =
+        typeof customAvatarUrl === "string" && customAvatarUrl.trim() !== ""
+          ? customAvatarUrl.trim()
+          : null;
+      avatarUpdates.customAvatarUrl = cleanCustom;
+      avatarUpdates.avatarUrl = cleanCustom || currentUser.googleAvatarUrl || null;
+    } else if (syncGoogleAvatar && !currentUser.customAvatarUrl) {
+      avatarUpdates.googleAvatarUrl = syncGoogleAvatar;
+      if (!currentUser.avatarUrl) {
+        avatarUpdates.avatarUrl = syncGoogleAvatar;
+      }
+    }
+
     // Update currentUser fields
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -351,12 +395,17 @@ export async function PATCH(req: Request) {
         ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
         ...(cleanUPI !== undefined ? { upiId: cleanUPI } : {}),
         ...(avatarColor ? { avatarColor } : {}),
+        ...avatarUpdates,
       },
       select: {
         id: true,
         name: true,
         email: true,
         avatarColor: true,
+        avatarUrl: true,
+        googleAvatarUrl: true,
+        customAvatarUrl: true,
+        googleId: true,
         upiId: true,
         phone: true,
         isPro: true,

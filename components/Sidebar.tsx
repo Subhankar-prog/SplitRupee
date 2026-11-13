@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
 import { ModalShell, useDialogAccessibility } from "@/components/ui/primitives";
 import { getAvatarTextColor, DEFAULT_AVATAR_COLOR } from "@/lib/avatarColors";
+import UserAvatar from "@/components/ui/UserAvatar";
 import type { GroupDTO } from "@/lib/types";
 import {
   LayoutDashboard,
@@ -313,15 +314,14 @@ export default function Sidebar({
         <div className="p-4 border-t border-[var(--border-subtle)]">
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] p-3">
             <div className="flex items-center gap-2.5">
-              <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-semibold text-xs"
-                style={{
-                  background: currentUser.avatarColor || DEFAULT_AVATAR_COLOR,
-                  color: getAvatarTextColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR),
-                }}
-              >
-                {currentUser.name.charAt(0).toUpperCase()}
-              </div>
+              <UserAvatar
+                name={currentUser.name}
+                avatarUrl={currentUser.avatarUrl}
+                avatarColor={currentUser.avatarColor}
+                size="md"
+                shape="square"
+                isPro={currentUser.isPro}
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">
                   {currentUser.name}
@@ -348,7 +348,7 @@ export default function Sidebar({
       {isOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+            className="fixed inset-0 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -358,7 +358,7 @@ export default function Sidebar({
             aria-modal="true"
             aria-label="Navigation drawer"
             tabIndex={-1}
-            className="relative z-10 w-72 max-w-[85vw] h-full border-r border-[var(--border-subtle)] bg-[var(--bg-chrome)] shadow-[var(--shadow-popover)] flex flex-col outline-none sr-drawer-panel"
+            className="relative z-10 w-72 max-w-[85vw] h-full border-r border-[var(--border-subtle)] bg-[var(--bg-chrome)] shadow-[var(--shadow-popover)] flex flex-col outline-none overscroll-contain sr-drawer-panel"
           >
             <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border-subtle)]">
               <span className="font-display text-sm font-semibold text-[var(--text-primary)]">
