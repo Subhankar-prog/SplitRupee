@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
+import { useDialogAccessibility } from "@/components/ui/primitives";
+import QrCodeImage from "@/components/ui/QrCodeImage";
 import { X, UserPlus, Check, Mail, Link as LinkIcon, Share2, QrCode, Copy } from "lucide-react";
 import type { MemberDTO } from "@/lib/types";
 
@@ -21,11 +23,15 @@ export default function AddMemberModal({
   onAdded: (newMember?: any) => void;
 }) {
   const { currentUser, refreshUsers } = useUser();
+  const baseId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<"link" | "new">("link");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useDialogAccessibility(true, onClose, dialogRef, loading);
   const [error, setError] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -127,19 +133,30 @@ export default function AddMemberModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 overflow-hidden sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto"
+        aria-labelledby={`${baseId}-title`}
+        tabIndex={-1}
+        className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto outline-none sr-modal-panel"
       >
         <div className="sm:hidden flex justify-center mb-2 -mt-1">
           <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
         </div>
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-[var(--brand-primary)]" />
+            <h2
+              id={`${baseId}-title`}
+              className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
+            >
+              <UserPlus className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
               Invite & Add Members
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -150,9 +167,9 @@ export default function AddMemberModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -191,11 +208,17 @@ export default function AddMemberModal({
         {tab === "link" && (
           <div className="mt-4 space-y-4 text-center">
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4">
-              <div className="bg-white p-2 rounded-xl border border-[#E6E9E3]">
-                <img src={qrCodeUrl} alt="Group Invite QR Code" className="h-28 w-28 object-contain" />
+              <div className="bg-white p-2 rounded-xl border border-[#D8C8B5]">
+                <QrCodeImage
+                  src={qrCodeUrl}
+                  alt="Group Invite QR Code"
+                  size={112}
+                  fallbackLabel="Invite QR unavailable"
+                  fallbackValue={joinUrl}
+                />
               </div>
               <div className="w-full">
-                <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+                <p className="text-xs text-[var(--text-secondary)] font-medium break-all leading-tight">
                   {joinUrl}
                 </p>
                 <div className="mt-3 flex gap-2">
@@ -210,7 +233,7 @@ export default function AddMemberModal({
                   <button
                     type="button"
                     onClick={handleShareWhatsApp}
-                    className="flex-1 flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                    className="flex-1 flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors"
                   >
                     <Share2 className="h-3.5 w-3.5" />
                     <span>WhatsApp</span>
@@ -250,24 +273,26 @@ export default function AddMemberModal({
         {tab === "new" && (
           <form onSubmit={handleCreateAndAdd} className="mt-4 space-y-3">
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Full Name *</label>
+              <label htmlFor={`${baseId}-name`} className="text-xs font-medium text-[var(--text-secondary)]">Full Name *</label>
               <input
+                id={`${baseId}-name`}
                 type="text"
-                placeholder="e.g. Rahul Sharma"
+                placeholder="e.g. Friend's full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center justify-between">
+              <label htmlFor={`${baseId}-phone`} className="text-xs font-medium text-[var(--text-secondary)] flex items-center justify-between">
                 <span>Mobile Number (Optional)</span>
                 <span className="text-[11px] opacity-80">10-digit</span>
               </label>
               <div className="relative mt-1">
                 <span className="absolute left-3 top-2.5 text-xs text-[var(--text-secondary)] tabular-nums">+91</span>
                 <input
+                  id={`${baseId}-phone`}
                   type="tel"
                   maxLength={16}
                   placeholder="9876543210"
@@ -281,20 +306,21 @@ export default function AddMemberModal({
                       setPhone(digits);
                     }
                   }}
-                  className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-11 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] tabular-nums transition-colors"
+                  className="h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] pl-11 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] tabular-nums transition-colors"
                 />
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center justify-between">
+              <label htmlFor={`${baseId}-email`} className="text-xs font-medium text-[var(--text-secondary)] flex items-center justify-between">
                 <span>Email Address (Optional)</span>
               </label>
               <input
+                id={`${baseId}-email`}
                 type="email"
                 placeholder="e.g. rahul@example.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
               />
             </div>
             <p className="text-[11px] text-[var(--status-positive)] leading-relaxed bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] rounded-xl p-2.5">
@@ -311,7 +337,7 @@ export default function AddMemberModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
+                className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
               >
                 {loading ? "Adding..." : "Add to Group"}
               </button>

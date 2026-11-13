@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 import {
   CATEGORIES,
   SPLIT_TYPES,
@@ -80,6 +81,8 @@ export default function AddExpenseModal({
   onSaved: () => void;
 }) {
   const { currentUser } = useUser();
+  const baseId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [allGroups, setAllGroups] = useState<GroupDTO[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     initialExpense?.groupId || providedGroup?.id || ""
@@ -138,6 +141,13 @@ export default function AddExpenseModal({
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
+  const [receiptPreviewError, setReceiptPreviewError] = useState(false);
+
+  useEffect(() => {
+    setReceiptPreviewError(false);
+  }, [receiptUrl]);
+
+  useDialogAccessibility(true, onClose, dialogRef, loading || isCurrencyPickerOpen);
 
   // Fetch live exchange rates on mount
   useEffect(() => {
@@ -301,7 +311,7 @@ export default function AddExpenseModal({
   async function triggerOcrScan(imagePayload: string) {
     if (!imagePayload || !currentUser?.isPro) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setOcrSuccessMsg("Photo attached locally (Offline mode). AI scanning requires internet — enter the bill amount manually.");
+      setOcrSuccessMsg("Photo attached locally (Offline mode). AI scanning requires internet, so please enter the bill amount manually.");
       return;
     }
     setIsScanningReceipt(true);
@@ -487,11 +497,19 @@ export default function AddExpenseModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 overflow-hidden sr-modal-backdrop"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !loading && !isCurrencyPickerOpen) onClose();
+        }}
+      >
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sm:my-4"
+          aria-labelledby={`${baseId}-dialog-title`}
+          tabIndex={-1}
+          className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sm:my-4 outline-none sr-modal-panel"
         >
           {/* Drag handle on mobile */}
           <div className="sm:hidden flex justify-center mb-2 -mt-1">
@@ -501,8 +519,11 @@ export default function AddExpenseModal({
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
             <div>
-              <h2 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[var(--brand-primary)]" />
+              <h2
+                id={`${baseId}-dialog-title`}
+                className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
+              >
+                <Sparkles className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
                 {initialExpense ? "Edit Expense" : "Add an Expense"}
               </h2>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -515,9 +536,9 @@ export default function AddExpenseModal({
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              className="rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -584,7 +605,7 @@ export default function AddExpenseModal({
                 <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 divide-y divide-[var(--border-subtle)]">
                   {scannedItems.map((item, idx) => (
                     <div key={idx} className="pt-1.5 flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                      <span className="truncate max-w-[220px]">
+                      <span className="break-words leading-tight flex-1 mr-2">
                         {item.qty && item.qty > 1 ? `${item.qty}x ` : ""}{item.name}
                       </span>
                       <span className="font-display tabular-nums font-semibold text-[var(--text-primary)]">
@@ -599,12 +620,13 @@ export default function AddExpenseModal({
             {/* Group selector */}
             {!providedGroup && allGroups.length > 0 && (
               <div>
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Group</label>
+                <label htmlFor={`${baseId}-group`} className="text-xs font-medium text-[var(--text-secondary)]">Group</label>
                 <select
+                  id={`${baseId}-group`}
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(e.target.value)}
                   disabled={!!initialExpense}
-                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                 >
                   {allGroups.map((g) => (
                     <option key={g.id} value={g.id}>
@@ -618,32 +640,33 @@ export default function AddExpenseModal({
             {/* Title & Amount with Currency Picker Trigger */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Description / Title</label>
+                <label htmlFor={`${baseId}-title`} className="text-xs font-medium text-[var(--text-secondary)]">Description / Title</label>
                 <input
+                  id={`${baseId}-title`}
                   type="text"
                   placeholder="e.g. Dinner in Pokhara, SkyTrain ticket, Uber"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                  <label htmlFor={`${baseId}-amount`} className="text-xs font-medium text-[var(--text-secondary)]">
                     Amount ({currency})
                   </label>
                   {/* Currency Selector Trigger Button */}
                   <button
                     type="button"
                     onClick={() => setIsCurrencyPickerOpen(true)}
-                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] hover:opacity-90 transition-opacity"
+                    className="cursor-pointer flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] hover:opacity-90 transition-opacity"
                     title="Change currency"
                   >
                     <span>{currencyInfo.flag}</span>
                     <span>{currency}</span>
-                    <ChevronDown className="h-3 w-3" />
+                    <ChevronDown className="h-3 w-3" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -652,6 +675,7 @@ export default function AddExpenseModal({
                     {currencyInfo.symbol}
                   </span>
                   <input
+                    id={`${baseId}-amount`}
                     type="number"
                     step="1"
                     min="1"
@@ -665,7 +689,7 @@ export default function AddExpenseModal({
                       }
                     }}
                     required
-                    className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-8 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] tabular-nums transition-colors"
+                    className="h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] pl-8 pr-3 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] tabular-nums transition-colors"
                   />
                 </div>
               </div>
@@ -703,10 +727,11 @@ export default function AddExpenseModal({
 
                 {isEditingRate && (
                   <div className="pt-2 border-t border-[var(--status-positive-border)] flex flex-wrap items-center gap-2 text-xs">
-                    <span className="text-[var(--text-secondary)] text-[11px]">Override rate (Bank statement):</span>
+                    <label htmlFor={`${baseId}-fxrate`} className="text-[var(--text-secondary)] text-[11px]">Override rate (Bank statement):</label>
                     <div className="flex items-center gap-1">
                       <span className="text-[var(--text-secondary)]">1 {currency} = ₹</span>
                       <input
+                        id={`${baseId}-fxrate`}
                         type="number"
                         step="0.0001"
                         value={customRateInput}
@@ -715,7 +740,7 @@ export default function AddExpenseModal({
                           const n = parseFloat(e.target.value);
                           if (n > 0) setCustomRate(n);
                         }}
-                        className="w-24 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] tabular-nums"
+                        className="w-24 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] tabular-nums"
                       />
                     </div>
                     {customRate && (
@@ -739,11 +764,12 @@ export default function AddExpenseModal({
             {/* Category & Date */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Category</label>
+                <label htmlFor={`${baseId}-category`} className="text-xs font-medium text-[var(--text-secondary)]">Category</label>
                 <select
+                  id={`${baseId}-category`}
                   value={category}
                   onChange={(e) => setCategory(e.target.value as CategoryName)}
-                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -753,23 +779,25 @@ export default function AddExpenseModal({
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Date</label>
+                <label htmlFor={`${baseId}-date`} className="text-xs font-medium text-[var(--text-secondary)]">Date</label>
                 <input
+                  id={`${baseId}-date`}
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
+                  className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                 />
               </div>
             </div>
 
             {/* Paid by */}
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Paid By</label>
+              <label htmlFor={`${baseId}-paidby`} className="text-xs font-medium text-[var(--text-secondary)]">Paid By</label>
               <select
+                id={`${baseId}-paidby`}
                 value={paidById}
                 onChange={(e) => setPaidById(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
+                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -783,22 +811,23 @@ export default function AddExpenseModal({
             <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-[var(--text-primary)]">Split Method</label>
+                  <span id={`${baseId}-split-method`} className="text-xs font-semibold text-[var(--text-primary)]">Split Method</span>
                   {isForeign && (
                     <p className="text-[10px] text-[var(--text-secondary)]">
                       Balances are kept in INR; foreign shares shown for reference
                     </p>
                   )}
                 </div>
-                <div className="flex rounded-lg bg-[var(--bg-surface)] p-0.5 border border-[var(--border-subtle)]">
+                <div role="group" aria-labelledby={`${baseId}-split-method`} className="flex rounded-lg bg-[var(--bg-surface)] p-0.5 border border-[var(--border-subtle)]">
                   {SPLIT_TYPES.map((st) => (
                     <button
                       key={st}
                       type="button"
+                      aria-pressed={splitType === st}
                       onClick={() => setSplitType(st)}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         splitType === st
-                          ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]"
+                          ? "bg-[var(--brand-primary)] text-[var(--brand-ink)]"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       }`}
                     >
@@ -840,13 +869,13 @@ export default function AddExpenseModal({
                           <div
                             className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
                               isIncluded
-                                ? "border-[var(--brand-dark)] dark:border-[var(--brand-primary)] bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]"
+                                ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-ink)]"
                                 : "border-[var(--border-strong)] bg-transparent"
                             }`}
                           >
                             {isIncluded && <Check className="h-3 w-3 stroke-[2.5]" />}
                           </div>
-                          <span className="font-medium text-[var(--text-primary)] truncate">{m.name}</span>
+                          <span className="font-medium text-[var(--text-primary)] break-words leading-tight">{m.name}</span>
                         </button>
 
                         {isIncluded && (
@@ -871,6 +900,7 @@ export default function AddExpenseModal({
                                   <input
                                     type="number"
                                     step="1"
+                                    aria-label={`Exact share amount for ${m.name}`}
                                     placeholder="0"
                                     value={exactAmounts[m.id] ?? ""}
                                     onChange={(e) =>
@@ -883,7 +913,7 @@ export default function AddExpenseModal({
                                         if (!isNaN(n)) setExactAmounts({ ...exactAmounts, [m.id]: roundFigure(n).toString() });
                                       }
                                     }}
-                                    className="w-20 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2 py-1 text-right text-xs text-[var(--text-primary)] tabular-nums outline-none focus:border-[var(--brand-primary)]"
+                                    className="w-20 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-2 py-1 text-right text-xs text-[var(--text-primary)] tabular-nums outline-none focus:border-[var(--brand-primary)]"
                                   />
                                 </div>
                                 {isForeign && exactAmounts[m.id] && (
@@ -900,12 +930,13 @@ export default function AddExpenseModal({
                                   <input
                                     type="number"
                                     step="0.01"
+                                    aria-label={`Percentage share for ${m.name}`}
                                     placeholder="0"
                                     value={percentages[m.id] ?? ""}
                                     onChange={(e) =>
                                       setPercentages({ ...percentages, [m.id]: e.target.value })
                                     }
-                                    className="w-16 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2 py-1 text-right text-xs text-[var(--text-primary)] tabular-nums outline-none focus:border-[var(--brand-primary)]"
+                                    className="w-16 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-2 py-1 text-right text-xs text-[var(--text-primary)] tabular-nums outline-none focus:border-[var(--brand-primary)]"
                                   />
                                   <span className="text-[var(--text-secondary)] font-semibold">%</span>
                                 </div>
@@ -941,13 +972,13 @@ export default function AddExpenseModal({
             <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-                    <Camera className="h-4 w-4 text-[var(--brand-primary)]" />
+                  <span className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-[var(--brand-primary)]" aria-hidden="true" />
                     <span>Bill Receipt Photo</span>
-                  </label>
+                  </span>
                   {currentUser?.isPro && (
-                    <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[9px] font-semibold flex items-center gap-1">
-                      <Sparkles className="h-2.5 w-2.5" /> AI OCR
+                    <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" aria-hidden="true" /> AI OCR
                     </span>
                   )}
                 </div>
@@ -981,8 +1012,22 @@ export default function AddExpenseModal({
               </div>
 
               {receiptUrl ? (
-                <div className="relative rounded-xl overflow-hidden border border-[var(--border-subtle)] max-h-36 bg-[var(--bg-surface)] flex items-center justify-center">
-                  <img src={receiptUrl} alt="Bill Receipt" className="h-36 w-full object-cover" />
+                <div className="relative rounded-xl overflow-hidden border border-[var(--border-subtle)] min-h-[112px] max-h-36 bg-[var(--bg-surface)] flex items-center justify-center">
+                  {receiptPreviewError ? (
+                    <div role="status" className="p-4 text-center text-xs text-[var(--text-secondary)]">
+                      Receipt preview could not be loaded, though the attachment remains saved.
+                    </div>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={receiptUrl}
+                      alt="Bill Receipt"
+                      width={480}
+                      height={144}
+                      onError={() => setReceiptPreviewError(true)}
+                      className="h-36 w-full object-cover"
+                    />
+                  )}
                 </div>
               ) : (
                 <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-3 text-center hover:border-[var(--brand-primary)] transition-colors">
@@ -1011,13 +1056,14 @@ export default function AddExpenseModal({
 
             {/* Notes */}
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Notes / Details</label>
+              <label htmlFor={`${baseId}-notes`} className="text-xs font-medium text-[var(--text-secondary)]">Notes / Details</label>
               <input
+                id={`${baseId}-notes`}
                 type="text"
                 placeholder="e.g. Pokhara Lakeside cafe, Tip included"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] transition-colors"
+                className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
               />
             </div>
 
@@ -1033,7 +1079,7 @@ export default function AddExpenseModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
+                className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
               >
                 {loading ? "Saving..." : initialExpense ? "Save Changes" : "Create Expense"}
               </button>

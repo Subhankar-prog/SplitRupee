@@ -35,12 +35,12 @@ export default function AuthInput({
         )}
         <input
           id={id}
-          className={`w-full h-11 rounded-xl border bg-[var(--bg-surface-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none transition-colors ${
+          className={`w-full h-11 rounded-xl border bg-[var(--bg-surface-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none transition-colors ${
             prefixText ? "pl-11" : "pl-3.5"
           } ${Icon ? "pr-10" : "pr-3.5"} ${
             error
               ? "border-[var(--status-negative)] focus:ring-2 focus:ring-[var(--status-negative-bg)]"
-              : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus:ring-2 focus:ring-[var(--status-positive-bg)]"
+              : "border-[var(--border-strong)] hover:border-[var(--brand-primary)] focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)]"
           } ${className}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : helperText ? `${id}-helper` : undefined}

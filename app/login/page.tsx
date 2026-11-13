@@ -11,7 +11,7 @@ export default function LoginPage() {
       <Suspense
         fallback={
           <SplitRupeeLoader
-            fullScreen={false}
+            variant="page"
             text="SplitRupee"
             subtext="Preparing secure sign in..."
           />

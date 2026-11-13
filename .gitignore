@@ -26,6 +26,13 @@ yarn-error.log*
 .env*.local
 .env
 
+# audit and visual review screenshots
+visual-review/
+
+# python cache
+__pycache__/
+*.pyc
+
 # vercel
 .vercel
 

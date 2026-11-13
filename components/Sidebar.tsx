@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useId, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
+import { ModalShell, useDialogAccessibility } from "@/components/ui/primitives";
+import { getAvatarTextColor, DEFAULT_AVATAR_COLOR } from "@/lib/avatarColors";
 import type { GroupDTO } from "@/lib/types";
 import {
   LayoutDashboard,
@@ -43,6 +45,8 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const joinCodeInputId = useId();
+  const mobileDrawerRef = useRef<HTMLElement>(null);
   const { currentUser } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>([]);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -52,6 +56,8 @@ export default function Sidebar({
   const [joining, setJoining] = useState(false);
   const [joinErr, setJoinErr] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useDialogAccessibility(Boolean(isOpen), () => onClose?.(), mobileDrawerRef);
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,16 +176,16 @@ export default function Sidebar({
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm sr-interactive-transition ${
                   isActive
-                    ? "bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border border-[var(--status-positive-border)] font-semibold"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] font-medium border border-transparent"
+                    ? "bg-[var(--nav-active-bg)] text-[var(--nav-active-text)] border border-[var(--nav-active-border)] font-semibold"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] dark:hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] font-medium border border-transparent"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--brand-primary)]" : ""}`} />
                 <span>{item.label}</span>
                 {item.badge !== undefined && (
-                  <span className="ml-auto rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] tabular-nums">
+                  <span className="ml-auto rounded-full bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] tabular-nums">
                     {item.badge}
                   </span>
                 )}
@@ -206,19 +212,21 @@ export default function Sidebar({
             </Link>
             <div className="flex items-center gap-1">
               <button
+                type="button"
                 onClick={() => setShowJoinModal(true)}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-[var(--status-positive)] hover:bg-[var(--status-positive-bg)] transition-colors"
+                className="flex min-h-[44px] md:min-h-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-[var(--status-positive)] hover:bg-[var(--status-positive-bg)] transition-colors"
                 title="Join group with invite code"
               >
-                <UserPlus className="h-3 w-3" />
+                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Join</span>
               </button>
               <button
+                type="button"
                 onClick={() => setShowCreateGroup(true)}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-[var(--status-positive)] hover:bg-[var(--status-positive-bg)] transition-colors"
+                className="flex min-h-[44px] md:min-h-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-[var(--status-positive)] hover:bg-[var(--status-positive-bg)] transition-colors"
                 title="Create new group"
               >
-                <Plus className="h-3 w-3" />
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Add</span>
               </button>
             </div>
@@ -238,8 +246,8 @@ export default function Sidebar({
                   key={group.id}
                   className={`flex items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition-colors border ${
                     isCurrent
-                      ? "bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border-[var(--status-positive-border)]"
-                      : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
+                      ? "bg-[var(--nav-active-bg)] text-[var(--nav-active-text)] border-[var(--nav-active-border)] font-semibold"
+                      : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] dark:hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <Link
@@ -248,10 +256,10 @@ export default function Sidebar({
                     className="flex items-center gap-2 min-w-0 flex-1"
                     title={group.name}
                   >
-                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
                       <Icon className="h-3.5 w-3.5" />
                     </span>
-                    <span className="truncate">{group.name}</span>
+                    <span className="line-clamp-2 leading-tight break-words">{group.name}</span>
                   </Link>
 
                   <button
@@ -265,10 +273,11 @@ export default function Sidebar({
                         setTimeout(() => setCopiedId(null), 2000);
                       } catch {}
                     }}
-                    className={`ml-1.5 shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-mono transition-colors flex items-center gap-1 border ${
+                    aria-label={`Copy invite code ${effectiveCode} for ${group.name}`}
+                    className={`ml-1.5 shrink-0 min-h-[44px] md:min-h-0 rounded-md px-2 py-1 text-[10px] font-mono transition-colors flex items-center gap-1 border ${
                       isCopied
                         ? "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border-[var(--status-positive-border)]"
-                        : "bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
+                        : "bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] text-[var(--text-secondary)] dark:text-[var(--text-primary)] border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                     }`}
                     title={`Group Invite Code: ${effectiveCode} (Click to copy)`}
                   >
@@ -302,19 +311,22 @@ export default function Sidebar({
 
       {currentUser && (
         <div className="p-4 border-t border-[var(--border-subtle)]">
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] p-3">
             <div className="flex items-center gap-2.5">
               <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-semibold text-white text-xs keep-white"
-                style={{ background: currentUser.avatarColor || "#739B83" }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-semibold text-xs"
+                style={{
+                  background: currentUser.avatarColor || DEFAULT_AVATAR_COLOR,
+                  color: getAvatarTextColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR),
+                }}
               >
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">
                   {currentUser.name}
                 </p>
-                <p className="text-[10px] text-[var(--status-positive)] truncate font-medium">
+                <p className="text-[10px] text-[var(--status-positive)] font-medium">
                   Active Session
                 </p>
               </div>
@@ -328,7 +340,7 @@ export default function Sidebar({
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:block fixed top-16 bottom-0 left-0 z-40 w-64 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <aside className="hidden md:block fixed top-16 bottom-0 left-0 z-40 w-64 border-r border-[var(--border-subtle)] bg-[var(--bg-chrome)]">
         {sidebarContent}
       </aside>
 
@@ -336,11 +348,18 @@ export default function Sidebar({
       {isOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-[var(--overlay-backdrop)]"
+            className="fixed inset-0 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
             onClick={onClose}
             aria-hidden="true"
           />
-          <aside className="relative z-10 w-72 max-w-[85vw] h-full border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-popover)] flex flex-col">
+          <aside
+            ref={mobileDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation drawer"
+            tabIndex={-1}
+            className="relative z-10 w-72 max-w-[85vw] h-full border-r border-[var(--border-subtle)] bg-[var(--bg-chrome)] shadow-[var(--shadow-popover)] flex flex-col outline-none sr-drawer-panel"
+          >
             <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border-subtle)]">
               <span className="font-display text-sm font-semibold text-[var(--text-primary)]">
                 Navigation
@@ -348,10 +367,10 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
+                className="grid h-11 w-11 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
                 aria-label="Close navigation"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">{sidebarContent}</div>
@@ -361,68 +380,68 @@ export default function Sidebar({
 
       {/* Mobile Bottom Navigation Bar */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border-subtle)] bg-[var(--bg-chrome)] pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile bottom navigation"
       >
-        <div className="flex items-center justify-around px-2 py-1.5">
+        <div className="flex items-center justify-around px-1 py-1">
           <Link
             href="/dashboard"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            className={`flex min-h-[44px] min-w-[52px] flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl sr-interactive-transition ${
               pathname === "/dashboard"
-                ? "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold"
-                : "text-[var(--text-secondary)]"
+                ? "text-[var(--nav-active-text)] dark:text-[var(--brand-primary)] bg-[var(--nav-active-bg)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            <LayoutDashboard className="h-4 w-4" />
+            <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
             <span className="text-[10px]">Dashboard</span>
           </Link>
 
           <Link
             href="/expenses"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            className={`flex min-h-[44px] min-w-[52px] flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl sr-interactive-transition ${
               pathname === "/expenses"
-                ? "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold"
-                : "text-[var(--text-secondary)]"
+                ? "text-[var(--nav-active-text)] dark:text-[var(--brand-primary)] bg-[var(--nav-active-bg)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            <Receipt className="h-4 w-4" />
+            <Receipt className="h-4 w-4" aria-hidden="true" />
             <span className="text-[10px]">Expenses</span>
           </Link>
 
           <Link
             href="/groups"
             onClick={onClose ? onClose : undefined}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            className={`flex min-h-[44px] min-w-[52px] flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl sr-interactive-transition ${
               pathname.startsWith("/groups")
-                ? "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold"
-                : "text-[var(--text-secondary)]"
+                ? "text-[var(--nav-active-text)] dark:text-[var(--brand-primary)] bg-[var(--nav-active-bg)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-4 w-4" aria-hidden="true" />
             <span className="text-[10px]">Groups</span>
           </Link>
 
           <Link
             href="/activity"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            className={`flex min-h-[44px] min-w-[52px] flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl sr-interactive-transition ${
               pathname === "/activity"
-                ? "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold"
-                : "text-[var(--text-secondary)]"
+                ? "text-[var(--nav-active-text)] dark:text-[var(--brand-primary)] bg-[var(--nav-active-bg)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            <Activity className="h-4 w-4" />
+            <Activity className="h-4 w-4" aria-hidden="true" />
             <span className="text-[10px]">Activity</span>
           </Link>
 
           <Link
             href="/itinerary"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            className={`flex min-h-[44px] min-w-[52px] flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl sr-interactive-transition ${
               pathname.startsWith("/itinerary")
-                ? "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] font-semibold"
-                : "text-[var(--text-secondary)]"
+                ? "text-[var(--nav-active-text)] dark:text-[var(--brand-primary)] bg-[var(--nav-active-bg)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            <Plane className="h-4 w-4" />
+            <Plane className="h-4 w-4" aria-hidden="true" />
             <span className="text-[10px]">Trips</span>
           </Link>
         </div>
@@ -441,67 +460,64 @@ export default function Sidebar({
       )}
 
       {/* Join Group by Code Modal */}
-      {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)] backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-popover)] space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-              <h3 className="font-display text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-[var(--status-positive)]" />
-                Join Group with Code
-              </h3>
-              <button
-                onClick={() => {
-                  setShowJoinModal(false);
-                  setJoinErr("");
-                }}
-                className="p-1 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleJoinByCode} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                  Invite Code
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. SR-ABCD12"
-                  className="w-full h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-sm font-mono tracking-widest text-[var(--text-primary)] uppercase placeholder:text-[var(--text-secondary)]/60 focus:border-[var(--brand-primary)] focus:outline-none"
-                />
-                {joinErr && (
-                  <p className="mt-1.5 text-xs text-[var(--status-negative)]">{joinErr}</p>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowJoinModal(false);
-                    setJoinErr("");
-                  }}
-                  className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-4 py-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={joining || !joinCode.trim()}
-                  className="flex items-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 py-2 text-xs font-semibold text-white dark:text-[#171F1D] keep-white hover:opacity-95 disabled:opacity-50"
-                >
-                  {joining && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Join Group
-                </button>
-              </div>
-            </form>
+      <ModalShell
+        isOpen={showJoinModal}
+        onClose={() => {
+          setShowJoinModal(false);
+          setJoinErr("");
+        }}
+        title={
+          <span className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-[var(--status-positive)]" aria-hidden="true" />
+            <span>Join Group with Code</span>
+          </span>
+        }
+        maxWidthClass="max-w-sm"
+      >
+        <form onSubmit={handleJoinByCode} className="space-y-4">
+          <div>
+            <label htmlFor={joinCodeInputId} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              Invite Code
+            </label>
+            <input
+              id={joinCodeInputId}
+              type="text"
+              required
+              autoFocus
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="e.g. SR-ABCD12"
+              className="w-full h-11 sm:h-10 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-sm font-mono tracking-widest text-[var(--text-primary)] uppercase placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none"
+            />
+            {joinErr && (
+              <p className="mt-1.5 text-xs text-[var(--status-negative)]" role="alert">
+                {joinErr}
+              </p>
+            )}
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowJoinModal(false);
+                setJoinErr("");
+              }}
+              className="min-h-[44px] sm:min-h-[38px] rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 py-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={joining || !joinCode.trim()}
+              className="min-h-[44px] sm:min-h-[38px] flex items-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 py-2 text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
+            >
+              {joining && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+              Join Group
+            </button>
+          </div>
+        </form>
+      </ModalShell>
     </>
   );
 }

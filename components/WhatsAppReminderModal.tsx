@@ -8,12 +8,13 @@ import {
   Check,
   ExternalLink,
   QrCode,
-  Sparkles,
   Smartphone,
   ShieldCheck,
   Send,
 } from "lucide-react";
 import { formatINR, roundFigure } from "@/lib/money";
+import { useDialogAccessibility } from "@/components/ui/primitives";
+import QrCodeImage from "@/components/ui/QrCodeImage";
 
 interface WhatsAppReminderModalProps {
   isOpen: boolean;
@@ -40,6 +41,10 @@ export default function WhatsAppReminderModal({
 }: WhatsAppReminderModalProps) {
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+
+  useDialogAccessibility(isOpen, onClose, dialogRef);
 
   if (!isOpen) return null;
 
@@ -105,10 +110,17 @@ Thanks! 🙌`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         className="w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -120,12 +132,9 @@ Thanks! 🙌`;
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">
+                <h3 id={titleId} className="font-display text-base font-semibold text-[var(--text-primary)]">
                   WhatsApp UPI Reminder
                 </h3>
-                <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] text-[9px] font-semibold px-1.5 py-0.5 flex items-center gap-1">
-                  <Sparkles className="h-2.5 w-2.5" /> PRO
-                </span>
               </div>
               <p className="text-[11px] text-[var(--text-secondary)]">
                 1-tap settle up notification with UPI payment details
@@ -136,7 +145,7 @@ Thanks! 🙌`;
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="h-8 w-8 rounded-lg border border-[var(--border-subtle)] grid place-items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="h-11 w-11 sm:h-8 sm:w-8 rounded-lg border border-[var(--border-subtle)] grid place-items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -163,7 +172,7 @@ Thanks! 🙌`;
                 onClick={() => setShowQR(!showQR)}
                 className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${
                   showQR
-                    ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] border-transparent"
+                    ? "bg-[var(--brand-primary)] text-[var(--brand-ink)] border-transparent"
                     : "bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                 }`}
               >
@@ -175,15 +184,17 @@ Thanks! 🙌`;
 
           {/* Optional On-Screen UPI QR Code */}
           {showQR && creditorUpiId && (
-            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 text-center space-y-2 animate-in fade-in">
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 text-center space-y-2">
               <p className="text-xs font-medium text-[var(--text-secondary)]">
                 Scan with any UPI App (GPay, PhonePe, Paytm, BHIM)
               </p>
-              <div className="flex justify-center p-2 bg-white rounded-xl border border-[#E6E9E3] w-fit mx-auto">
-                <img
+              <div className="flex justify-center p-2 bg-white rounded-xl border border-[#D8C8B5] w-fit mx-auto">
+                <QrCodeImage
                   src={qrCodeUrl}
                   alt="UPI QR Code"
-                  className="h-44 w-44 object-contain"
+                  size={176}
+                  fallbackLabel="UPI QR unavailable"
+                  fallbackValue={creditorUpiId}
                 />
               </div>
               <p className="text-[11px] font-mono text-[var(--status-positive)] font-semibold">
@@ -244,7 +255,7 @@ Thanks! 🙌`;
           <button
             type="button"
             onClick={handleOpenWhatsApp}
-            className="flex-1 flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-xs font-semibold text-white dark:text-[#171F1D] transition-opacity"
+            className="flex-1 flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors"
           >
             <Send className="h-3.5 w-3.5" />
             <span>Open WhatsApp</span>

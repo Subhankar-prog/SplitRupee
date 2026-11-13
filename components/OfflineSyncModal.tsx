@@ -5,14 +5,12 @@ import {
   CloudUpload,
   RotateCw,
   CheckCircle2,
-  X,
   AlertCircle,
   Receipt,
-  Calendar,
-  Layers,
   Trash2,
   Edit3
 } from "lucide-react";
+import { ModalShell } from "@/components/ui/primitives";
 import {
   getOfflineQueue,
   syncOfflineQueue,
@@ -83,7 +81,7 @@ export default function OfflineSyncModal() {
 
       if (res.errors.length === 0) {
         setStatusMessage({
-          text: `Data saved! All ${res.syncedCount} expense(s) synced successfully to SplitRupee server.`,
+          text: `All saved! ${res.syncedCount} expense(s) updated across your groups.`,
           type: "success"
         });
         setTimeout(() => {
@@ -93,14 +91,14 @@ export default function OfflineSyncModal() {
         }, 1200);
       } else {
         setStatusMessage({
-          text: `Synced ${res.syncedCount} expense(s). Some items failed: ${res.errors.join(", ")}`,
+          text: `Updated ${res.syncedCount} expense(s). Some items couldn't be saved: ${res.errors.join(", ")}`,
           type: "error"
         });
         setSyncing(false);
       }
     } catch (err: any) {
       setStatusMessage({
-        text: err.message || "Failed to sync offline expenses",
+        text: err.message || "We couldn't update your expenses. Please try again.",
         type: "error"
       });
       setSyncing(false);
@@ -110,130 +108,117 @@ export default function OfflineSyncModal() {
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Confirmation Modal — Pops up directly when online */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm">
-                  <CloudUpload className="h-5 w-5" />
-                </span>
-                <div>
-                  <h3 className="text-base font-bold text-white">
-                    Sync Offline Expenses?
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Your internet connection is active
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                disabled={syncing}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Status Message */}
-            {statusMessage && (
-              <div
-                className={`p-3.5 rounded-2xl text-xs flex items-center gap-2 border ${
-                  statusMessage.type === "success"
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
-                    : "bg-rose-500/15 border-rose-500/30 text-rose-300"
-                }`}
-              >
-                {statusMessage.type === "success" ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-                )}
-                <span>{statusMessage.text}</span>
-              </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={() => {
+        if (!syncing) setIsOpen(false);
+      }}
+      title={
+        <span className="flex items-center gap-2.5">
+          <span className="p-2 rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
+            <CloudUpload className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span>Update Saved Expenses?</span>
+        </span>
+      }
+      subtitle="You're back online"
+      maxWidthClass="max-w-md"
+    >
+      <div className="space-y-4">
+        {/* Status Message */}
+        {statusMessage && (
+          <div
+            role={statusMessage.type === "error" ? "alert" : "status"}
+            className={`p-3.5 rounded-2xl text-xs flex items-center gap-2 border ${
+              statusMessage.type === "success"
+                ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--status-positive)]"
+                : "bg-[var(--status-negative-bg)] border-[var(--status-negative-border)] text-[var(--status-negative)]"
+            }`}
+          >
+            {statusMessage.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             )}
+            <span>{statusMessage.text}</span>
+          </div>
+        )}
 
-            {/* Confirmation Question */}
-            <div className="space-y-3">
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                You recorded <strong className="text-[var(--text-primary)] font-semibold">{queue.length} offline change(s)</strong>. Do you want to sync and save them to the server now?
-              </p>
+        {/* Confirmation Question */}
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            You recorded <strong className="text-[var(--text-primary)] font-semibold">{queue.length} offline change(s)</strong>. Do you want to update your groups now?
+          </p>
 
-              {/* Items List */}
-              <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                {queue.map((item) => {
-                  const actionType = resolveOfflineActionType(item);
-                  const badge =
-                    actionType === "DELETE_EXPENSE"
-                      ? "Deleted Expense"
-                      : actionType === "UPDATE_EXPENSE"
-                        ? "Edited Expense"
-                        : actionType === "CREATE_PAYMENT"
-                          ? "Cash Settlement"
-                          : "New Expense";
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-xs"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--brand-primary)]">
-                          {actionType === "DELETE_EXPENSE" ? (
-                            <Trash2 className="h-4 w-4 text-[var(--status-negative)]" />
-                          ) : actionType === "UPDATE_EXPENSE" ? (
-                            <Edit3 className="h-4 w-4 text-[var(--status-warning)]" />
-                          ) : actionType === "CREATE_PAYMENT" ? (
-                            <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)]" />
-                          ) : (
-                            <Receipt className="h-4 w-4" />
-                          )}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-[var(--text-primary)] truncate">
-                            {item.title}
-                          </p>
-                          <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                            {item.groupName || "Group"} • {badge}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="font-display tabular-nums font-semibold text-[var(--status-positive)] shrink-0 ml-3">
-                        ₹{Math.round(item.totalAmount).toLocaleString()}
-                      </span>
+          {/* Items List */}
+          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+            {queue.map((item) => {
+              const actionType = resolveOfflineActionType(item);
+              const badge =
+                actionType === "DELETE_EXPENSE"
+                  ? "Deleted Expense"
+                  : actionType === "UPDATE_EXPENSE"
+                    ? "Edited Expense"
+                    : actionType === "CREATE_PAYMENT"
+                      ? "Cash Settlement"
+                      : "New Expense";
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="p-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--brand-primary)]">
+                      {actionType === "DELETE_EXPENSE" ? (
+                        <Trash2 className="h-4 w-4 text-[var(--status-negative)]" aria-hidden="true" />
+                      ) : actionType === "UPDATE_EXPENSE" ? (
+                        <Edit3 className="h-4 w-4 text-[var(--status-warning)]" aria-hidden="true" />
+                      ) : actionType === "CREATE_PAYMENT" ? (
+                        <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)]" aria-hidden="true" />
+                      ) : (
+                        <Receipt className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-[var(--text-primary)] break-words line-clamp-2 leading-tight">
+                        {item.title}
+                      </p>
+                      <p className="text-[11px] text-[var(--text-secondary)] break-words mt-0.5">
+                        {item.groupName || "Group"} • {badge}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                disabled={syncing}
-                className="h-9 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-              >
-                Later
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSync}
-                disabled={syncing}
-                className="inline-flex h-9 items-center gap-2 px-4 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-semibold text-xs hover:opacity-95 transition-opacity disabled:opacity-50"
-              >
-                {syncing && <RotateCw className="h-3.5 w-3.5 animate-spin" />}
-                <span>{syncing ? "Syncing..." : "Yes, Sync Now"}</span>
-              </button>
-            </div>
+                  </div>
+                  <span className="font-display tabular-nums font-semibold text-[var(--status-positive)] shrink-0 ml-3">
+                    ₹{Math.round(item.totalAmount).toLocaleString()}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
-    </>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-subtle)]">
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            disabled={syncing}
+            className="cursor-pointer h-10 px-4 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors disabled:opacity-50"
+          >
+            Later
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing}
+            className="cursor-pointer inline-flex h-10 items-center gap-2 px-4 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold text-xs transition-colors disabled:opacity-50"
+          >
+            {syncing && <RotateCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+            <span>{syncing ? "Updating..." : "Update Groups Now"}</span>
+          </button>
+        </div>
+      </div>
+    </ModalShell>
   );
 }

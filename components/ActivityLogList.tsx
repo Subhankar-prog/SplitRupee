@@ -32,12 +32,12 @@ const ACTION_CONFIG = {
   PAYMENT_SETTLED: {
     icon: CheckCircle2,
     label: "Settled up payment",
-    color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)] bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]",
+    color: "text-[var(--status-positive)] bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]",
   },
   MEMBER_ADDED: {
     icon: UserPlus,
     label: "Added member",
-    color: "text-[var(--brand-primary)] bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]",
+    color: "text-[var(--status-info)] bg-[var(--status-info-bg)] border-[var(--status-info-border)]",
   },
   MEMBER_REMOVED: {
     icon: UserMinus,
@@ -66,26 +66,48 @@ function formatTimeAgo(dateString: string) {
 export default function ActivityLogList({
   activities,
   showGroupName = false,
+  isFiltered = false,
+  onResetFilter,
+  emptyTitle,
+  emptyDescription,
 }: {
   activities: ActivityLogDTO[];
   showGroupName?: boolean;
+  isFiltered?: boolean;
+  onResetFilter?: () => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   if (activities.length === 0) {
     return (
       <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
         <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)]">
-          <Clock className="h-5 w-5" />
+          <Clock className="h-5 w-5" aria-hidden="true" />
         </div>
-        <p className="mt-2.5 text-sm font-medium text-[var(--text-primary)]">No activity yet</p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)] max-w-xs mx-auto">
-          Every time an expense is created, edited, deleted, or settled, an audit log will appear here.
+        <p className="mt-2.5 text-sm font-medium text-[var(--text-primary)]">
+          {emptyTitle || (isFiltered ? "No activity matches this filter" : "No activity yet")}
         </p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)] max-w-xs mx-auto">
+          {emptyDescription ||
+            (isFiltered
+              ? "Try selecting a different filter or show all actions."
+              : "When you add, edit, or settle an expense, you'll see the update history right here.")}
+        </p>
+        {isFiltered && onResetFilter && (
+          <button
+            type="button"
+            onClick={onResetFilter}
+            className="mt-4 inline-flex min-h-[44px] sm:min-h-[36px] items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+          >
+            Show All Actions
+          </button>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="relative space-y-2.5 before:absolute before:left-[26px] before:top-5 before:bottom-5 before:w-px before:bg-[var(--border-subtle)]">
+    <div className="relative space-y-2.5 before:absolute before:left-[26px] before:top-5 before:bottom-5 before:w-px before:bg-[var(--border-subtle)] dark:before:bg-[var(--border-strong)]">
       {activities.map((log) => {
         const conf = ACTION_CONFIG[log.action] || ACTION_CONFIG.EXPENSE_CREATED;
         const Icon = conf.icon;
@@ -93,7 +115,7 @@ export default function ActivityLogList({
         return (
           <div
             key={log.id}
-            className="relative flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors"
+            className="relative flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] dark:bg-[var(--bg-surface-secondary)] dark:hover:bg-[var(--bg-surface-hover)] p-3.5 shadow-[var(--shadow-card)] hover:border-[var(--border-strong)] transition-colors"
           >
             {/* Action Icon Badge */}
             <div
@@ -108,16 +130,16 @@ export default function ActivityLogList({
                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: log.user.avatarColor || "#739B83" }}
+                    style={{ background: log.user.avatarColor || "var(--brand-primary)" }}
                   />
-                  <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                  <span className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">
                     {log.user.name}
                   </span>
                   <span className="text-xs text-[var(--text-secondary)]">
                     {conf.label.toLowerCase()}
                   </span>
                   {showGroupName && log.group && (
-                    <span className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+                    <span className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
                       in {log.group.name}
                     </span>
                   )}
@@ -132,7 +154,7 @@ export default function ActivityLogList({
                 </span>
               </div>
 
-              <p className="mt-1 text-xs font-medium text-[var(--text-primary)] truncate">
+              <p className="mt-1 text-xs font-medium text-[var(--text-primary)] break-words line-clamp-2 leading-snug">
                 {log.entityTitle}
               </p>
 

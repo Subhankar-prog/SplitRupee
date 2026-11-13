@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
 import { Trash2, Cloud } from "lucide-react";
 import type { ExpenseDTO } from "@/lib/types";
 import { formatINR } from "@/lib/money";
 import { addOfflineDeleteExpense } from "@/lib/offlineSync";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 
 export default function DeleteExpenseModal({
   expense,
@@ -19,9 +20,13 @@ export default function DeleteExpenseModal({
   onDeleted: () => void;
 }) {
   const { currentUser } = useUser();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [offlineNotice, setOfflineNotice] = useState("");
+
+  useDialogAccessibility(true, onClose, dialogRef, loading);
 
   const queueOfflineDelete = () => {
     addOfflineDeleteExpense({
@@ -84,18 +89,26 @@ export default function DeleteExpenseModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover outline-none sr-modal-panel"
       >
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--status-negative-bg)] text-[var(--status-negative)] border border-[var(--status-negative-border)]">
-            <Trash2 className="h-5 w-5" />
+            <Trash2 className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Delete Expense</h3>
+            <h3 id={titleId} className="font-display text-base font-semibold text-[var(--text-primary)]">Delete Expense</h3>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">
               Are you sure you want to delete <span className="font-semibold text-[var(--text-primary)]">&ldquo;{expense.title}&rdquo;</span> (<span className="tabular-nums">{formatINR(expense.totalAmount)}</span>)?
             </p>
@@ -130,7 +143,7 @@ export default function DeleteExpenseModal({
             type="button"
             disabled={loading || !!offlineNotice}
             onClick={handleDelete}
-            className="flex-1 h-9 rounded-xl bg-[var(--status-negative)] text-xs font-semibold text-white hover:opacity-95 disabled:opacity-50 transition-opacity"
+            className="flex-1 h-9 rounded-xl bg-[var(--status-negative)] text-xs font-semibold text-white dark:text-[#171613] hover:opacity-95 disabled:opacity-50 transition-opacity"
           >
             {loading ? "Deleting..." : "Delete"}
           </button>

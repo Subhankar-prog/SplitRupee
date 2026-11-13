@@ -22,17 +22,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
-
-const AVATAR_COLORS = [
-  "#739B83",
-  "#263A32",
-  "#D9A86C",
-  "#3B7356",
-  "#B85C55",
-  "#5E7B6D",
-  "#A26D2E",
-  "#4A6572",
-];
+import {
+  BOTANICAL_AVATAR_COLORS,
+  DEFAULT_AVATAR_COLOR,
+  getAvatarTextColor,
+} from "@/lib/avatarColors";
+import QrCodeImage from "@/components/ui/QrCodeImage";
 
 const UPI_HANDLES = ["@ybl", "@paytm", "@okaxis", "@okhdfcbank", "@icici"];
 
@@ -43,7 +38,7 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [upiId, setUpiId] = useState("");
-  const [avatarColor, setAvatarColor] = useState("#10b981");
+  const [avatarColor, setAvatarColor] = useState(DEFAULT_AVATAR_COLOR);
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
@@ -100,7 +95,7 @@ export default function ProfilePage() {
       setName(currentUser.name || "");
       setPhone(currentUser.phone || "");
       setUpiId(currentUser.upiId || "");
-      setAvatarColor(currentUser.avatarColor || "#10b981");
+      setAvatarColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR);
     }
   }, [currentUser]);
 
@@ -143,7 +138,7 @@ export default function ProfilePage() {
           <p className="text-xs text-[var(--text-secondary)]">Log in to view and manage your profile settings.</p>
           <Link
             href="/login"
-            className="inline-block px-5 py-2.5 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-medium text-xs transition-opacity"
+            className="inline-block px-5 py-2.5 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-medium text-xs transition-colors"
           >
             Go to Login
           </Link>
@@ -216,7 +211,7 @@ export default function ProfilePage() {
 
       if (data.claimedGroupsCount && data.claimedGroupsCount > 0) {
         setSuccessMsg(
-          `🎉 Mobile number linked! We automatically imported your expenses from ${data.claimedGroupsCount} group(s).`
+          `Mobile number linked. We automatically imported your expenses from ${data.claimedGroupsCount} group(s).`
         );
       } else {
         setSuccessMsg("Profile updated successfully!");
@@ -249,8 +244,8 @@ export default function ProfilePage() {
         <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
             <div
-              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center text-2xl font-display font-semibold text-white keep-white transition-colors border border-[var(--border-subtle)]"
-              style={{ backgroundColor: avatarColor }}
+              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center text-2xl font-display font-semibold transition-colors border border-[var(--border-subtle)]"
+              style={{ backgroundColor: avatarColor, color: getAvatarTextColor(avatarColor) }}
             >
               {name ? name.slice(0, 2).toUpperCase() : currentUser.name.slice(0, 2).toUpperCase()}
             </div>
@@ -283,7 +278,7 @@ export default function ProfilePage() {
             {!currentUser.isPro && (
               <Link
                 href="/pro"
-                className="h-9 inline-flex items-center px-4 rounded-xl bg-[var(--accent-sand)] text-[#171F1D] text-xs font-semibold hover:opacity-95 transition-opacity"
+                className="h-9 inline-flex items-center px-4 rounded-xl bg-[var(--accent-gold)] hover:bg-[var(--accent-gold-hover)] text-[#171613] text-xs font-semibold transition-colors"
               >
                 Upgrade to Pro
               </Link>
@@ -327,43 +322,50 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Full Name</label>
+                  <label htmlFor="profile-name" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    Full Name
+                  </label>
                   <input
+                    id="profile-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] transition-colors"
+                    className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] rounded-xl px-3.5 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Avatar Color Theme</label>
+                <div role="group" aria-labelledby="profile-avatar-color-label">
+                  <span id="profile-avatar-color-label" className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
+                    Avatar Color Theme
+                  </span>
                   <div className="flex flex-wrap gap-2.5">
-                    {AVATAR_COLORS.map((c) => (
+                    {BOTANICAL_AVATAR_COLORS.map((swatch) => (
                       <button
-                        key={c}
+                        key={swatch.hex}
                         type="button"
-                        onClick={() => setAvatarColor(c)}
-                        className={`h-9 w-9 rounded-xl flex items-center justify-center transition-transform ${
-                          avatarColor === c
+                        aria-label={`Select ${swatch.name} avatar color`}
+                        aria-pressed={avatarColor === swatch.hex}
+                        onClick={() => setAvatarColor(swatch.hex)}
+                        className={`cursor-pointer h-11 w-11 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-transform ${
+                          avatarColor === swatch.hex
                             ? "ring-2 ring-[var(--brand-primary)] ring-offset-2 ring-offset-[var(--bg-surface)] scale-105"
-                            : "hover:scale-105 opacity-85 hover:opacity-100"
+                            : "hover:scale-105 opacity-90 hover:opacity-100"
                         }`}
-                        style={{ backgroundColor: c }}
+                        style={{ backgroundColor: swatch.hex, color: getAvatarTextColor(swatch.hex) }}
                       >
-                        {avatarColor === c && <Check className="h-4 w-4 text-white keep-white stroke-[2.5]" />}
+                        {avatarColor === swatch.hex && <Check className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Registered Email</label>
-                  <div className="flex items-center justify-between bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-primary)]">
-                    <div className="flex items-center gap-2 truncate">
+                  <span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Registered Email</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-primary)]">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <Mail className="h-4 w-4 text-[var(--text-secondary)] shrink-0" />
-                      <span className="truncate">{currentUser.email}</span>
+                      <span className="break-all">{currentUser.email}</span>
                     </div>
                     <span className="text-[10px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full font-medium shrink-0">
                       Primary
@@ -387,14 +389,15 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  <label htmlFor="profile-phone" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     10-Digit Mobile Number (+91)
                   </label>
-                  <div className="flex items-center rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] focus-within:border-[var(--brand-primary)] focus-within:bg-[var(--bg-surface)] overflow-hidden transition-colors">
+                  <div className="flex items-center rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] focus-within:border-[var(--brand-primary)] focus-within:bg-[var(--bg-surface)] overflow-hidden transition-colors">
                     <span className="px-3 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] select-none py-2.5 tabular-nums">
                       +91
                     </span>
                     <input
+                      id="profile-phone"
                       type="tel"
                       maxLength={10}
                       value={phone}
@@ -451,15 +454,16 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  <label htmlFor="profile-upi" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     UPI ID (Virtual Payment Address)
                   </label>
                   <input
+                    id="profile-upi"
                     type="text"
                     value={upiId}
                     onChange={(e) => setUpiId(e.target.value.toLowerCase().trim())}
                     placeholder="e.g. 9876543210@ybl"
-                    className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-[var(--text-primary)] font-mono outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] transition-colors"
+                    className="h-10 w-full text-sm bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] rounded-xl px-3.5 text-[var(--text-primary)] font-mono outline-none focus:border-[var(--brand-primary)] focus:bg-[var(--bg-surface)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                   />
                   {/* Quick Handle Suggestions */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -486,12 +490,13 @@ export default function ProfilePage() {
                 {qrCodeUrl && (
                   <div className="p-4 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--status-positive-border)] text-center space-y-3">
                     <div className="text-xs font-semibold text-[var(--text-primary)]">Your Settlement QR Code</div>
-                    <div className="inline-block p-3 rounded-xl bg-white border border-[#E6E9E3]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                    <div className="inline-block p-3 rounded-xl bg-white border border-[#D8C8B5]">
+                      <QrCodeImage
                         src={qrCodeUrl}
                         alt="UPI QR Code"
-                        className="h-44 w-44 object-contain mx-auto"
+                        size={176}
+                        fallbackLabel="UPI QR unavailable"
+                        fallbackValue={upiId.trim()}
                       />
                     </div>
                     <div className="text-xs font-mono text-[var(--status-positive)] font-semibold">{upiId}</div>
@@ -505,19 +510,22 @@ export default function ProfilePage() {
               {/* Currency Preference Card */}
               <div className="p-5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] space-y-4">
                 <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-                  <Crown className="h-4 w-4 text-[var(--accent-sand)]" />
+                  <Crown className="h-4 w-4 text-[var(--accent-gold-ink)]" />
                   <span>Currency Preference</span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Default Currency</label>
-                  <div className="grid grid-cols-4 gap-2">
+                <div role="group" aria-labelledby="profile-currency-label">
+                  <span id="profile-currency-label" className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
+                    Default Currency
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(["INR", "USD", "EUR", "GBP"] as const).map((curr) => (
                       <button
                         key={curr}
                         type="button"
+                        aria-pressed={preferredCurrency === curr}
                         onClick={() => setPreferredCurrency(curr)}
-                        className={`py-2 px-2 rounded-xl border text-xs tabular-nums font-semibold transition-colors ${
+                        className={`min-h-[44px] sm:min-h-0 py-2 px-2 rounded-xl border text-xs tabular-nums font-semibold transition-colors ${
                           preferredCurrency === curr
                             ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
                             : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -536,14 +544,14 @@ export default function ProfilePage() {
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-subtle)]">
             <Link
               href="/dashboard"
-              className="h-10 inline-flex items-center px-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] transition-colors"
+              className="h-10 inline-flex items-center px-5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] transition-colors"
             >
               Back to Dashboard
             </Link>
             <button
               type="submit"
               disabled={saving}
-              className="h-10 flex items-center gap-2 px-6 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-semibold text-xs sm:text-sm transition-opacity disabled:opacity-50"
+              className="h-10 flex items-center gap-2 px-6 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold text-xs sm:text-sm transition-colors disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               <span>Save Profile Changes</span>

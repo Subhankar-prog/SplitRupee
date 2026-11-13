@@ -1,26 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Compass,
   MapPin,
   Train,
-  Plane,
-  Car,
   Hotel,
   Wallet,
-  Sparkles,
   CheckCircle2,
   Navigation,
   ArrowRight,
   ShieldCheck,
   Activity,
   Zap,
-  Volume2,
-  VolumeX,
-  X
 } from "lucide-react";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 
 interface MovieTrailerItineraryLoaderProps {
   isOpen: boolean;
@@ -78,35 +73,16 @@ export default function MovieTrailerItineraryLoader({
 }: MovieTrailerItineraryLoaderProps) {
   const [progress, setProgress] = useState(0);
   const [currentStageIdx, setCurrentStageIdx] = useState(0);
-  const [soundEnabled, setSoundEnabled] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const errorDialogRef = useRef<HTMLDivElement>(null);
+  const errorTitleId = useId();
+  const statusTitleId = useId();
 
-  // Play subtle high-tech futuristic sound
-  const playTelemetrySound = (freq = 520, duration = 0.12) => {
-    if (!soundEnabled) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === "suspended") ctx.resume();
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      const now = ctx.currentTime;
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + duration);
-      gain.gain.setValueAtTime(0.04, now);
-      gain.gain.linearRampToValueAtTime(0.001, now + duration);
-      osc.start(now);
-      osc.stop(now + duration);
-    } catch {}
-  };
+  useDialogAccessibility(
+    Boolean(isOpen && error && onDismissError),
+    () => onDismissError?.(),
+    errorDialogRef
+  );
 
   // Reset when opened
   useEffect(() => {
@@ -153,21 +129,17 @@ export default function MovieTrailerItineraryLoader({
     if (progress < 25) {
       setCurrentStageIdx(0);
     } else if (progress < 55) {
-      if (currentStageIdx === 0) playTelemetrySound(640);
       setCurrentStageIdx(1);
     } else if (progress < 82) {
-      if (currentStageIdx === 1) playTelemetrySound(780);
       setCurrentStageIdx(2);
     } else {
-      if (currentStageIdx === 2) playTelemetrySound(960);
       setCurrentStageIdx(3);
     }
-  }, [progress, currentStageIdx]);
+  }, [progress]);
 
   // Trigger completion once finished
   useEffect(() => {
     if (isFinishing && progress >= 100) {
-      playTelemetrySound(1040, 0.3);
       const timer = setTimeout(() => {
         onComplete();
       }, 700);
@@ -193,6 +165,9 @@ export default function MovieTrailerItineraryLoader({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0, transition: { duration: 0.4, ease: "easeInOut" } }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={statusTitleId}
         className="fixed inset-0 z-[100] flex flex-col justify-between bg-[var(--bg-canvas)] text-[var(--text-primary)] overflow-hidden select-none"
       >
         {/* Subtle architectural dot backdrop */}
@@ -209,7 +184,7 @@ export default function MovieTrailerItineraryLoader({
         <header className="relative z-30 w-full px-6 md:px-12 py-4 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
-              <Compass className="h-5 w-5 animate-[spin_10s_linear_infinite]" />
+              <Compass className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
               <div className="text-[10px] tracking-[0.2em] uppercase text-[var(--status-positive)] font-semibold flex items-center gap-2">
@@ -222,30 +197,6 @@ export default function MovieTrailerItineraryLoader({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Audio Toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !soundEnabled;
-                setSoundEnabled(next);
-                if (next) playTelemetrySound(580);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] transition-colors"
-              title="Toggle Sound"
-            >
-              {soundEnabled ? (
-                <>
-                  <Volume2 className="h-3.5 w-3.5 text-[var(--status-positive)]" />
-                  <span className="hidden sm:inline">Audio On</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
-                  <span className="hidden sm:inline">Audio Off</span>
-                </>
-              )}
-            </button>
-
             {apiReady && (
               <button
                 type="button"
@@ -254,7 +205,7 @@ export default function MovieTrailerItineraryLoader({
                   setIsFinishing(true);
                   onComplete();
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] text-xs font-semibold hover:opacity-95 transition-opacity"
+                className="flex min-h-[44px] sm:min-h-0 sm:h-9 items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] text-xs font-semibold transition-colors"
               >
                 <span>View Plan</span>
                 <ArrowRight className="h-3 w-3" />
@@ -271,7 +222,7 @@ export default function MovieTrailerItineraryLoader({
                 <Activity className="h-3.5 w-3.5" />
                 <span>Building Your Route</span>
               </div>
-              <h2 className="font-display text-2xl sm:text-4xl font-semibold text-[var(--text-primary)] tracking-tight flex flex-wrap items-center justify-center gap-3">
+              <h2 id={statusTitleId} className="font-display text-2xl sm:text-4xl font-semibold text-[var(--text-primary)] tracking-tight flex flex-wrap items-center justify-center gap-3">
                 <span>{origin || "Origin City"}</span>
                 <span className="text-[var(--brand-primary)] font-normal">&rarr;</span>
                 <span className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
@@ -324,7 +275,7 @@ export default function MovieTrailerItineraryLoader({
                 </div>
 
                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)]">
-                  <Zap className="h-3 w-3 text-[var(--accent-sand)]" />
+                  <Zap className="h-3 w-3 text-[var(--accent-gold-ink)]" />
                   <span>Daylight Pacing Check</span>
                 </div>
 
@@ -432,17 +383,28 @@ export default function MovieTrailerItineraryLoader({
 
         {/* Error Modal Overlay */}
         {error && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[var(--overlay-backdrop)] backdrop-blur-sm">
-            <div className="bg-[var(--bg-surface)] border border-[var(--status-negative-border)] rounded-2xl p-6 max-w-md text-center space-y-4 shadow-[var(--shadow-popover)]">
+          <div
+            className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[var(--overlay-backdrop)]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) onDismissError?.();
+            }}
+          >
+            <div
+              ref={errorDialogRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby={errorTitleId}
+              className="bg-[var(--bg-surface)] border border-[var(--status-negative-border)] rounded-2xl p-6 max-w-md text-center space-y-4 shadow-[var(--shadow-popover)]"
+            >
               <div className="text-[var(--status-negative)] text-xs uppercase tracking-wider font-semibold">
                 Generation Notice
               </div>
-              <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">Connection Error</h3>
+              <h3 id={errorTitleId} className="font-display text-lg font-semibold text-[var(--text-primary)]">Connection Error</h3>
               <p className="text-xs text-[var(--text-secondary)]">{error}</p>
               <button
                 type="button"
                 onClick={onDismissError}
-                className="h-9 px-5 rounded-xl bg-[var(--status-negative)] text-white text-xs font-semibold hover:opacity-95 transition-opacity"
+                className="min-h-[44px] sm:min-h-0 sm:h-9 px-5 rounded-xl bg-[var(--status-negative)] text-white dark:text-[#171613] text-xs font-semibold hover:opacity-95 transition-opacity"
               >
                 Close &amp; Return
               </button>

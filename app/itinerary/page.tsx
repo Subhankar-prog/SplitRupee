@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useId } from "react";
 import TravelCopilotChat, { ChatMessage } from "@/components/TravelCopilotChat";
 import MovieTrailerItineraryLoader from "@/components/MovieTrailerItineraryLoader";
+import SplitRupeeLoader from "@/components/SplitRupeeLoader";
 import ThemeSelect from "@/components/ThemeSelect";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 import { isDemoPhoneNumber } from "@/lib/localGroundData";
+import {
+  formatGroupType,
+  formatItineraryGroupType,
+  isNepalDestination,
+} from "@/lib/displayLabels";
 import { exportItineraryPDF } from "@/lib/pdfExport";
 import {
   downloadCalendarICS,
@@ -110,6 +117,68 @@ export default function ItineraryPage() {
   const [activeDayCalendar, setActiveDayCalendar] = useState<{ dayNumber: number; day: any } | null>(null);
   const [selectedMemberEmails, setSelectedMemberEmails] = useState<string[]>([]);
   const [dayCalendarToast, setDayCalendarToast] = useState<string | null>(null);
+  const [confirmDeleteTrip, setConfirmDeleteTrip] = useState<{ id: string; title: string } | null>(null);
+  const [isDeletingTrip, setIsDeletingTrip] = useState(false);
+
+  const applyRoutePreset = (preset: {
+    origin: string;
+    destination: string;
+    nights: number;
+    travellers: number;
+    groupType: string;
+    budget: number;
+    stayBudget: string;
+    transportTrain: boolean;
+    transportBus: boolean;
+    transportFlight: boolean;
+    transportRoad: boolean;
+    interests: string;
+  }) => {
+    const start = new Date();
+    start.setDate(start.getDate() + 14);
+    const end = new Date(start);
+    end.setDate(start.getDate() + preset.nights);
+    const fmt = (d: Date) => d.toISOString().split("T")[0];
+
+    setError("");
+    setForm((prev) => ({
+      ...prev,
+      origin: preset.origin,
+      destination: preset.destination,
+      startDate: fmt(start),
+      endDate: fmt(end),
+      nights: String(preset.nights),
+      travellers: String(preset.travellers),
+      groupType: preset.groupType,
+      budget: String(preset.budget),
+      stayBudget: preset.stayBudget,
+      transportTrain: preset.transportTrain,
+      transportBus: preset.transportBus,
+      transportFlight: preset.transportFlight,
+      transportRoad: preset.transportRoad,
+      interests: preset.interests,
+    }));
+
+    const consoleEl = document.getElementById("itinerary-planner-console");
+    consoleEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => document.getElementById("itin-origin")?.focus(), 250);
+  };
+
+  const copilotDialogRef = useRef<HTMLDivElement>(null);
+  const savedTripsDialogRef = useRef<HTMLDivElement>(null);
+  const forwardDialogRef = useRef<HTMLDivElement>(null);
+  const dayCalendarDialogRef = useRef<HTMLDivElement>(null);
+  const deleteTripDialogRef = useRef<HTMLDivElement>(null);
+  const savedTripsTitleId = useId();
+  const forwardTitleId = useId();
+  const dayCalendarTitleId = useId();
+  const deleteTripTitleId = useId();
+
+  useDialogAccessibility(isCopilotOpen, () => setIsCopilotOpen(false), copilotDialogRef);
+  useDialogAccessibility(isSavedTripsModalOpen && !confirmDeleteTrip, () => setIsSavedTripsModalOpen(false), savedTripsDialogRef);
+  useDialogAccessibility(isForwardModalOpen, () => setIsForwardModalOpen(false), forwardDialogRef, isForwarding);
+  useDialogAccessibility(Boolean(activeDayCalendar), () => setActiveDayCalendar(null), dayCalendarDialogRef);
+  useDialogAccessibility(Boolean(confirmDeleteTrip), () => setConfirmDeleteTrip(null), deleteTripDialogRef, isDeletingTrip);
 
   const [form, setForm] = useState({
     origin: "",
@@ -457,7 +526,7 @@ export default function ItineraryPage() {
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setError(
-        "You're offline. Generating a new AI itinerary requires an internet connection — you can still open your Saved Itineraries, view plans, or export PDF/ICS files offline."
+        "You're offline. Generating a new AI itinerary requires an internet connection, though you can still open your Saved Itineraries, view plans, or export PDF/ICS files offline."
       );
       return;
     }
@@ -550,7 +619,7 @@ export default function ItineraryPage() {
           setPdfProgress(msg || `Generating Page ${step} of ${total}...`);
         }
       });
-      setSaveToast(`✨ ${mode === "magazine" ? "Magazine Scrapbook" : "Classic Statement"} downloaded successfully!`);
+      setSaveToast(`${mode === "magazine" ? "Magazine Scrapbook" : "Classic Statement"} downloaded successfully.`);
       setTimeout(() => setSaveToast(null), 4000);
     } catch (err) {
       console.error("PDF export error:", err);
@@ -571,14 +640,33 @@ export default function ItineraryPage() {
     });
   };
 
+  const isNepalRoute = isNepalDestination(form.destination || result?.destination);
+
+  const buildLiveSituationText = (markdown: boolean) => {
+    const b = markdown ? "*" : "";
+    const statusLine = isNepalRoute
+      ? "Corridor open. Allow realistic 20-35 km/h mountain speeds and 1.5-2.5h border buffer."
+      : `Planned ${form.pace || "Moderate"} schedule for ${form.origin} to ${form.destination}.`;
+    const noteLine = isNepalRoute
+      ? "Carry physical Voter ID or Passport. Indian ₹100/₹200 notes accepted; ₹500 notes prohibited in Nepal."
+      : "Carry valid government photo ID for hotel and transit check-ins, and keep local/UPI payment details ready.";
+
+    return [
+      `${b}SplitRupee Route Readiness Summary${b}`,
+      `${b}Route:${b} ${form.origin} to ${form.destination}`,
+      `${b}Transit:${b} ${statusLine}`,
+      `${b}Preparedness:${b} ${noteLine}`,
+    ].join("\n");
+  };
+
   const handleShareLiveWhatsApp = () => {
-    const text = `📢 *SplitRupee Live Travel Bulletin*\n*Route:* ${form.origin} ➔ ${form.destination}\n*Status:* All routes open & clear. Safe mountain speeds active (20-35 km/h).\n*Weather:* Clear skies (daylight travel advised; sun sets early).\n*Note:* Carry physical Voter ID / Passport. Indian ₹100/₹200 notes accepted.`;
+    const text = buildLiveSituationText(true);
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };
 
   const handleCopyLiveSituation = () => {
-    const text = `📢 SplitRupee Live Travel Bulletin\nRoute: ${form.origin} ➔ ${form.destination}\nStatus: All routes open & clear. Safe mountain speeds active (20-35 km/h).\nWeather: Clear skies (daylight travel advised; sun sets early).\nNote: Carry physical Voter ID / Passport. Indian ₹100/₹200 notes accepted.`;
+    const text = buildLiveSituationText(false);
     navigator.clipboard.writeText(text);
     setCopiedSituation(true);
     setTimeout(() => setCopiedSituation(false), 2500);
@@ -951,9 +1039,8 @@ export default function ItineraryPage() {
     }
   };
 
-  // Delete a Saved Itinerary
+  // Delete a Saved Itinerary (invoked after explicit accessible modal confirmation)
   const handleDeleteSavedItinerary = async (itId: string) => {
-    if (!confirm("Are you sure you want to delete this saved itinerary?")) return;
     if (itId.startsWith("offline_itin_")) {
       setSavedTripsList((prev) => {
         const updated = prev.filter((item) => item.id !== itId);
@@ -963,13 +1050,16 @@ export default function ItineraryPage() {
       if (savedItineraryId === itId) {
         handleResetToNewPlan();
       }
+      setConfirmDeleteTrip(null);
       return;
     }
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setSaveToast("You're offline. Deleting cloud-synced trips requires an internet connection.");
       setTimeout(() => setSaveToast(null), 3000);
+      setConfirmDeleteTrip(null);
       return;
     }
+    setIsDeletingTrip(true);
     try {
       const url = currentUser?.id
         ? `/api/itinerary?id=${encodeURIComponent(itId)}&userId=${encodeURIComponent(currentUser.id)}`
@@ -995,6 +1085,9 @@ export default function ItineraryPage() {
       }
     } catch (err) {
       console.warn("Could not delete itinerary:", err);
+    } finally {
+      setIsDeletingTrip(false);
+      setConfirmDeleteTrip(null);
     }
   };
 
@@ -1275,63 +1368,193 @@ export default function ItineraryPage() {
       />
 
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
-          <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-2.5">
-              <Plane className="h-5 w-5 text-[var(--brand-primary)]" />
-              <span>Travel Itinerary Planner</span>
-            </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Handcrafted travel itineraries with verified transit, real budgets, and local guidance
-            </p>
-          </div>
+        {/* Standout Travel Editorial Hero */}
+        <section
+          aria-label="Travel Itinerary Planner overview"
+          className="rounded-2xl border border-[color:var(--border-subtle)] bg-[#29251F] dark:bg-[#24221D] text-[#F8F0E4] p-6 sm:p-8 shadow-[var(--shadow-card)] print:hidden overflow-hidden relative"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            <div className="lg:col-span-7 space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#51483D] bg-[#362E25] px-3 py-1 text-[11px] font-semibold text-[#F0BD70] tracking-wide uppercase">
+                <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>AI Travel &amp; Budget Planner</span>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Always visible Saved Trips button */}
-            <button
-              type="button"
-              onClick={handleOpenSavedTrips}
-              className="flex items-center gap-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)] text-[var(--text-primary)] px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm w-fit"
-              title="Open Saved Itineraries & Guide Notes"
-            >
-              <FolderOpen className="h-4 w-4 text-[var(--brand-primary)]" />
-              <span>Saved Itineraries</span>
-              {savedTripsList.length > 0 && (
-                <span className="bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold tabular-nums">
-                  {savedTripsList.length}
+              <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[#F8F0E4] leading-[1.14]">
+                Plan multi-day group trips with verified transit, stay caps, and shared budgets.
+              </h1>
+
+              <p className="text-xs sm:text-sm text-[#C8BBAA] leading-relaxed max-w-2xl">
+                Compile realistic day-by-day rail (1A to SL), Volvo bus, flight, or cab schedules tailored to your group size, export printable Magazine PDFs or calendar events, and forward trips directly to your SplitRupee group ledger.
+              </p>
+
+              {/* Key workflow pillars grounded in implemented modules */}
+              <div className="flex flex-wrap gap-2 pt-0.5 text-[11px] text-[#F8F0E4]">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#51483D] bg-[#302B24] px-2.5 py-1.5">
+                  <Train className="h-3.5 w-3.5 text-[#E28A63]" aria-hidden="true" />
+                  <span>Rail, Bus, Flight &amp; Cabs</span>
                 </span>
-              )}
-            </button>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#51483D] bg-[#302B24] px-2.5 py-1.5">
+                  <Wallet className="h-3.5 w-3.5 text-[#A5B995]" aria-hidden="true" />
+                  <span>Per-Person INR Caps</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#51483D] bg-[#302B24] px-2.5 py-1.5">
+                  <FileText className="h-3.5 w-3.5 text-[#F0BD70]" aria-hidden="true" />
+                  <span>PDF, ICS &amp; Travel Copilot</span>
+                </span>
+              </div>
 
-            {result && (
-              <>
+              {/* Hero Actions */}
+              <div className="flex flex-wrap items-center gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={handleResetToNewPlan}
-                  className="flex items-center gap-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[color:var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                  title="Clear current view and plan a new itinerary"
+                  onClick={() => {
+                    const el = document.getElementById("itinerary-planner-console");
+                    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    setTimeout(() => document.getElementById("itin-origin")?.focus(), 250);
+                  }}
+                  className="inline-flex min-h-[44px] sm:min-h-[40px] items-center gap-2 rounded-xl bg-[#E28A63] hover:bg-[#F09A72] px-4 py-2 text-xs sm:text-sm font-semibold text-[#171613] transition-colors cursor-pointer"
                 >
-                  <Plus className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-                  <span>Plan New</span>
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <span>Start Planning Trip</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setIsCopilotOpen(true)}
-                  className="flex items-center gap-2 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-opacity shadow-sm w-fit"
+                  onClick={handleOpenSavedTrips}
+                  className="inline-flex min-h-[44px] sm:min-h-[40px] items-center gap-2 rounded-xl border border-[#8E8070] bg-[#302B24] hover:bg-[#3B352C] px-3.5 py-2 text-xs sm:text-sm font-medium text-[#F8F0E4] transition-colors cursor-pointer"
+                  title="Open Saved Itineraries & Guide Notes"
                 >
-                  <MessageSquare className="h-4 w-4" />
-                  <span>Chat with Travel Guide</span>
-                  <span className="flex h-2 w-2 rounded-full bg-[var(--accent-sand)]" />
+                  <FolderOpen className="h-4 w-4 text-[#E28A63]" aria-hidden="true" />
+                  <span>Saved Itineraries</span>
+                  {savedTripsList.length > 0 && (
+                    <span className="rounded-full bg-[#A5B995]/20 border border-[#A5B995]/40 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[#A5B995] tabular-nums">
+                      {savedTripsList.length}
+                    </span>
+                  )}
                 </button>
-              </>
-            )}
+
+                {result && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleResetToNewPlan}
+                      className="inline-flex min-h-[44px] sm:min-h-[40px] items-center gap-1.5 rounded-xl border border-[#51483D] bg-[#24221D] hover:bg-[#302B24] px-3 py-2 text-xs sm:text-sm font-medium text-[#C8BBAA] hover:text-[#F8F0E4] transition-colors"
+                      title="Clear current view and plan a new itinerary"
+                    >
+                      <Plus className="h-3.5 w-3.5 text-[#E28A63]" aria-hidden="true" />
+                      <span>Plan New</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCopilotOpen(true)}
+                      className="inline-flex min-h-[44px] sm:min-h-[40px] items-center gap-2 rounded-xl border border-[#A5B995]/50 bg-[#A5B995]/15 hover:bg-[#A5B995]/25 px-4 py-2 text-xs sm:text-sm font-semibold text-[#F8F0E4] transition-colors"
+                    >
+                      <MessageSquare className="h-4 w-4 text-[#A5B995]" aria-hidden="true" />
+                      <span>Chat with Travel Guide</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Right Quick Route Starters Box (Prefills Real Working Form) */}
+            <div className="lg:col-span-5 rounded-xl border border-[#51483D] bg-[#1D1B17] p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#F0BD70] flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Quick Route Starters</span>
+                </p>
+                <span className="text-[11px] text-[#C8BBAA]">Prefills planner</span>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  {
+                    origin: "Pune",
+                    destination: "Goa",
+                    nights: 4,
+                    travellers: 4,
+                    groupType: "Friends",
+                    budget: 32000,
+                    stayBudget: "2800",
+                    transportTrain: true,
+                    transportBus: false,
+                    transportFlight: false,
+                    transportRoad: true,
+                    interests: "Coastal beaches, heritage forts, local seafood",
+                    meta: "4N · 4 friends · ₹32,000 budget · Train + Cab",
+                  },
+                  {
+                    origin: "Bhubaneswar",
+                    destination: "Darjeeling",
+                    nights: 5,
+                    travellers: 6,
+                    groupType: "Friends",
+                    budget: 54000,
+                    stayBudget: "2500",
+                    transportTrain: true,
+                    transportBus: false,
+                    transportFlight: false,
+                    transportRoad: true,
+                    interests: "Sunrise viewpoints, tea estates, Himalayan toy train",
+                    meta: "5N · 6 friends · ₹54,000 budget · Rail + Shared Jeep",
+                  },
+                  {
+                    origin: "Delhi",
+                    destination: "Manali",
+                    nights: 4,
+                    travellers: 5,
+                    groupType: "Friends",
+                    budget: 45000,
+                    stayBudget: "2600",
+                    transportTrain: false,
+                    transportBus: true,
+                    transportFlight: false,
+                    transportRoad: true,
+                    interests: "Solang Valley, cafes, mountain trails",
+                    meta: "4N · 5 friends · ₹45,000 budget · Volvo + Local Taxi",
+                  },
+                ].map((preset) => (
+                  <button
+                    key={`${preset.origin}-${preset.destination}`}
+                    type="button"
+                    onClick={() => applyRoutePreset(preset)}
+                    className="w-full text-left rounded-xl border border-[#51483D] bg-[#24221D] hover:border-[#E28A63] hover:bg-[#302B24] px-3.5 py-2.5 transition-colors group cursor-pointer"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <span className="font-display text-sm font-semibold text-[#F8F0E4] flex items-center gap-1.5 flex-wrap">
+                        <span>{preset.origin}</span>
+                        <ArrowRight className="h-3.5 w-3.5 text-[#E28A63]" aria-hidden="true" />
+                        <span>{preset.destination}</span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-[#E28A63] group-hover:underline shrink-0">
+                        Use template
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#C8BBAA] mt-1 tabular-nums break-words leading-tight">{preset.meta}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="itinerary-content-container flex flex-col gap-6">
+        <div id="itinerary-planner-console" className="itinerary-content-container flex flex-col gap-6 scroll-mt-20">
           {/* Top Horizontal Input Console */}
           <div className="itinerary-form-console-card relative z-20 w-full bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl p-6 md:p-7 shadow-[var(--shadow-card)] print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-5 mb-5 border-b border-[color:var(--border-subtle)]">
+              <div className="flex items-center gap-2">
+                <Plane className="h-4 w-4 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" aria-hidden="true" />
+                <h2 className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)]">
+                  Configure Route, Budget &amp; Transit Preferences
+                </h2>
+              </div>
+              <span className="text-xs text-[var(--text-secondary)]">
+                Fill destination, dates, and target budget to compile
+              </span>
+            </div>
             <form onSubmit={handleGenerate} className="itinerary-generator-form space-y-6">
 
               {/* Row 1: Core Routing, Dates (Start & End), Duration (Days & Nights), Travellers, Group */}
@@ -1339,81 +1562,103 @@ export default function ItineraryPage() {
                 {/* 1. Origin */}
                 <div className="origin-field origin-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="origin-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <MapPin className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Origin
+                    <label
+                      htmlFor="itin-origin"
+                      className="origin-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> Origin
                     </label>
                   </div>
                   <input
+                    id="itin-origin"
                     name="origin"
                     value={form.origin}
                     onChange={handleChange}
                     required
                     placeholder="e.g. Bhubaneswar, Mumbai"
-                    className="origin-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
+                    className="origin-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors placeholder:text-[var(--text-secondary)]"
                   />
                 </div>
 
                 {/* 2. Destination */}
                 <div className="destination-field destination-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="destination-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <MapPin className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Destination
+                    <label
+                      htmlFor="itin-destination"
+                      className="destination-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> Destination
                     </label>
                   </div>
                   <input
+                    id="itin-destination"
                     name="destination"
                     value={form.destination}
                     onChange={handleChange}
                     required
                     placeholder="e.g. Darjeeling, Goa, Manali"
-                    className="destination-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
+                    className="destination-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors placeholder:text-[var(--text-secondary)]"
                   />
                 </div>
 
                 {/* 3. Start Date */}
                 <div className="start-date-field start-date-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="start-date-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Start Date
+                    <label
+                      htmlFor="itin-start-date"
+                      className="start-date-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> Start Date
                     </label>
                   </div>
                   <input
+                    id="itin-start-date"
                     type="date"
                     name="startDate"
                     value={form.startDate}
                     min={new Date().toISOString().split("T")[0]}
                     onChange={handleChange}
-                    className="start-date-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors"
+                    className="start-date-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors"
                   />
                 </div>
 
                 {/* 4. End Date (Return Date) */}
                 <div className="end-date-field end-date-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="end-date-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> End Date (Return)
+                    <label
+                      htmlFor="itin-end-date"
+                      className="end-date-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <Calendar className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> End Date (Return)
                     </label>
                   </div>
                   <input
+                    id="itin-end-date"
                     type="date"
                     name="endDate"
                     value={form.endDate}
                     min={form.startDate ? new Date(new Date(form.startDate).getTime() + 86400000).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]}
                     onChange={handleChange}
-                    className="end-date-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors"
+                    className="end-date-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors"
                   />
                 </div>
 
                 {/* 5. Duration (Days & Nights) */}
                 <div className="duration-days-nights-field duration-days-nights-container">
                   <div className="h-7 flex items-center justify-between gap-1.5 mb-1.5">
-                    <label className="duration-days-nights-label text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">Days &amp; Nights</label>
+                    <label
+                      htmlFor="itin-nights"
+                      className="duration-days-nights-label text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap"
+                    >
+                      Days &amp; Nights
+                    </label>
                     <span className="duration-days-nights-badge text-[10px] text-[var(--status-positive)] font-mono font-medium tabular-nums whitespace-nowrap">
                       {form.nights ? `${form.nights}N / ${Number(form.nights) + 1}D` : "e.g. 5N/6D"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
+                      id="itin-nights"
                       type="number"
                       name="nights"
                       min="1"
@@ -1421,7 +1666,7 @@ export default function ItineraryPage() {
                       placeholder="e.g. 5"
                       value={form.nights}
                       onChange={handleChange}
-                      className="nights-count-input duration-nights-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] tabular-nums text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
+                      className="nights-count-input duration-nights-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3 text-[var(--text-primary)] tabular-nums text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors placeholder:text-[var(--text-secondary)]"
                     />
                     <span className="duration-nights-unit text-xs text-[var(--text-secondary)] font-mono whitespace-nowrap">Nights</span>
                   </div>
@@ -1430,23 +1675,28 @@ export default function ItineraryPage() {
                 {/* 6. Travellers & Group Type */}
                 <div className="travellers-group-field travellers-group-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="travellers-group-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <Users className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Travellers &amp; Group
+                    <label
+                      htmlFor="itin-travellers"
+                      className="travellers-group-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <Users className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> Travellers &amp; Group
                     </label>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
+                      id="itin-travellers"
                       type="number"
                       name="travellers"
                       min="1"
                       placeholder="e.g. 2"
                       value={form.travellers}
                       onChange={handleChange}
-                      className="travellers-count-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-2.5 text-[var(--text-primary)] tabular-nums text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors text-center placeholder:text-[var(--text-secondary)]/65"
+                      className="travellers-count-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-2.5 text-[var(--text-primary)] tabular-nums text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors text-center placeholder:text-[var(--text-secondary)]"
                     />
                     <ThemeSelect
                       semanticName="group-type"
                       id="group-type-select"
+                      ariaLabel="Group type"
                       value={form.groupType}
                       onChange={(val) => setForm({ ...form, groupType: val })}
                       options={["Friends", "Couple", "Solo", "Family"]}
@@ -1460,9 +1710,12 @@ export default function ItineraryPage() {
               <div className="itinerary-budgeting-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-[color:var(--border-subtle)] relative z-40">
                 {/* Total Budget */}
                 <div className="total-group-budget-field total-group-budget-container">
-                  <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="total-group-budget-label flex items-center gap-1.5 text-xs font-medium text-[var(--status-positive)] truncate">
-                      <Wallet className="h-3.5 w-3.5 shrink-0" /> Group Budget (INR)
+                  <div className="min-h-[28px] flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                    <label
+                      htmlFor="itin-budget"
+                      className="total-group-budget-label flex items-center gap-1.5 text-xs font-medium text-[var(--status-positive)] break-words"
+                    >
+                      <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Group Budget (INR)
                     </label>
                     <span className="budget-per-person-indicator text-[10px] text-[var(--text-secondary)] font-mono tabular-nums shrink-0 ml-1">
                       {form.budget && form.travellers
@@ -1471,43 +1724,54 @@ export default function ItineraryPage() {
                     </span>
                   </div>
                   <input
+                    id="itin-budget"
                     type="number"
                     name="budget"
                     step="1000"
                     placeholder="e.g. 30000"
                     value={form.budget}
                     onChange={handleChange}
-                    className="total-group-budget-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 font-display text-[var(--status-positive)] font-semibold tabular-nums border border-[color:var(--border-strong)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors text-sm placeholder:text-[var(--text-secondary)]/65"
+                    className="total-group-budget-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 font-display text-[var(--status-positive)] font-semibold tabular-nums border border-[color:var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors text-sm placeholder:text-[var(--text-secondary)]"
                   />
                 </div>
 
                 {/* Nightly Stay Budget Limit */}
                 <div className="nightly-stay-limit-field nightly-stay-limit-container">
-                  <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="nightly-stay-limit-label flex items-center gap-1.5 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] truncate">
-                      <Hotel className="h-3.5 w-3.5 shrink-0" /> Stay Limit / Night (INR)
+                  <div className="min-h-[28px] flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                    <label
+                      htmlFor="itin-stay-budget"
+                      className="nightly-stay-limit-label flex items-center gap-1.5 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] break-words"
+                    >
+                      <Hotel className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Stay Limit / Night (INR)
                     </label>
                     <span className="stay-budget-customizable-tag text-[10px] text-[var(--text-secondary)] shrink-0 ml-1">Customizable</span>
                   </div>
                   <input
+                    id="itin-stay-budget"
                     type="number"
                     name="stayBudget"
                     step="100"
                     placeholder="e.g. 2500"
                     value={form.stayBudget}
                     onChange={handleChange}
-                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 font-display text-[var(--text-primary)] font-semibold tabular-nums border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors text-sm placeholder:text-[var(--text-secondary)]/65"
+                    className="nightly-stay-limit-input stay-budget-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 font-display text-[var(--text-primary)] font-semibold tabular-nums border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors text-sm placeholder:text-[var(--text-secondary)]"
                   />
                 </div>
 
                 {/* Accommodation Style */}
                 <div className="accommodation-style-field accommodation-style-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="accommodation-style-label block text-xs font-medium text-[var(--text-secondary)]">Accommodation Style</label>
+                    <span
+                      id="accommodation-style-label"
+                      className="accommodation-style-label block text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      Accommodation Style
+                    </span>
                   </div>
                   <ThemeSelect
                     semanticName="accommodation-style"
                     id="accommodation-style-select"
+                    labelId="accommodation-style-label"
                     value={form.stayPreference}
                     onChange={(val) => setForm({ ...form, stayPreference: val })}
                     options={[
@@ -1523,13 +1787,17 @@ export default function ItineraryPage() {
                 {/* Trip Pace */}
                 <div className="trip-pace-field trip-pace-container">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="trip-pace-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <Activity className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Trip Pace
-                    </label>
+                    <span
+                      id="trip-pace-label"
+                      className="trip-pace-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <Activity className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> Trip Pace
+                    </span>
                   </div>
                   <ThemeSelect
                     semanticName="trip-pace"
                     id="trip-pace-select"
+                    labelId="trip-pace-label"
                     value={form.pace}
                     onChange={(val) => setForm({ ...form, pace: val })}
                     options={[
@@ -1545,41 +1813,51 @@ export default function ItineraryPage() {
               {/* Row 3: Transit Modes & Detailed Classes (Train with 2S/SL/3A/etc., Bus Coach Options, Flight, Cab) */}
               <div className="transit-mode-coach-preferences-section transit-preferences-container pt-4 border-t border-[color:var(--border-subtle)] space-y-3 relative z-30">
                 <div className="transit-mode-coach-preferences-heading text-xs font-medium text-[var(--text-secondary)] flex items-center gap-2">
-                  <Train className="h-4 w-4 text-[var(--brand-primary)]" />
+                  <Train className="h-4 w-4 text-[var(--brand-primary)]" aria-hidden="true" />
                   <span>Transit Mode &amp; Coach Preferences:</span>
                 </div>
 
                 <div className="transit-modes-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 relative z-30">
                   {/* Train */}
                   <div className="transit-train-card train-preference-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] space-y-2 relative z-40 focus-within:z-50">
-                    <label className="transit-train-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                    <label
+                      htmlFor="itin-transport-train"
+                      className="transit-train-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
+                    >
                       <input
+                        id="itin-transport-train"
                         type="checkbox"
                         name="transportTrain"
                         checked={form.transportTrain}
                         onChange={handleChange}
                         className="transit-train-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Train className="h-4 w-4 text-[var(--brand-primary)]" /> Train
+                      <Train className="h-4 w-4 text-[var(--brand-primary)]" aria-hidden="true" /> Train
                     </label>
                     {form.transportTrain && (
                       <div className="train-coach-field train-coach-container">
-                        <label className="train-coach-label block text-[10px] text-[var(--text-secondary)] mb-1">Train Coach / Class:</label>
+                        <span
+                          id="train-coach-label"
+                          className="train-coach-label block text-[11px] text-[var(--text-secondary)] mb-1"
+                        >
+                          Train Coach / Class:
+                        </span>
                         <ThemeSelect
                           semanticName="train-coach-class"
                           id="train-coach-select"
+                          labelId="train-coach-label"
                           value={form.trainClass}
                           onChange={(val) => setForm({ ...form, trainClass: val })}
                           options={[
-                            { value: "2S", label: "2S — Second Sitting (Reserved)" },
-                            { value: "SL", label: "SL — Sleeper Class" },
-                            { value: "3E", label: "3E — 3 AC Economy" },
-                            { value: "3A", label: "3A — 3 Tier AC" },
-                            { value: "2A", label: "2A — 2 Tier AC" },
-                            { value: "1A", label: "1A — First Class AC" },
-                            { value: "CC", label: "CC — AC Chair Car" },
-                            { value: "EC", label: "EC — Executive Chair Car" },
-                            { value: "Vistadome", label: "Vistadome — Panoramic Glass Coach" },
+                            { value: "2S", label: "2S: Second Sitting (Reserved)" },
+                            { value: "SL", label: "SL: Sleeper Class" },
+                            { value: "3E", label: "3E: 3 AC Economy" },
+                            { value: "3A", label: "3A: 3 Tier AC" },
+                            { value: "2A", label: "2A: 2 Tier AC" },
+                            { value: "1A", label: "1A: First Class AC" },
+                            { value: "CC", label: "CC: AC Chair Car" },
+                            { value: "EC", label: "EC: Executive Chair Car" },
+                            { value: "Vistadome", label: "Vistadome: Panoramic Glass Coach" },
                           ]}
                           buttonClassName="py-2 px-2.5 text-xs font-mono"
                         />
@@ -1589,22 +1867,32 @@ export default function ItineraryPage() {
 
                   {/* Bus / Coach */}
                   <div className="transit-bus-card bus-preference-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] space-y-2 relative z-30 focus-within:z-50">
-                    <label className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                    <label
+                      htmlFor="itin-transport-bus"
+                      className="transit-bus-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
+                    >
                       <input
+                        id="itin-transport-bus"
                         type="checkbox"
                         name="transportBus"
                         checked={form.transportBus}
                         onChange={handleChange}
                         className="transit-bus-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Bus className="h-4 w-4 text-[var(--status-warning)]" /> Bus / Coach
+                      <Bus className="h-4 w-4 text-[var(--status-warning)]" aria-hidden="true" /> Bus / Coach
                     </label>
                     {form.transportBus && (
                       <div className="bus-coach-field bus-coach-container">
-                        <label className="bus-coach-label block text-[10px] text-[var(--text-secondary)] mb-1">Bus Coach Type:</label>
+                        <span
+                          id="bus-coach-label"
+                          className="bus-coach-label block text-[11px] text-[var(--text-secondary)] mb-1"
+                        >
+                          Bus Coach Type:
+                        </span>
                         <ThemeSelect
                           semanticName="bus-coach-type"
                           id="bus-coach-select"
+                          labelId="bus-coach-label"
                           value={form.busClass}
                           onChange={(val) => setForm({ ...form, busClass: val })}
                           options={[
@@ -1623,22 +1911,32 @@ export default function ItineraryPage() {
 
                   {/* Flight */}
                   <div className="transit-flight-card flight-preference-card p-3 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] space-y-2 relative z-20 focus-within:z-50">
-                    <label className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                    <label
+                      htmlFor="itin-transport-flight"
+                      className="transit-flight-checkbox-label flex items-center gap-2 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
+                    >
                       <input
+                        id="itin-transport-flight"
                         type="checkbox"
                         name="transportFlight"
                         checked={form.transportFlight}
                         onChange={handleChange}
                         className="transit-flight-checkbox accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)]"
                       />
-                      <Plane className="h-4 w-4 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" /> Flight
+                      <Plane className="h-4 w-4 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" aria-hidden="true" /> Flight
                     </label>
                     {form.transportFlight && (
                       <div className="flight-cabin-field flight-cabin-container">
-                        <label className="flight-cabin-label block text-[10px] text-[var(--text-secondary)] mb-1">Flight Cabin:</label>
+                        <span
+                          id="flight-cabin-label"
+                          className="flight-cabin-label block text-[11px] text-[var(--text-secondary)] mb-1"
+                        >
+                          Flight Cabin:
+                        </span>
                         <ThemeSelect
                           semanticName="flight-cabin-class"
                           id="flight-cabin-select"
+                          labelId="flight-cabin-label"
                           value={form.flightClass}
                           onChange={(val) => setForm({ ...form, flightClass: val })}
                           options={[
@@ -1676,33 +1974,41 @@ export default function ItineraryPage() {
                 {/* Interests */}
                 <div className="interests-activities-field interests-activities-container lg:col-span-5">
                   <div className="h-7 flex items-center mb-1.5">
-                    <label className="interests-activities-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                      <Sparkles className="h-3.5 w-3.5 text-[var(--accent-sand)] shrink-0" /> Interests &amp; Activities
+                    <label
+                      htmlFor="itin-interests"
+                      className="interests-activities-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-[var(--status-warning)] shrink-0" aria-hidden="true" /> Interests &amp; Activities
                     </label>
                   </div>
                   <input
+                    id="itin-interests"
                     name="interests"
                     value={form.interests}
                     onChange={handleChange}
                     placeholder="e.g. Culture, Scenery, Trekking, Cafes, Local Food"
-                    className="interests-activities-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
+                    className="interests-activities-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors placeholder:text-[var(--text-secondary)]"
                   />
                 </div>
 
                 {/* Remarks & Special Instructions */}
                 <div className="remarks-special-instructions-field remarks-special-instructions-container lg:col-span-7">
-                  <div className="h-7 flex items-center justify-between mb-1.5">
-                    <label className="remarks-special-instructions-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] truncate">
-                      <Info className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" /> Remarks &amp; Special Instructions
+                  <div className="min-h-[28px] flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                    <label
+                      htmlFor="itin-special-notes"
+                      className="remarks-special-instructions-label flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] break-words"
+                    >
+                      <Info className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" aria-hidden="true" /> Remarks &amp; Special Instructions
                     </label>
                     <span className="text-[10px] text-[var(--text-secondary)] font-normal shrink-0 ml-1">Dietary, senior citizens, views...</span>
                   </div>
                   <input
+                    id="itin-special-notes"
                     name="specialNotes"
                     value={form.specialNotes}
                     onChange={handleChange}
                     placeholder="e.g. Early departure, pure vegetarian food, senior-friendly stairs, mountain/beach view..."
-                    className="remarks-special-instructions-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[color:var(--border-subtle)] focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none transition-colors placeholder:text-[var(--text-secondary)]/65"
+                    className="remarks-special-instructions-input h-11 w-full bg-[var(--bg-surface-secondary)] rounded-lg px-3.5 text-[var(--text-primary)] text-sm border border-[var(--border-strong)] focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] outline-none transition-colors placeholder:text-[var(--text-secondary)]"
                   />
                 </div>
               </div>
@@ -1721,7 +2027,7 @@ export default function ItineraryPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="generate-elite-itinerary-button w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-medium py-3 px-7 rounded-lg transition-opacity shadow-sm disabled:opacity-50 text-sm shrink-0"
+                  className="generate-elite-itinerary-button w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-medium py-3 px-7 rounded-lg transition-colors shadow-sm disabled:opacity-50 text-sm shrink-0"
                 >
                   <Sparkles className="h-4 w-4" />
                   <span>Generate Itinerary</span>
@@ -1829,7 +2135,7 @@ export default function ItineraryPage() {
                             <button
                               type="button"
                               onClick={() => handleLoadSavedItinerary(it, true)}
-                              className="flex-1 bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium py-2 px-3 rounded-lg transition-opacity flex items-center justify-center gap-1.5"
+                              className="cursor-pointer flex-1 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                             >
                               <span>Open &amp; View Plan</span>
                               <ArrowRight className="h-3.5 w-3.5" />
@@ -1911,10 +2217,10 @@ export default function ItineraryPage() {
                       <span>{form.destination}</span>
                     </h3>
                     <p className="text-xs text-[var(--text-secondary)] mt-1">
-                      {form.nights} Nights ({form.startDate} to {form.endDate}) • {form.travellers} Travellers ({form.groupType})
+                      {form.nights} Nights ({form.startDate} to {form.endDate}) • {form.travellers} Travellers ({formatItineraryGroupType(form.groupType)})
                       {linkedGroup && (
                         <span className="ml-2 inline-flex items-center gap-1 text-[11px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2 py-0.5 rounded-full font-medium">
-                          <Crown className="h-3 w-3 text-[var(--accent-sand)]" /> Linked to {linkedGroup.name}
+                          <Crown className="h-3 w-3 text-[var(--accent-gold-ink)]" /> Linked to {linkedGroup.name}
                         </span>
                       )}
                     </p>
@@ -1934,7 +2240,7 @@ export default function ItineraryPage() {
                     <button
                       onClick={handleSaveItinerary}
                       disabled={isSaving}
-                      className="flex items-center gap-1.5 bg-[var(--brand-dark)] hover:opacity-95 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-opacity shadow-sm"
+                      className="cursor-pointer flex items-center gap-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm"
                       title="Save this Itinerary & Travel Guide Notes"
                     >
                       {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
@@ -1965,7 +2271,7 @@ export default function ItineraryPage() {
                     <button
                       onClick={() => handleDownloadPDF("magazine")}
                       disabled={!!pdfProgress}
-                      className="flex items-center gap-1.5 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm shadow-sm hover:opacity-95 transition-opacity disabled:opacity-60"
+                      className="flex items-center gap-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-medium px-3.5 py-2 rounded-lg text-xs sm:text-sm shadow-sm transition-colors disabled:opacity-60"
                       title="Download Travel Guide (Magazine Edition)"
                     >
                       {pdfProgress ? (
@@ -2022,7 +2328,7 @@ export default function ItineraryPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleShareLiveWhatsApp}
-                          className="flex items-center gap-1.5 bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-opacity"
+                          className="cursor-pointer flex items-center gap-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                           title="Share Current Situation via WhatsApp"
                         >
                           <Share2 className="h-3.5 w-3.5" />
@@ -2053,33 +2359,45 @@ export default function ItineraryPage() {
                       {/* 1. Road Status */}
                       <div className="p-3.5 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] space-y-1">
                         <div className="font-medium flex items-center gap-1.5 text-[var(--status-positive)]">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Road &amp; Transit Flow
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> {isNepalRoute ? "Road & Corridor Flow" : "Route Transit Readiness"}
                         </div>
-                        <div className="text-[var(--text-primary)] font-medium">Open &amp; Normal Speed</div>
+                        <div className="text-[var(--text-primary)] font-medium">
+                          {isNepalRoute ? "Paced Mountain Transit" : `${form.pace || "Moderate"} Schedule`}
+                        </div>
                         <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
-                          Mountain transit operating at safe 20–35 km/h. No active road closures reported along main corridor.
+                          {isNepalRoute
+                            ? "Mountain transit averages 20-35 km/h along hill corridors. Allow extra buffer time between inter-city connections."
+                            : `Itinerary timed for ${form.origin} to ${form.destination} with balanced transit buffers between daily stops.`}
                         </div>
                       </div>
 
                       {/* 2. Weather & Daylight */}
                       <div className="p-3.5 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] space-y-1">
                         <div className="font-medium flex items-center gap-1.5 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
-                          <Compass className="h-3.5 w-3.5 shrink-0" /> Weather &amp; Daylight
+                          <Compass className="h-3.5 w-3.5 shrink-0" /> Timing &amp; Daylight
                         </div>
-                        <div className="text-[var(--text-primary)] font-medium">Clear Skies • Daylight Transit</div>
+                        <div className="text-[var(--text-primary)] font-medium">
+                          {isNepalRoute ? "Daylight Mountain Arrivals" : "Check-In & Transfer Window"}
+                        </div>
                         <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
-                          Sun sets by 5:15–5:30 PM. Depart early in morning to arrive at stays before dark mountain cold sets in.
+                          {isNepalRoute
+                            ? "Depart early in the morning so road transfers reach hill stays before dusk."
+                            : "Confirm station/airport arrival buffers alongside local hotel check-in timings before departure."}
                         </div>
                       </div>
 
                       {/* 3. Formalities & Border */}
                       <div className="p-3.5 bg-[var(--bg-surface)] rounded-lg border border-[color:var(--border-subtle)] space-y-1">
                         <div className="font-medium flex items-center gap-1.5 text-[var(--status-warning)]">
-                          <ShieldCheck className="h-3.5 w-3.5 shrink-0" /> Border &amp; Formalities
+                          <ShieldCheck className="h-3.5 w-3.5 shrink-0" /> {isNepalRoute ? "Border & Currency Notes" : "ID & Payment Readiness"}
                         </div>
-                        <div className="text-[var(--text-primary)] font-medium">ID &amp; Currency Preparedness</div>
+                        <div className="text-[var(--text-primary)] font-medium">
+                          {isNepalRoute ? "Voter ID / Passport & Cash" : "Photo ID & Group UPI Ready"}
+                        </div>
                         <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
-                          Carry physical Voter ID or Passport. Indian ₹100/₹200 notes accepted; ₹500 prohibited in Nepal.
+                          {isNepalRoute
+                            ? "Carry physical Voter ID or Passport. Indian ₹100/₹200 notes accepted; ₹500 prohibited in Nepal."
+                            : "Carry government photo ID for hotel and transit check-ins, and keep local cash plus UPI apps ready."}
                         </div>
                       </div>
                     </div>
@@ -2162,7 +2480,7 @@ export default function ItineraryPage() {
 
                     {/* Friendly tips if any */}
                     {result.auditReview.warnings?.length > 0 && (
-                      <div className="mt-3 pt-3 flex items-start gap-2 text-xs text-[var(--status-warning)] bg-[var(--accent-sand)]/15 p-2.5 rounded-lg border border-[var(--accent-sand)]/30">
+                      <div className="mt-3 pt-3 flex items-start gap-2 text-xs text-[var(--status-warning)] bg-[var(--status-warning-bg)] p-2.5 rounded-lg border border-[var(--status-warning-border)]">
                         <AlertCircle className="h-4 w-4 text-[var(--status-warning)] shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold">Helpful Travel Tip: </span>
@@ -2177,7 +2495,7 @@ export default function ItineraryPage() {
                 <div className="hidden print:block mb-8">
                   <h1 className="text-4xl font-bold text-black border-b-2 border-black pb-4 mb-4">Trip to {form.destination}</h1>
                   <p className="text-gray-600"><strong>From:</strong> {form.origin} • <strong>Dates:</strong> {form.startDate} to {form.endDate} ({form.nights} nights)</p>
-                  <p className="text-gray-600"><strong>Travellers:</strong> {form.travellers} ({form.groupType}) • <strong>Budget:</strong> ₹{form.budget}</p>
+                  <p className="text-gray-600"><strong>Travellers:</strong> {form.travellers} ({formatItineraryGroupType(form.groupType)}) • <strong>Budget:</strong> ₹{form.budget}</p>
                 </div>
 
                 {/* Tabs */}
@@ -2204,9 +2522,9 @@ export default function ItineraryPage() {
 
                 {/* Tab Content: Itinerary */}
                 {activeTab === 'itinerary' && (
-                  <div className="space-y-6 flex-1 overflow-auto pr-2 print:overflow-visible">
+                  <div className="sr-tab-panel space-y-6 flex-1 overflow-auto pr-2 print:overflow-visible">
                     {result.days?.map((day: any, i: number) => (
-                      <div key={i} className="bg-[var(--bg-surface-secondary)] rounded-xl p-5 sm:p-6 border border-[color:var(--border-subtle)] print:bg-gray-100 print:text-black print:break-inside-avoid">
+                      <div key={i} className="bg-[var(--bg-surface-secondary)] rounded-xl p-5 sm:p-6 border border-[color:var(--border-subtle)] sr-card-interactive print:bg-gray-100 print:text-black print:break-inside-avoid">
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-4 border-b border-[color:var(--border-subtle)] print:border-black/10">
                           <div className="flex items-center gap-3">
                             <h4 className="font-display text-xl font-bold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] print:text-black">Day {day.day}</h4>
@@ -2399,7 +2717,7 @@ export default function ItineraryPage() {
                           </div>
 
                           {/* Top 4 KPI Metrics */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 my-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 my-6">
                             <div className="p-4 bg-[var(--bg-surface-secondary)] rounded-xl border border-[color:var(--border-subtle)] flex flex-col justify-between">
                               <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Total Group Budget</span>
                               <div className="font-display text-2xl sm:text-3xl font-bold tabular-nums text-[var(--status-positive)] mt-1">
@@ -2499,7 +2817,7 @@ export default function ItineraryPage() {
                             <button
                               type="button"
                               onClick={handleOpenForwardModal}
-                              className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium transition-opacity"
+                              className="cursor-pointer self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] text-xs font-medium transition-colors"
                             >
                               <Send className="h-3.5 w-3.5" /> Forward to Travel Group
                             </button>
@@ -2583,12 +2901,22 @@ export default function ItineraryPage() {
       {/* AI Copilot Drawer / Modal */}
       <AnimatePresence>
         {isCopilotOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsCopilotOpen(false);
+            }}
+          >
             <motion.div
+              ref={copilotDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="travel-copilot-modal-title"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="w-full max-w-2xl"
+              onClick={(e) => e.stopPropagation()}
             >
               <TravelCopilotChat
                 currentPlan={result}
@@ -2622,21 +2950,33 @@ export default function ItineraryPage() {
       {/* 1. Saved Trips Modal */}
       <AnimatePresence>
         {isSavedTripsModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsSavedTripsModalOpen(false);
+            }}
+          >
             <motion.div
+              ref={savedTripsDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={savedTripsTitleId}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-2xl bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl shadow-[var(--shadow-popover)] p-6 overflow-hidden flex flex-col max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-4 border-b border-[color:var(--border-subtle)]">
                 <div className="flex items-center gap-2.5">
                   <FolderOpen className="h-5 w-5 text-[var(--brand-primary)]" />
-                  <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">Saved Travel Itineraries</h3>
+                  <h3 id={savedTripsTitleId} className="font-display text-lg font-semibold text-[var(--text-primary)]">Saved Travel Itineraries</h3>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsSavedTripsModalOpen(false)}
-                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
+                  aria-label="Close Saved Travel Itineraries modal"
+                  className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2644,10 +2984,11 @@ export default function ItineraryPage() {
 
               <div className="flex-1 overflow-y-auto py-4 space-y-3">
                 {isLoadingSavedTrips ? (
-                  <div className="py-12 text-center text-[var(--text-secondary)] flex flex-col items-center gap-3">
-                    <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-primary)]" />
-                    <span>Loading your saved itineraries...</span>
-                  </div>
+                  <SplitRupeeLoader
+                    variant="modal"
+                    text="Saved Trips"
+                    subtext="Loading your saved itineraries..."
+                  />
                 ) : savedTripsList.length === 0 ? (
                   <div className="py-12 text-center text-[var(--text-secondary)]">
                     <p className="text-sm">No saved itineraries found yet.</p>
@@ -2681,14 +3022,17 @@ export default function ItineraryPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
+                          type="button"
                           onClick={() => handleLoadSavedItinerary(it)}
-                          className="bg-[var(--brand-dark)] hover:opacity-95 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-opacity"
+                          className="cursor-pointer min-h-[44px] sm:min-h-0 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] text-xs font-medium px-3.5 py-2 rounded-lg transition-colors"
                         >
                           Open &amp; Load
                         </button>
                         <button
-                          onClick={() => handleDeleteSavedItinerary(it.id)}
-                          className="p-2 text-[var(--text-secondary)] hover:text-[var(--status-negative)] hover:bg-[var(--status-negative-bg)] rounded-lg transition-colors"
+                          type="button"
+                          onClick={() => setConfirmDeleteTrip({ id: it.id, title: it.title })}
+                          aria-label={`Delete saved itinerary ${it.title}`}
+                          className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--status-negative)] hover:bg-[var(--status-negative-bg)] rounded-lg transition-colors"
                           title="Delete saved itinerary"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -2706,43 +3050,56 @@ export default function ItineraryPage() {
       {/* 2. Forward to Travel Group Modal */}
       <AnimatePresence>
         {isForwardModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isForwarding) setIsForwardModalOpen(false);
+            }}
+          >
             <motion.div
+              ref={forwardDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={forwardTitleId}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-lg bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl shadow-[var(--shadow-popover)] p-6 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-4 border-b border-[color:var(--border-subtle)]">
                 <div className="flex items-center gap-2.5">
                   <Send className="h-5 w-5 text-[var(--brand-primary)]" />
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">Forward to Travel Group</h3>
+                    <h3 id={forwardTitleId} className="font-display text-lg font-semibold text-[var(--text-primary)]">Forward to Travel Group</h3>
                     <p className="text-xs text-[var(--text-secondary)]">Share itinerary and travel guide advice with your group</p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsForwardModalOpen(false)}
-                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
+                  aria-label="Close Forward to Travel Group modal"
+                  className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Admin Privileges Notice */}
-              <div className="mt-4 p-3 bg-[var(--accent-sand)]/15 border border-[var(--accent-sand)]/30 rounded-lg flex items-start gap-2.5 text-xs text-[var(--status-warning)]">
+              <div className="mt-4 p-3 bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] rounded-lg flex items-start gap-2.5 text-xs text-[var(--status-warning)]">
                 <Crown className="h-4 w-4 text-[var(--status-warning)] shrink-0 mt-0.5" />
                 <span>
-                  <strong>Admin Privilege:</strong> Only group administrators can forward itineraries, manage member schedules, and dispatch day calendar events.
+                  <strong>Group Admins:</strong> Only group admins can link itineraries and add trip expenses to the group.
                 </span>
               </div>
 
               <div className="my-4 space-y-2.5 max-h-64 overflow-y-auto pr-1">
                 {isLoadingGroups ? (
-                  <div className="py-8 text-center text-[var(--text-secondary)] flex flex-col items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-[var(--brand-primary)]" />
-                    <span>Loading your groups...</span>
-                  </div>
+                  <SplitRupeeLoader
+                    variant="modal"
+                    text="Your Groups"
+                    subtext="Getting your groups ready..."
+                  />
                 ) : userGroups.length === 0 ? (
                   <div className="py-8 text-center text-[var(--text-secondary)] text-xs">
                     No groups found for your account. Please create or join a group first.
@@ -2754,24 +3111,27 @@ export default function ItineraryPage() {
                     const isSelected = selectedGroupId === g.id;
 
                     return (
-                      <div
+                      <button
                         key={g.id}
+                        type="button"
+                        disabled={!isAdmin}
+                        aria-pressed={isAdmin ? isSelected : undefined}
                         onClick={() => {
                           if (isAdmin) setSelectedGroupId(g.id);
                         }}
-                        className={`p-3.5 rounded-xl border transition-colors cursor-pointer flex items-center justify-between gap-3 ${
+                        className={`w-full text-left p-3.5 rounded-xl border transition-colors flex items-center justify-between gap-3 ${
                           !isAdmin
                             ? "opacity-60 bg-[var(--bg-surface-secondary)] border-[color:var(--border-subtle)] cursor-not-allowed"
                             : isSelected
-                            ? "bg-[var(--status-positive-bg)] border-[var(--brand-primary)]"
-                            : "bg-[var(--bg-surface-secondary)] border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)]"
+                            ? "cursor-pointer bg-[var(--status-positive-bg)] border-[var(--brand-primary)]"
+                            : "cursor-pointer bg-[var(--bg-surface-secondary)] border-[color:var(--border-subtle)] hover:border-[color:var(--border-strong)]"
                         }`}
                       >
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-[var(--text-primary)] text-sm">{g.name}</span>
-                            <span className="text-[10px] bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[color:var(--border-subtle)] px-2 py-0.5 rounded-full font-mono">
-                              {g.type}
+                            <span className="text-[11px] bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[color:var(--border-subtle)] px-2 py-0.5 rounded-full">
+                              {formatGroupType(g.type)}
                             </span>
                           </div>
                           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -2781,7 +3141,7 @@ export default function ItineraryPage() {
                         <div>
                           {isAdmin ? (
                             <span className="inline-flex items-center gap-1 text-[11px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive)]/25 px-2.5 py-1 rounded-full font-medium">
-                              <Crown className="h-3 w-3 text-[var(--accent-sand)]" /> Admin
+                              <Crown className="h-3 w-3 text-[var(--accent-gold-ink)]" /> Admin
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[color:var(--border-subtle)] px-2.5 py-1 rounded-full">
@@ -2789,7 +3149,7 @@ export default function ItineraryPage() {
                             </span>
                           )}
                         </div>
-                      </div>
+                      </button>
                     );
                   })
                 )}
@@ -2809,15 +3169,17 @@ export default function ItineraryPage() {
 
               <div className="pt-3 border-t border-[color:var(--border-subtle)] flex items-center justify-end gap-3">
                 <button
+                  type="button"
                   onClick={() => setIsForwardModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  className="min-h-[44px] sm:min-h-0 px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleConfirmForward}
                   disabled={!selectedGroupId || isForwarding}
-                  className="bg-[var(--brand-dark)] hover:opacity-95 disabled:opacity-50 text-white text-xs font-medium px-4 py-2 rounded-lg transition-opacity flex items-center gap-2"
+                  className="cursor-pointer min-h-[44px] sm:min-h-0 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 text-[var(--brand-ink)] text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {isForwarding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   <span>Forward Itinerary &amp; Chat</span>
@@ -2831,18 +3193,28 @@ export default function ItineraryPage() {
       {/* 3. Day-by-Day Calendar Dispatch Modal */}
       <AnimatePresence>
         {activeDayCalendar && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setActiveDayCalendar(null);
+            }}
+          >
             <motion.div
+              ref={dayCalendarDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={dayCalendarTitleId}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-lg bg-[var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-2xl shadow-[var(--shadow-popover)] p-6 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-4 border-b border-[color:var(--border-subtle)]">
                 <div className="flex items-center gap-2.5">
                   <Calendar className="h-5 w-5 text-[var(--brand-primary)]" />
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">
+                    <h3 id={dayCalendarTitleId} className="font-display text-lg font-semibold text-[var(--text-primary)]">
                       Add Day {activeDayCalendar.dayNumber} to Calendar
                     </h3>
                     <p className="text-xs text-[var(--text-secondary)]">
@@ -2851,8 +3223,10 @@ export default function ItineraryPage() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setActiveDayCalendar(null)}
-                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
+                  aria-label="Close Day Calendar modal"
+                  className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2930,7 +3304,7 @@ export default function ItineraryPage() {
               <div className="space-y-2.5 pt-2 border-t border-[color:var(--border-subtle)]">
                 <button
                   onClick={handleDayWhatsAppShare}
-                  className="w-full flex items-center justify-center gap-2 bg-[var(--brand-dark)] hover:opacity-95 text-white font-medium text-xs py-2.5 px-4 rounded-lg transition-opacity"
+                  className="cursor-pointer w-full flex items-center justify-center gap-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-medium text-xs py-2.5 px-4 rounded-lg transition-colors"
                   title="Share Day schedule to WhatsApp Group with 1-Tap Calendar Add link"
                 >
                   <Share2 className="h-4 w-4" />
@@ -2955,6 +3329,63 @@ export default function ItineraryPage() {
                     <span>Download .ICS</span>
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. Accessible Delete Confirmation Dialog (Replaces native confirm()) */}
+      <AnimatePresence>
+        {confirmDeleteTrip && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[var(--overlay-backdrop)]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isDeletingTrip) setConfirmDeleteTrip(null);
+            }}
+          >
+            <motion.div
+              ref={deleteTripDialogRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby={deleteTripTitleId}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="w-full max-w-sm rounded-2xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-popover)] space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] text-[var(--status-negative)]">
+                  <Trash2 className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="space-y-1">
+                  <h3 id={deleteTripTitleId} className="font-display text-base font-semibold text-[var(--text-primary)]">
+                    Delete saved itinerary?
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    Remove <strong className="text-[var(--text-primary)]">{confirmDeleteTrip.title}</strong> from your saved trips? This cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeletingTrip}
+                  onClick={() => setConfirmDeleteTrip(null)}
+                  className="min-h-[44px] sm:min-h-[38px] rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingTrip}
+                  onClick={() => handleDeleteSavedItinerary(confirmDeleteTrip.id)}
+                  className="min-h-[44px] sm:min-h-[38px] rounded-xl bg-[var(--status-negative)] px-4 text-xs font-semibold text-white dark:text-[#171613] hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {isDeletingTrip ? "Deleting..." : "Delete Itinerary"}
+                </button>
               </div>
             </motion.div>
           </div>

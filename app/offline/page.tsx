@@ -72,9 +72,8 @@ export default function OfflinePage() {
               <WifiOff className="h-7 w-7" />
             </div>
             {onlineNow && (
-              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--status-positive)] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[var(--status-positive)]"></span>
+              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5" aria-label="Online now">
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[var(--status-positive)] ring-2 ring-[var(--bg-surface)]"></span>
               </span>
             )}
           </div>
@@ -90,7 +89,7 @@ export default function OfflinePage() {
             You are Offline
           </h1>
           <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
-            SplitRupee is running in <strong className="text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Offline PWA Mode</strong>. You can still view cached groups, recent expenses, and calculate splits without an active internet connection.
+            SplitRupee is running in <strong className="text-[var(--brand-primary)]">Offline PWA Mode</strong>. You can still view cached groups, recent expenses, and calculate splits without an active internet connection.
           </p>
         </div>
 
@@ -100,7 +99,7 @@ export default function OfflinePage() {
             type="button"
             onClick={handleRetry}
             disabled={retrying}
-            className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-6 text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity disabled:opacity-50"
+            className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-6 text-xs sm:text-sm font-semibold text-[var(--brand-ink)] transition-colors disabled:opacity-50"
           >
             <RotateCw className={`h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
             <span>{retrying ? "Reconnecting..." : "Retry Connection"}</span>
@@ -135,7 +134,7 @@ export default function OfflinePage() {
             </h2>
             {pendingCount > 0 && (
               <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--status-warning)] tabular-nums">
-                {pendingCount} Pending Sync
+                {pendingCount} waiting to sync
               </span>
             )}
           </div>
@@ -208,7 +207,7 @@ export default function OfflinePage() {
 
             <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              <span>Offline Ledger Active — New expenses, edits, deletes &amp; cash settlements queue safely locally</span>
+              <span>Offline Ledger Active: New expenses, edits, deletes &amp; cash settlements queue safely locally</span>
             </div>
           </div>
         </div>

@@ -102,8 +102,8 @@ export default function PwaRegister() {
         <div className="flex items-center justify-center gap-2 bg-[var(--status-warning-bg)] border-b border-[var(--status-warning-border)] text-[var(--text-primary)] py-1.5 px-4 shadow-sm backdrop-blur-sm text-xs font-medium text-center">
           <WifiOff className="h-3.5 w-3.5 shrink-0 text-[var(--status-warning)]" />
           <span>
-            You are offline. Offline mode is active
-            {pendingCount > 0 ? ` (${pendingCount} change${pendingCount > 1 ? "s" : ""} queued for sync)` : ""}.
+            You&apos;re currently offline. Your changes are saved locally
+            {pendingCount > 0 ? ` (${pendingCount} change${pendingCount > 1 ? "s" : ""} waiting to sync)` : ""}.
           </span>
         </div>
       </div>

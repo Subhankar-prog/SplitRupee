@@ -5,20 +5,23 @@ import React from "react";
 interface GoogleAuthButtonProps {
   onClick: () => void;
   disabled?: boolean;
+  tabIndex?: number;
   className?: string;
 }
 
 export default function GoogleAuthButton({
   onClick,
   disabled = false,
+  tabIndex,
   className = "",
 }: GoogleAuthButtonProps) {
   return (
     <button
       type="button"
+      tabIndex={tabIndex}
       onClick={onClick}
       disabled={disabled}
-      className={`w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] hover:border-[var(--border-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
+      className={`w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
     >
       <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
         <path

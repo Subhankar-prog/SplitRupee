@@ -25,6 +25,8 @@ interface ThemeSelectProps {
   placeholder?: string;
   name?: string;
   id?: string;
+  labelId?: string;
+  ariaLabel?: string;
   semanticName?: string;
   className?: string;
   buttonClassName?: string;
@@ -39,6 +41,8 @@ export default function ThemeSelect({
   placeholder = "Select...",
   name,
   id,
+  labelId,
+  ariaLabel,
   semanticName,
   className = "",
   buttonClassName = "",
@@ -98,12 +102,16 @@ export default function ThemeSelect({
         type="button"
         id={id ? `${id}-trigger` : undefined}
         data-trigger={baseSlug}
+        aria-labelledby={labelId}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`dropdown-trigger ${baseSlug}-dropdown ${baseSlug}-trigger w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors text-left select-none outline-none border ${
           isOpen
             ? "border-[var(--brand-primary)] ring-2 ring-[var(--status-positive-bg)]"
-            : "border-[var(--border-subtle)] hover:border-[var(--brand-primary)]"
+            : "border-[var(--border-strong)] hover:border-[var(--brand-primary)]"
         } bg-[var(--bg-surface)] text-[var(--text-primary)] ${buttonClassName} ${
           disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
         }`}

@@ -363,7 +363,7 @@ export function getCachedActivities(userId?: string): any[] {
       const actionType = resolveOfflineActionType(item);
       let action = "EXPENSE_CREATED";
       let entityTitle = item.title;
-      let details = `${item.title} (₹${Math.round(item.totalAmount).toLocaleString("en-IN")}) — Pending sync`;
+      let details = `${item.title} (₹${Math.round(item.totalAmount).toLocaleString("en-IN")}) - Pending sync`;
 
       if (actionType === "UPDATE_EXPENSE") {
         action = "EXPENSE_UPDATED";
@@ -372,7 +372,7 @@ export function getCachedActivities(userId?: string): any[] {
       } else if (actionType === "CREATE_PAYMENT") {
         action = "PAYMENT_SETTLED";
         entityTitle = `Payment of ₹${Math.round(item.totalAmount).toLocaleString("en-IN")}`;
-        details = `${item.payload?.payerName || "Member"} paid ${item.payload?.receiverName || "Member"} ₹${Math.round(item.totalAmount).toLocaleString("en-IN")} — Pending sync`;
+        details = `${item.payload?.payerName || "Member"} paid ${item.payload?.receiverName || "Member"} ₹${Math.round(item.totalAmount).toLocaleString("en-IN")} - Pending sync`;
       }
 
       return {

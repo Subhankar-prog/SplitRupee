@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { LogOut, AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 
 interface Props {
   isOpen: boolean;
@@ -26,8 +27,12 @@ export default function ExitGroupModal({
   userBalance,
   onExited,
 }: Props) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useDialogAccessibility(isOpen, onClose, dialogRef, loading);
 
   if (!isOpen) return null;
 
@@ -64,28 +69,36 @@ export default function ExitGroupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)] backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover space-y-5"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover space-y-5 outline-none sr-modal-panel"
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-3.5 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2.5">
             <span className="p-2 rounded-xl bg-[var(--status-negative-bg)] text-[var(--status-negative)] border border-[var(--status-negative-border)]">
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
             </span>
-            <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Exit Group</h3>
+            <h3 id={titleId} className="font-display text-base font-semibold text-[var(--text-primary)]">Exit Group</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
             aria-label="Close modal"
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -161,7 +174,7 @@ export default function ExitGroupModal({
             type="button"
             onClick={handleExit}
             disabled={loading}
-            className="inline-flex h-9 items-center justify-center gap-2 px-4 rounded-xl bg-[var(--status-negative)] hover:opacity-95 text-white text-xs font-semibold transition-opacity disabled:opacity-50"
+            className="inline-flex h-9 items-center justify-center gap-2 px-4 rounded-xl bg-[var(--status-negative)] hover:opacity-95 text-white dark:text-[#171613] text-xs font-semibold transition-opacity disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
             <span>Confirm & Exit Group</span>

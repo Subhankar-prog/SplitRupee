@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useId, useRef } from "react";
 import {
   User,
   Mail,
@@ -22,6 +22,13 @@ import {
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
 import type { MemberDTO } from "@/lib/types";
+import {
+  BOTANICAL_AVATAR_COLORS,
+  DEFAULT_AVATAR_COLOR,
+  getAvatarTextColor,
+} from "@/lib/avatarColors";
+import { useDialogAccessibility } from "@/components/ui/primitives";
+import QrCodeImage from "@/components/ui/QrCodeImage";
 
 interface Props {
   isOpen: boolean;
@@ -29,17 +36,6 @@ interface Props {
   onOpenChangePassword?: () => void;
   onLogoutConfirm?: () => void;
 }
-
-const AVATAR_COLORS = [
-  "#10b981", // Emerald
-  "#0ea5e9", // Sky Blue
-  "#8b5cf6", // Purple
-  "#f43f5e", // Rose
-  "#f59e0b", // Amber
-  "#ec4899", // Pink
-  "#14b8a6", // Teal
-  "#3b82f6", // Blue
-];
 
 const UPI_HANDLES = ["@ybl", "@paytm", "@okaxis", "@okhdfcbank", "@icici"];
 
@@ -50,11 +46,14 @@ export default function ProfileSettingsModal({
   onLogoutConfirm,
 }: Props) {
   const { currentUser, setCurrentUser, refreshUsers } = useUser();
+  const nameId = useId();
+  const phoneId = useId();
+  const upiIdInputId = useId();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [upiId, setUpiId] = useState("");
-  const [avatarColor, setAvatarColor] = useState("#10b981");
+  const [avatarColor, setAvatarColor] = useState(DEFAULT_AVATAR_COLOR);
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
@@ -117,7 +116,7 @@ export default function ProfileSettingsModal({
       setName(currentUser.name || "");
       setPhone(currentUser.phone || "");
       setUpiId(currentUser.upiId || "");
-      setAvatarColor(currentUser.avatarColor || "#10b981");
+      setAvatarColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR);
     }
   }, [currentUser, isOpen]);
 
@@ -142,6 +141,10 @@ export default function ProfileSettingsModal({
     if (!upiUri) return "";
     return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiUri)}`;
   }, [upiUri]);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogAccessibility(isOpen && Boolean(currentUser), onClose, dialogRef, saving);
 
   if (!isOpen || !currentUser) return null;
 
@@ -215,7 +218,7 @@ export default function ProfileSettingsModal({
           expensesCount: data.claimedExpensesCount || 0,
         });
         setSuccessMsg(
-          `🎉 Mobile number linked! We automatically imported your expenses from ${data.claimedGroupsCount} group(s).`
+          `Mobile number linked. We automatically imported your expenses from ${data.claimedGroupsCount} group(s).`
         );
       } else {
         setSuccessMsg("Profile updated successfully!");
@@ -239,23 +242,30 @@ export default function ProfileSettingsModal({
     currentUser.email.includes("@gmail.com");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden"
+        aria-labelledby={titleId}
+        className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden sr-modal-panel"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--border-subtle)] shrink-0">
           <div className="flex items-center gap-3">
             <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-semibold text-[#171F1D] transition-colors"
-              style={{ backgroundColor: avatarColor }}
+              className="h-10 w-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+              style={{ backgroundColor: avatarColor, color: getAvatarTextColor(avatarColor) }}
             >
               {name ? name.slice(0, 2).toUpperCase() : currentUser.name.slice(0, 2).toUpperCase()}
             </div>
             <div>
-              <h3 className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <h3 id={titleId} className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
                 <span>Profile Settings</span>
                 {currentUser.isPro ? (
                   <span className="text-[10px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
@@ -275,8 +285,8 @@ export default function ProfileSettingsModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
-            aria-label="Close"
+            className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            aria-label="Close modal"
           >
             <X className="h-4 w-4" />
           </button>
@@ -306,38 +316,41 @@ export default function ProfileSettingsModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              <label htmlFor={nameId} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Full Name
               </label>
               <input
+                id={nameId}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="h-10 w-full text-xs sm:text-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+                className="h-10 w-full text-xs sm:text-sm bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3.5 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                 required
               />
             </div>
 
             {/* Avatar Color Picker */}
-            <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
+            <div role="group" aria-labelledby={`${nameId}-avatar-colors`}>
+              <span id={`${nameId}-avatar-colors`} className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
                 Avatar Theme Color
-              </label>
+              </span>
               <div className="flex flex-wrap items-center gap-2.5">
-                {AVATAR_COLORS.map((c) => (
+                {BOTANICAL_AVATAR_COLORS.map((swatch) => (
                   <button
-                    key={c}
+                    key={swatch.hex}
                     type="button"
-                    onClick={() => setAvatarColor(c)}
-                    className={`h-8 w-8 rounded-xl flex items-center justify-center transition-transform ${
-                      avatarColor === c
+                    aria-label={`Select ${swatch.name} avatar color`}
+                    aria-pressed={avatarColor === swatch.hex}
+                    onClick={() => setAvatarColor(swatch.hex)}
+                    className={`cursor-pointer h-11 w-11 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-transform ${
+                      avatarColor === swatch.hex
                         ? "ring-2 ring-[var(--brand-primary)] ring-offset-2 ring-offset-[var(--bg-surface)] scale-105"
-                        : "hover:scale-105 opacity-85 hover:opacity-100"
+                        : "hover:scale-105 opacity-90 hover:opacity-100"
                     }`}
-                    style={{ backgroundColor: c }}
+                    style={{ backgroundColor: swatch.hex, color: getAvatarTextColor(swatch.hex) }}
                   >
-                    {avatarColor === c && <Check className="h-4 w-4 text-[#171F1D] stroke-[2.5]" />}
+                    {avatarColor === swatch.hex && <Check className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />}
                   </button>
                 ))}
               </div>
@@ -345,13 +358,13 @@ export default function ProfileSettingsModal({
 
             {/* Email Address */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              <span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Account Email
-              </label>
-              <div className="flex items-center justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-primary)]">
-                <div className="flex items-center gap-2 truncate">
+              </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-primary)]">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Mail className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0" />
-                  <span className="truncate">{currentUser.email || "No email linked"}</span>
+                  <span className="break-all">{currentUser.email || "No email linked"}</span>
                 </div>
                 {isGoogleAccount ? (
                   <span className="text-[10px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] px-2 py-0.5 rounded-full font-medium shrink-0 flex items-center gap-1">
@@ -381,14 +394,15 @@ export default function ProfileSettingsModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              <label htmlFor={phoneId} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Indian Mobile Number (+91)
               </label>
-              <div className="flex items-center rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] focus-within:border-[var(--brand-primary)] focus-within:ring-2 focus-within:ring-[var(--status-positive-bg)] overflow-hidden transition-colors">
+              <div className="flex items-center rounded-xl bg-[var(--bg-surface)] border border-[var(--border-strong)] focus-within:border-[var(--brand-primary)] focus-within:ring-2 focus-within:ring-[var(--status-positive-bg)] overflow-hidden transition-colors">
                 <span className="px-3 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--bg-surface-secondary)] border-r border-[var(--border-subtle)] select-none py-2.5 tabular-nums">
                   +91
                 </span>
                 <input
+                  id={phoneId}
                   type="tel"
                   maxLength={10}
                   value={phone}
@@ -442,16 +456,17 @@ export default function ProfileSettingsModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              <label htmlFor={upiIdInputId} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Virtual Payment Address (VPA)
               </label>
               <div className="flex gap-2">
                 <input
+                  id={upiIdInputId}
                   type="text"
                   value={upiId}
                   onChange={(e) => setUpiId(e.target.value.toLowerCase().trim())}
                   placeholder="e.g. 9876543210@ybl or name@okaxis"
-                  className="h-10 flex-1 text-xs sm:text-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-[var(--text-primary)] font-mono outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+                  className="h-10 flex-1 text-xs sm:text-sm bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3.5 text-[var(--text-primary)] font-mono placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                 />
                 {upiId.includes("@") && (
                   <button
@@ -491,12 +506,13 @@ export default function ProfileSettingsModal({
             {showQrModal && qrCodeUrl && (
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--status-positive-border)] text-center space-y-3">
                 <div className="text-xs font-semibold text-[var(--text-primary)]">Your Personal Settlement QR Code</div>
-                <div className="inline-block p-3 rounded-xl bg-white border border-[#E6E9E3]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                <div className="inline-block p-3 rounded-xl bg-white border border-[#D8C8B5]">
+                  <QrCodeImage
                     src={qrCodeUrl}
                     alt="UPI QR Code"
-                    className="h-44 w-44 object-contain mx-auto"
+                    size={176}
+                    fallbackLabel="UPI QR unavailable"
+                    fallbackValue={upiId.trim()}
                   />
                 </div>
                 <div className="text-xs font-mono text-[var(--status-positive)] font-semibold">{upiId}</div>
@@ -510,7 +526,7 @@ export default function ProfileSettingsModal({
           {/* Section 4: Membership Tier & Currency */}
           <div className="p-4 rounded-2xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] space-y-3.5">
             <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-              <Crown className="h-3.5 w-3.5 text-[var(--accent-sand)]" />
+              <Crown className="h-3.5 w-3.5 text-[var(--accent-gold-ink)]" />
               <span>Preferences & Membership</span>
             </div>
 
@@ -521,17 +537,17 @@ export default function ProfileSettingsModal({
                   <div className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
                     <span>{currentUser.isPro ? "SplitRupee Pro" : "Free Account"}</span>
                     {currentUser.isPro && (
-                      <span className="text-[9px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 rounded font-semibold">PRO</span>
+                      <span className="text-[11px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 rounded font-semibold">PRO</span>
                     )}
                   </div>
                   <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                    {currentUser.isPro ? "Unlimited trips & dynamic export" : "Standard features"}
+                    {currentUser.isPro ? "AI Receipt OCR & recurring bills" : "Core group splitting features"}
                   </div>
                 </div>
                 {!currentUser.isPro && (
                   <a
                     href="/pro"
-                    className="px-2.5 py-1 rounded-lg bg-[var(--accent-sand)] hover:opacity-95 text-[#171F1D] text-xs font-semibold shrink-0 transition-opacity"
+                    className="px-2.5 py-1 rounded-lg bg-[var(--accent-gold)] hover:bg-[var(--accent-gold-hover)] text-[#171613] text-xs font-semibold shrink-0 transition-colors"
                   >
                     Upgrade
                   </a>
@@ -564,7 +580,7 @@ export default function ProfileSettingsModal({
           {/* Section 5: Security & Account Actions */}
           <div className="p-4 rounded-2xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] space-y-2.5">
             <div className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-              <KeyRound className="h-3.5 w-3.5 text-[var(--accent-sand)]" />
+              <KeyRound className="h-3.5 w-3.5 text-[var(--accent-gold-ink)]" />
               <span>Security & Actions</span>
             </div>
 
@@ -578,7 +594,7 @@ export default function ProfileSettingsModal({
                   }}
                   className="flex-1 h-9 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-2 transition-colors"
                 >
-                  <KeyRound className="h-3.5 w-3.5 text-[var(--accent-sand)]" />
+                  <KeyRound className="h-3.5 w-3.5 text-[var(--accent-gold-ink)]" />
                   <span>Change Password</span>
                 </button>
               )}
@@ -612,7 +628,7 @@ export default function ProfileSettingsModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex h-10 items-center gap-2 px-5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-semibold text-xs transition-opacity disabled:opacity-50"
+              className="flex h-10 items-center gap-2 px-5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold text-xs transition-colors disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
               <span>Save Changes</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import {
   Settings,
   Users,
@@ -25,6 +25,8 @@ import {
   UserCheck,
 } from "lucide-react";
 import type { MemberDTO, GroupTypeName } from "@/lib/types";
+import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 
 interface Props {
   isOpen: boolean;
@@ -58,6 +60,8 @@ export default function ManageGroupModal({
   onExitedGroup,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"general" | "members" | "danger">("general");
+  const baseId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Form State
   const [name, setName] = useState(group.name);
@@ -155,6 +159,8 @@ export default function ManageGroupModal({
       setMerging(false);
     }
   };
+
+  useDialogAccessibility(isOpen, onClose, dialogRef, saving || deleting);
 
   if (!isOpen) return null;
 
@@ -367,11 +373,18 @@ export default function ManageGroupModal({
   const myBalance = balances[currentUser.id] ?? 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[var(--overlay-backdrop)] sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving && !deleting) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden"
+        aria-labelledby={`${baseId}-modal-title`}
+        className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover overflow-hidden sr-modal-panel"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--border-subtle)] shrink-0">
@@ -380,7 +393,7 @@ export default function ManageGroupModal({
               <Shield className="h-5 w-5" />
             </span>
             <div>
-              <h3 className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <h3 id={`${baseId}-modal-title`} className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
                 <span>Manage Group</span>
                 <span className="text-[10px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                   <Crown className="h-3 w-3" /> Admin
@@ -393,7 +406,7 @@ export default function ManageGroupModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -459,37 +472,39 @@ export default function ManageGroupModal({
           {activeTab === "general" && (
             <form onSubmit={handleSaveDetails} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                <label htmlFor={`${baseId}-name`} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                   Group Name
                 </label>
                 <input
+                  id={`${baseId}-name`}
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Goa Trip 2026, Flat 402 Expenses"
-                  className="h-10 w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:border-[var(--brand-primary)] transition-colors"
+                  className="h-10 w-full bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--brand-primary)] transition-colors"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                <label htmlFor={`${baseId}-desc`} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                   Group Description
                 </label>
                 <textarea
+                  id={`${baseId}-desc`}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Add trip itinerary notes, expense rules, or a warm welcome message for group members..."
                   rows={3}
-                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:border-[var(--brand-primary)] transition-colors resize-none"
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--brand-primary)] transition-colors resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                <div role="group" aria-labelledby={`${baseId}-category-label`}>
+                  <span id={`${baseId}-category-label`} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     Category Type
-                  </label>
+                  </span>
                   <div className="grid grid-cols-2 gap-1.5">
                     {(
                       [
@@ -505,14 +520,15 @@ export default function ManageGroupModal({
                         <button
                           key={t.id}
                           type="button"
+                          aria-pressed={isSelected}
                           onClick={() => setType(t.id)}
-                          className={`flex items-center gap-1.5 p-2 rounded-xl border text-xs font-medium transition-colors ${
+                          className={`cursor-pointer flex items-center gap-1.5 p-2 rounded-xl border text-xs font-medium transition-colors ${
                             isSelected
                               ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
-                              : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                              : "bg-[var(--bg-surface-secondary)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                           }`}
                         >
-                          <Icon className="h-3.5 w-3.5" />
+                          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                           <span>{t.label}</span>
                         </button>
                       );
@@ -520,20 +536,21 @@ export default function ManageGroupModal({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                <div role="group" aria-labelledby={`${baseId}-currency-label`}>
+                  <span id={`${baseId}-currency-label`} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     Base Currency
-                  </label>
+                  </span>
                   <div className="flex gap-2">
                     {(["INR", "USD", "EUR", "GBP"] as const).map((curr) => (
                       <button
                         key={curr}
                         type="button"
+                        aria-pressed={currency === curr}
                         onClick={() => setCurrency(curr)}
-                        className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-semibold tabular-nums transition-colors ${
+                        className={`cursor-pointer flex-1 py-2 px-2.5 rounded-xl border text-xs font-semibold tabular-nums transition-colors ${
                           currency === curr
                             ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
-                            : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            : "bg-[var(--bg-surface-secondary)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}
                       >
                         {curr === "INR" ? "₹ INR" : curr === "USD" ? "$ USD" : curr === "EUR" ? "€ EUR" : "£ GBP"}
@@ -583,7 +600,7 @@ export default function ManageGroupModal({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex h-10 items-center gap-2 px-5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-semibold text-xs transition-opacity disabled:opacity-50"
+                  className="flex h-10 items-center gap-2 px-5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold text-xs transition-colors disabled:opacity-50"
                 >
                   {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   <span>Save Changes</span>
@@ -611,7 +628,7 @@ export default function ManageGroupModal({
                       <div className="min-w-0">
                         <div className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
                           <span>Merge Duplicate Members</span>
-                          <span className="text-[9px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] px-1.5 py-0.5 rounded font-semibold">1-Click</span>
+                          <span className="text-[11px] bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] px-2 py-0.5 rounded font-semibold">1-Click</span>
                         </div>
                         <div className="text-[11px] text-[var(--text-secondary)] truncate">
                           Added someone by phone and they joined with Google? Merge them here
@@ -625,7 +642,7 @@ export default function ManageGroupModal({
                         setMergeError("");
                         setMergeSuccess("");
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] font-semibold text-xs shrink-0 transition-opacity"
+                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold text-xs shrink-0 transition-colors"
                     >
                       {showMergeModal ? "Cancel" : "Merge Members"}
                     </button>
@@ -651,13 +668,14 @@ export default function ManageGroupModal({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                         {/* Source Member */}
                         <div>
-                          <label className="block text-[11px] font-semibold text-[var(--status-warning)] mb-1">
+                          <label htmlFor={`${baseId}-source`} className="block text-[11px] font-semibold text-[var(--status-warning)] mb-1">
                             1. Select Duplicate / Old Profile (To Remove)
                           </label>
                           <select
+                            id={`${baseId}-source`}
                             value={sourceMemberId}
                             onChange={(e) => setSourceMemberId(e.target.value)}
-                            className="h-9 w-full text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
+                            className="h-9 w-full text-xs bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
                           >
                             <option value="">-- Choose duplicate member --</option>
                             {members.map((m) => {
@@ -672,7 +690,7 @@ export default function ManageGroupModal({
                                   value={m.id}
                                   disabled={m.id === targetMemberId}
                                 >
-                                  {m.name} {isPlaceholder ? "(Phone Placeholder)" : ""} —{" "}
+                                  {m.name} {isPlaceholder ? "(Phone Placeholder)" : ""} -{" "}
                                   {bal > 0 ? `+₹${Math.round(bal)}` : bal < 0 ? `-₹${Math.round(-bal)}` : "₹0"}
                                 </option>
                               );
@@ -682,13 +700,14 @@ export default function ManageGroupModal({
 
                         {/* Target Member */}
                         <div>
-                          <label className="block text-[11px] font-semibold text-[var(--status-positive)] mb-1">
+                          <label htmlFor={`${baseId}-target`} className="block text-[11px] font-semibold text-[var(--status-positive)] mb-1">
                             2. Select Real / Active Account (To Keep)
                           </label>
                           <select
+                            id={`${baseId}-target`}
                             value={targetMemberId}
                             onChange={(e) => setTargetMemberId(e.target.value)}
-                            className="h-9 w-full text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
+                            className="h-9 w-full text-xs bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl px-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
                           >
                             <option value="">-- Choose active member --</option>
                             {members.map((m) => {
@@ -699,7 +718,7 @@ export default function ManageGroupModal({
                                   value={m.id}
                                   disabled={m.id === sourceMemberId}
                                 >
-                                  {m.name} ({m.email || "No email"}) —{" "}
+                                  {m.name} ({m.email || "No email"}) -{" "}
                                   {bal > 0 ? `+₹${Math.round(bal)}` : bal < 0 ? `-₹${Math.round(-bal)}` : "₹0"}
                                 </option>
                               );
@@ -747,7 +766,7 @@ export default function ManageGroupModal({
                           type="button"
                           onClick={handleMergeMembers}
                           disabled={merging || !sourceMemberId || !targetMemberId}
-                          className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] hover:opacity-95 text-white dark:text-[#171F1D] text-xs font-semibold transition-opacity disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] text-xs font-semibold transition-colors disabled:opacity-50"
                         >
                           {merging ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -775,14 +794,17 @@ export default function ManageGroupModal({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-semibold text-[#171F1D] shrink-0"
-                          style={{ backgroundColor: m.avatarColor || "#739B83" }}
+                          className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-semibold shrink-0"
+                          style={{
+                            backgroundColor: m.avatarColor || DEFAULT_AVATAR_COLOR,
+                            color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
+                          }}
                         >
                           {m.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] truncate">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] break-words leading-tight">
                               {m.name}
                             </span>
                             {isCurrent && (
@@ -798,9 +820,9 @@ export default function ManageGroupModal({
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] flex items-center gap-2">
-                            {m.email && <span className="truncate">{m.email}</span>}
-                            <span>•</span>
+                          <div className="text-[11px] text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {m.email && <span className="break-all">{m.email}</span>}
+                            {m.email && <span>•</span>}
                             <span
                               className={`font-semibold tabular-nums ${
                                 memberBal > 0 ? "text-[var(--status-positive)]" : memberBal < 0 ? "text-[var(--status-negative)]" : "text-[var(--text-secondary)]"
@@ -880,7 +902,7 @@ export default function ManageGroupModal({
                       type="button"
                       onClick={handleConfirmRemoveMember}
                       disabled={removingMember}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--status-negative)] hover:opacity-95 text-white text-xs font-semibold flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-lg bg-[var(--status-negative)] hover:opacity-95 text-white dark:text-[#171613] text-xs font-semibold flex items-center gap-1"
                     >
                       {removingMember && <Loader2 className="h-3 w-3 animate-spin" />}
                       <span>Yes, Remove</span>
@@ -916,14 +938,14 @@ export default function ManageGroupModal({
                     <button
                       type="button"
                       onClick={() => setConfirmExitAdmin(true)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--status-warning)] text-[var(--status-warning)] hover:text-[#171F1D] border border-[var(--status-warning-border)] font-semibold text-xs transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--status-warning)] text-[var(--status-warning)] hover:text-white dark:hover:text-[#171613] border border-[var(--status-warning-border)] font-semibold text-xs transition-colors"
                     >
                       <LogOut className="h-3.5 w-3.5" />
                       <span>Exit Group & Transfer Admin</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="pt-2 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--status-warning-border)] space-y-2.5 animate-in fade-in">
+                  <div className="pt-2 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--status-warning-border)] space-y-2.5">
                     <div className="flex items-center gap-1.5 font-semibold text-[var(--status-warning)] text-xs">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>Confirm Admin Resignation & Exit</span>
@@ -944,7 +966,7 @@ export default function ManageGroupModal({
                         type="button"
                         onClick={handleExitGroup}
                         disabled={exiting}
-                        className="flex-1 py-1.5 rounded-lg bg-[var(--accent-sand)] hover:opacity-95 text-[#171F1D] text-xs font-semibold flex items-center justify-center gap-1.5 transition-opacity"
+                        className="flex-1 py-1.5 rounded-lg bg-[var(--accent-gold)] hover:bg-[var(--accent-gold-hover)] text-[#171613] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                       >
                         {exiting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                         <span>Yes, Confirm Exit</span>
@@ -985,7 +1007,7 @@ export default function ManageGroupModal({
                         type="button"
                         onClick={handleDeleteGroup}
                         disabled={deleting}
-                        className="flex-1 py-1.5 rounded-lg bg-[var(--status-negative)] hover:opacity-95 text-white text-xs font-semibold flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 rounded-lg bg-[var(--status-negative)] hover:opacity-95 text-white dark:text-[#171613] text-xs font-semibold flex items-center justify-center gap-1"
                       >
                         {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                         <span>Confirm Permanent Delete</span>
@@ -997,7 +1019,7 @@ export default function ManageGroupModal({
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(true)}
-                      className="px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--status-negative)] text-[var(--status-negative)] hover:text-white border border-[var(--status-negative-border)] font-semibold text-xs transition-colors"
+                      className="px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--status-negative)] text-[var(--status-negative)] hover:text-white dark:hover:text-[#171613] border border-[var(--status-negative-border)] font-semibold text-xs transition-colors"
                     >
                       Delete This Group
                     </button>

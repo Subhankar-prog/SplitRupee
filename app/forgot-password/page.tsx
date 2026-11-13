@@ -11,7 +11,6 @@ import {
   Loader2,
   Mail,
   CheckCircle2,
-  Sparkles,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
@@ -138,7 +137,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs sm:text-sm font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -187,15 +186,12 @@ export default function ForgotPasswordPage() {
               </p>
               <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-3.5 py-1.5 text-xs font-semibold text-[var(--status-positive)]">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate max-w-[280px]">{sentEmail}</span>
+                <span className="break-all">{sentEmail}</span>
               </div>
             </div>
 
             <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 text-left space-y-2 text-xs text-[var(--text-secondary)]">
-              <div className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
-                <Sparkles className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-                <span>Next steps:</span>
-              </div>
+              <div className="font-semibold text-[var(--text-primary)]">Next steps:</div>
               <ol className="list-decimal list-inside space-y-1.5 text-[11.5px] leading-relaxed pl-1">
                 <li>Open your email inbox (Gmail, Outlook, Yahoo, etc.).</li>
                 <li>Check for an email from <strong className="text-[var(--text-primary)]">SplitRupee</strong>.</li>

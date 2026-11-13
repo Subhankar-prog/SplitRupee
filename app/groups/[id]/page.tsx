@@ -16,6 +16,7 @@ import { buildLedger, type Transfer } from "@/lib/debt";
 import { buildWhatsAppSummary, buildGroupLedgerCSV } from "@/lib/export";
 import { exportGroupLedgerPDF } from "@/lib/pdfExport";
 import { formatINR, formatPaise } from "@/lib/money";
+import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
 import { getCurrency, formatCurrencyAmount } from "@/lib/currencies";
 import {
   Users,
@@ -68,6 +69,7 @@ import {
   Phone,
   Navigation,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import DeleteExpenseModal from "@/components/DeleteExpenseModal";
@@ -79,11 +81,13 @@ import ManageGroupModal from "@/components/ManageGroupModal";
 import ExitGroupModal from "@/components/ExitGroupModal";
 import WhatsAppReminderModal from "@/components/WhatsAppReminderModal";
 import RecurringExpensesModal from "@/components/RecurringExpensesModal";
+import DataStatusBanner from "@/components/ui/DataStatusBanner";
 import { getCachedGroup, saveCachedGroup } from "@/lib/offlineSync";
+import { parseApiJsonResponse, type FetchIssueState } from "@/lib/apiResponse";
 
 const CATEGORY_STYLE: Record<CategoryName, { icon: typeof Utensils; color: string; bg: string }> = {
   Food: { icon: Utensils, color: "text-[var(--status-warning)]", bg: "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" },
-  Rent: { icon: Home, color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)]", bg: "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]" },
+  Rent: { icon: Home, color: "text-[var(--brand-dark)] dark:text-[var(--brand-primary)]", bg: "bg-[var(--brand-tint-bg)] border-[var(--brand-tint-border)]" },
   Travel: { icon: Plane, color: "text-[var(--status-positive)]", bg: "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]" },
   Utilities: { icon: Zap, color: "text-[var(--status-warning)]", bg: "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" },
   Shopping: { icon: ShoppingBag, color: "text-[var(--text-primary)]", bg: "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]" },
@@ -125,6 +129,8 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   const [categoryFilter, setCategoryFilter] = useState<CategoryName | "All">("All");
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isRetrying, setIsRetrying] = useState<boolean>(false);
+  const [fetchIssue, setFetchIssue] = useState<FetchIssueState | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -204,29 +210,45 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
         signal: controller?.signal,
       });
       if (timeoutId) clearTimeout(timeoutId);
-      const data = await res.json();
-      if (data.ok && data.group) {
-        saveCachedGroup(groupId, data.group);
-        if (data.group.id && data.group.id !== groupId) {
-          saveCachedGroup(data.group.id, data.group);
+      const outcome = await parseApiJsonResponse<{ ok?: boolean; group?: any }>(
+        res,
+        "Could not load group details right now."
+      );
+      if (outcome.kind === "ok" && outcome.data.group) {
+        saveCachedGroup(groupId, outcome.data.group);
+        if (outcome.data.group.id && outcome.data.group.id !== groupId) {
+          saveCachedGroup(outcome.data.group.id, outcome.data.group);
         }
-        setGroup(getCachedGroup(groupId) || data.group);
+        setGroup(getCachedGroup(groupId) || outcome.data.group);
+        setFetchIssue(null);
       } else {
         const fallback = getCachedGroup(groupId);
         if (fallback) {
           setGroup(fallback);
         }
+        setFetchIssue(
+          outcome.kind === "offline"
+            ? { kind: "offline", message: outcome.message }
+            : { kind: "error", message: outcome.kind === "error" ? outcome.message : "Could not load group details right now." }
+        );
       }
-    } catch (e) {
-      console.warn("Failed to load group (offline mode active):", e);
+    } catch {
       const fallback = getCachedGroup(groupId);
       if (fallback) {
         setGroup(fallback);
       }
+      const offlineNow = typeof navigator !== "undefined" && !navigator.onLine;
+      setFetchIssue({
+        kind: offlineNow ? "offline" : "error",
+        message: offlineNow
+          ? "You are currently offline. Showing cached group data if available."
+          : "Network error while loading group details.",
+      });
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
-  }, [groupId, router]);
+  }, [groupId]);
 
   useEffect(() => {
     if (groupId && groupId !== "undefined") {
@@ -318,6 +340,34 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
     return ledger.transfers.reduce((sum: number, t: any) => sum + t.amountPaise / 100, 0);
   }, [ledger.transfers]);
 
+  function openMemberSettleUp(memberId: string, absNetINR: number) {
+    const transfer = ledger.transfers.find((t: any) => t.from === memberId);
+    const targetReceiver = transfer
+      ? transfer.to
+      : members.find((other: any) => other.id !== memberId && (ledger.balances[other.id] || 0) > 0)?.id;
+    const transferAmount = transfer ? transfer.amountPaise / 100 : absNetINR;
+    setSettleUpData({
+      payerId: memberId,
+      receiverId: targetReceiver,
+      amount: transferAmount,
+    });
+  }
+
+  function openMemberWhatsAppReminder(member: any, absNetINR: number) {
+    const transfer = ledger.transfers.find((t: any) => t.from === member.id);
+    const targetReceiverId = transfer
+      ? transfer.to
+      : members.find((other: any) => other.id !== member.id && (ledger.balances[other.id] || 0) > 0)?.id;
+    const targetReceiver = members.find((other: any) => other.id === targetReceiverId);
+    setWhatsAppReminderData({
+      debtorName: member.name,
+      debtorPhone: member.phone,
+      creditorName: targetReceiver?.name || "Creditor",
+      creditorUpiId: targetReceiver?.upiId,
+      amount: transfer ? transfer.amountPaise / 100 : absNetINR,
+    });
+  }
+
   const summary = group
     ? buildWhatsAppSummary(group.name, names, ledger.balances, ledger.transfers)
     : "";
@@ -367,40 +417,47 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   if (loading && !group) {
     return (
       <SplitRupeeLoader
-        fullScreen={false}
-        text="Loading Group Details"
-        subtext="Calculating balances, passbook and debts..."
+        variant="page"
+        text="Loading Group"
+        subtext="Updating your balances and group ledger..."
       />
     );
   }
 
+  const handleRetryGroup = () => {
+    setIsRetrying(true);
+    loadGroup(false);
+  };
+
   if (!group) {
     return (
       <div className="grid min-h-[50vh] place-items-center text-center p-4">
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 max-w-md shadow-[var(--shadow-card)] space-y-4">
+        <div role="alert" className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 max-w-md shadow-[var(--shadow-card)] space-y-4">
           <div className="mx-auto h-11 w-11 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] text-[var(--status-warning)] grid place-items-center">
-            <WifiOff className="h-5 w-5" />
+            <WifiOff className="h-5 w-5" aria-hidden="true" />
           </div>
           <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">Group Data Unavailable</h2>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-            Could not load group details right now. Please retry or return to your dashboard.
+            {fetchIssue?.message || "Could not load group details right now. Please retry or return to your dashboard."}
           </p>
           <div className="flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setLoading(true);
-                loadGroup(true);
-              }}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard")}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-            >
+              <button
+                type="button"
+                disabled={isRetrying}
+                onClick={() => {
+                  setLoading(true);
+                  handleRetryGroup();
+                }}
+                className="inline-flex min-h-[44px] sm:min-h-[38px] items-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isRetrying ? "animate-spin" : ""}`} aria-hidden="true" />
+                <span>{isRetrying ? "Retrying..." : "Retry"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                className="inline-flex min-h-[44px] sm:min-h-[38px] items-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+              >
               Dashboard
             </button>
           </div>
@@ -412,10 +469,18 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
   const TypeIcon = TYPE_ICONS[group.type as keyof typeof TYPE_ICONS] || Tag;
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-5">
+      {fetchIssue && (
+        <DataStatusBanner
+          issue={fetchIssue}
+          onRetry={handleRetryGroup}
+          isRetrying={isRetrying}
+          cachedLabel="Showing cached group ledger until live sync restores."
+        />
+      )}
       {/* Group Header Card */}
       <div className="relative z-20 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-[var(--shadow-card)] max-w-full overflow-visible">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-3 min-w-0 max-w-full flex-1">
             <span className="grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)] border border-[var(--status-positive-border)] mt-0.5">
               <TypeIcon className="h-5 w-5" />
@@ -509,11 +574,11 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
           </div>
 
           {/* Quick Add Expense & Add Member on larger screens */}
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setShowAddMember(true)}
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
               <span>Add Member</span>
@@ -521,7 +586,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <button
               type="button"
               onClick={() => setShowAddExpense(true)}
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
             >
               <Plus className="h-4 w-4" />
               <span>Add Expense</span>
@@ -535,17 +600,17 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
           <button
             type="button"
             onClick={() => setShowAddMember(true)}
-            className="sm:hidden flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-semibold text-[var(--text-primary)]"
+            className="lg:hidden flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-semibold text-[var(--text-primary)]"
           >
-            <UserPlus className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+            <UserPlus className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
             <span>Add Member</span>
           </button>
           <button
             type="button"
             onClick={() => setShowAddExpense(true)}
-            className="sm:hidden flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 text-xs font-semibold text-white dark:text-[#171F1D]"
+            className="lg:hidden flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5 shrink-0" />
             <span>Add Expense</span>
           </button>
 
@@ -553,7 +618,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <button
               type="button"
               onClick={() => setActiveTab("passbook")}
-              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               <BookOpen className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
               <span>Passbook</span>
@@ -563,7 +628,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <button
               type="button"
               onClick={() => setShowManageGroup(true)}
-              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               <Settings className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <span>Manage</span>
@@ -589,19 +654,19 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             <button
               type="button"
               onClick={() => setShowRecurringModal(true)}
-              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-xs font-medium text-[var(--status-warning)] hover:opacity-90 transition-opacity"
+              className="flex h-9 items-center justify-center gap-1 sm:gap-1.5 rounded-xl border border-[var(--accent-gold-border)] bg-[var(--accent-gold-bg)] px-2 sm:px-3 text-xs font-medium text-[var(--accent-gold-ink)] hover:opacity-90 transition-opacity"
               title="Automated Recurring Expenses (Rent, Maid, Cook, Wi-Fi)"
             >
-              <Repeat className="h-3.5 w-3.5" />
+              <Repeat className="h-3.5 w-3.5 shrink-0" />
               <span>Recurring</span>
-              <span className="rounded bg-[var(--accent-sand)] px-1 py-0.5 text-[9px] font-semibold text-[#171F1D] uppercase tracking-wider">PRO</span>
+              <span className="rounded bg-[var(--accent-gold)] px-1 py-0.5 text-[9px] font-semibold text-[#171613] uppercase tracking-wider shrink-0">PRO</span>
             </button>
           )}
           <div className="relative" ref={exportMenuRef}>
             <button
               type="button"
               onClick={() => setShowExportMenu((prev) => !prev)}
-              className="w-full sm:w-auto flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors cursor-pointer"
+              className="w-full sm:w-auto flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors cursor-pointer"
               aria-expanded={showExportMenu}
               aria-haspopup="menu"
               title="Export financial statement or share summary"
@@ -682,132 +747,102 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
           </div>
         </div>
 
-        {/* Summary Stats */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-[var(--border-subtle)] pt-4 text-xs">
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3 space-y-1">
-            <span className="text-[11px] text-[var(--text-secondary)] block">Total Spend</span>
-            <span className="font-display text-sm sm:text-base font-semibold text-[var(--text-primary)] block tabular-nums">
+        {/* Consolidated Standing & Group Totals Strip */}
+        <div className="mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] grid grid-cols-1 sm:grid-cols-4 text-xs">
+          {currentUser && (
+            <div className="p-3 sm:col-span-1 flex sm:flex-col items-center sm:items-start justify-between gap-1">
+              <span className="text-[11px] text-[var(--text-secondary)]">Your Standing</span>
+              <span
+                className={`font-display text-sm font-semibold tabular-nums ${
+                  myNet > 0 ? "text-[var(--status-positive)]" : myNet < 0 ? "text-[var(--status-negative)]" : "text-[var(--text-secondary)]"
+                }`}
+              >
+                {myNet > 0
+                  ? `Get back ${formatPaise(myNet)}`
+                  : myNet < 0
+                  ? `Owe ${formatPaise(-myNet)}`
+                  : "All settled up"}
+              </span>
+            </div>
+          )}
+
+          <div className="p-3 flex sm:flex-col items-center sm:items-start justify-between gap-1">
+            <span className="text-[11px] text-[var(--text-secondary)]">Total Spend</span>
+            <span className="font-display text-sm font-semibold text-[var(--text-primary)] tabular-nums">
               {formatINR(totalSpend)}
             </span>
           </div>
 
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3 space-y-1">
-            <span className="text-[11px] text-[var(--text-secondary)] block">Reconciled</span>
-            <span className="font-display text-sm sm:text-base font-semibold text-[var(--status-positive)] block tabular-nums">
+          <div className="p-3 flex sm:flex-col items-center sm:items-start justify-between gap-1">
+            <span className="text-[11px] text-[var(--text-secondary)]">Reconciled</span>
+            <span className="font-display text-sm font-semibold text-[var(--status-positive)] tabular-nums">
               {formatINR(totalReconciled)}
             </span>
           </div>
 
-          <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 space-y-1">
-            <span className="text-[11px] text-[var(--status-positive)] font-semibold block">Balance</span>
-            <span className="font-display text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-              <Scale className="h-3.5 w-3.5 text-[var(--status-positive)]" /> Balanced
+          <div className={`p-3 flex sm:flex-col items-center sm:items-start justify-between gap-1 ${!currentUser ? "sm:col-span-2" : ""}`}>
+            <span className="text-[11px] text-[var(--text-secondary)]">Pending Transfers</span>
+            <span
+              className={`font-display text-sm font-semibold tabular-nums ${
+                ledger.transfers.length > 0 ? "text-[var(--status-warning)]" : "text-[var(--status-positive)]"
+              }`}
+            >
+              {ledger.transfers.length > 0 ? `${ledger.transfers.length} pending` : "Settled"}
             </span>
           </div>
         </div>
-
-        {/* Current User Standing Banner */}
-        {currentUser && (
-          <div className="mt-3 sm:mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-              <span>Your standing:</span>
-              <span className="font-semibold text-[var(--text-primary)]">{currentUser.name.split(" ")[0]}</span>
-            </div>
-            <p
-              className={`font-display text-xs sm:text-sm font-semibold tabular-nums ${
-                myNet > 0 ? "text-[var(--status-positive)]" : myNet < 0 ? "text-[var(--status-negative)]" : "text-[var(--text-secondary)]"
-              }`}
-            >
-              {myNet > 0
-                ? `Get back ${formatPaise(myNet)}`
-                : myNet < 0
-                ? `Owe ${formatPaise(-myNet)}`
-                : "All settled up"}
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Official Forwarded Travel Itinerary Banner */}
+      {/* Compact Linked Itinerary Strip (Full Breakdown Lives Inside Itinerary Tab) */}
       {group?.itineraries && group.itineraries.length > 0 && (
-        <div className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--bg-surface)] p-5 sm:p-6 shadow-[var(--shadow-card)]">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] shrink-0 mt-0.5">
-                <Plane className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-positive)]">
-                    Official Group Travel Itinerary
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)]">
-                    Forwarded &amp; Linked
-                  </span>
-                </div>
-                <h3 className="font-display text-lg sm:text-xl font-semibold text-[var(--text-primary)] mt-1">
+        <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--bg-surface)] px-4 py-3 shadow-[var(--shadow-card)] flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] shrink-0">
+              <Plane className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] break-words line-clamp-2 leading-snug">
                   {group.itineraries[0].title || `Trip: ${group.itineraries[0].origin} -> ${group.itineraries[0].destination}`}
                 </h3>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Handcrafted {group.itineraries[0].days}D travel plan for {group.itineraries[0].groupSize || group.members.length} members with verified trains, dedicated cabs &amp; budget stays
-                </p>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] shrink-0">
+                  Linked Itinerary
+                </span>
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-              <button
-                type="button"
-                onClick={() => setActiveTab("itinerary")}
-                className={`flex h-9 items-center gap-1.5 px-4 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-                  activeTab === "itinerary"
-                    ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]"
-                    : "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] hover:opacity-90"
-                }`}
-              >
-                <Plane className="h-3.5 w-3.5" />
-                <span>{activeTab === "itinerary" ? "Viewing Itinerary Tab" : "View Day-by-Day Plan"}</span>
-              </button>
-
-              <Link
-                href={`/itinerary?id=${group.itineraries[0].id}`}
-                className="flex h-9 items-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-3.5 rounded-xl text-xs font-medium transition-colors"
-                title="Open full itinerary studio to view routes, maps, and export PDF"
-              >
-                <span>Open in Studio</span>
-                <ExternalLink className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-              </Link>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums break-words leading-relaxed">
+                {group.itineraries[0].origin} &rarr; {group.itineraries[0].destination} · {group.itineraries[0].days}D / {Math.max(1, group.itineraries[0].days - 1)}N · {group.itineraries[0].groupSize || group.members.length} travellers · Budget ₹{Number(group.itineraries[0].totalBudget || 120000).toLocaleString()} (~₹{Math.round(Number(group.itineraries[0].totalBudget || 120000) / (group.itineraries[0].groupSize || group.members.length || 1)).toLocaleString()}/p)
+              </p>
             </div>
           </div>
 
-          {/* Quick Metrics & Highlights */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 text-xs">
-            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
-              <div className="text-[var(--text-secondary)] text-[11px]">Route Circuit</div>
-              <div className="font-semibold text-[var(--text-primary)] text-sm mt-0.5">{group.itineraries[0].origin} &rarr; {group.itineraries[0].destination}</div>
-            </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
-              <div className="text-[var(--text-secondary)] text-[11px]">Duration</div>
-              <div className="font-semibold text-[var(--text-primary)] text-sm mt-0.5">{group.itineraries[0].days} Days / {Math.max(1, group.itineraries[0].days - 1)} Nights</div>
-            </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
-              <div className="text-[var(--text-secondary)] text-[11px]">Group Size</div>
-              <div className="font-semibold text-[var(--text-primary)] text-sm mt-0.5">{group.itineraries[0].groupSize || group.members.length} Travellers</div>
-            </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
-              <div className="text-[var(--text-secondary)] text-[11px]">Comprehensive Budget</div>
-              <div className="font-display font-semibold text-[var(--status-positive)] text-sm mt-0.5 tabular-nums">
-                ₹{Number(group.itineraries[0].totalBudget || 120000).toLocaleString()}
-                <span className="text-[10px] text-[var(--text-secondary)] font-normal ml-1">
-                  (~₹{Math.round(Number(group.itineraries[0].totalBudget || 120000) / (group.itineraries[0].groupSize || group.members.length || 1)).toLocaleString()}/p)
-                </span>
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab("itinerary")}
+              className={`min-h-[44px] sm:min-h-[36px] flex items-center gap-1.5 px-3.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                activeTab === "itinerary"
+                  ? "bg-[var(--brand-primary)] text-[var(--brand-ink)]"
+                  : "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] hover:opacity-90"
+              }`}
+            >
+              <Plane className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{activeTab === "itinerary" ? "Viewing Itinerary" : "View Itinerary"}</span>
+            </button>
+
+            <Link
+              href={`/itinerary?id=${group.itineraries[0].id}`}
+              className="min-h-[44px] sm:min-h-[36px] flex items-center gap-1.5 bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-primary)] px-3 rounded-xl text-xs font-medium transition-colors"
+              title="Open full itinerary studio to view routes, maps, and export PDF"
+            >
+              <span>Open Studio</span>
+              <ExternalLink className="h-3.5 w-3.5 text-[var(--brand-primary)]" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       )}
 
       {/* Responsive Segmented Tabs Navigation */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
         {[
           ...(isAdmin
             ? [{ key: "passbook", icon: BookOpen, label: "Passbook", fullLabel: "Admin Passbook" }]
@@ -826,7 +861,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             type="button"
             key={key}
             onClick={() => setActiveTab(key as typeof activeTab)}
-            className={`flex items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-2 text-xs font-medium transition-colors ${
+            className={`min-h-[44px] sm:min-h-[38px] flex items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-2 text-xs font-medium sr-interactive-transition sr-button-press ${
               activeTab === key
                 ? "bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] font-semibold"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -841,7 +876,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB 0: ADMIN PASSBOOK & MASTER FINANCIAL RECONCILIATION */}
       {isAdmin && activeTab === "passbook" && (
-        <div className="space-y-6">
+        <div className="sr-tab-panel space-y-6">
           <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-[var(--shadow-card)] p-4 sm:p-6 space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-5">
@@ -849,14 +884,14 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                 <div className="flex items-center gap-2">
                   <h3 className="font-display text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-[var(--brand-primary)]" />
-                    Admin Passbook &amp; Master Financial Reconciliation
+                    Group Ledger &amp; Balance Summary
                   </h3>
                   <span className="rounded-full bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] text-[10px] font-semibold px-2 py-0.5">
                     Live Ledger
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  Aggregated member contribution totals, live debt status, and bilateral settlement matrix.
+                  Summary of total group spend, individual contributions, and balances to settle.
                 </p>
               </div>
               <button
@@ -869,36 +904,137 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               </button>
             </div>
 
-            {/* Top 4 Summary Metrics Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 sm:p-4">
+            {/* Consolidated Passbook Summary Strip */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)]">
+              <div className="p-3.5 sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Group Spend</p>
                 <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(totalSpend)}</p>
-                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{expenses.length} total expenses recorded</p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{expenses.length} recorded {expenses.length === 1 ? "expense" : "expenses"}</p>
               </div>
-              <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3.5 sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-positive)]">Total Settled Volume</p>
+              <div className="p-3.5 sm:p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-positive)]">Settled Volume</p>
                 <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--status-positive)] tabular-nums">{formatINR(totalReconciled)}</p>
-                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{payments.length} payments completed</p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{payments.length} completed {payments.length === 1 ? "payment" : "payments"}</p>
               </div>
-              <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3.5 sm:p-4">
+              <div className="p-3.5 sm:p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--status-warning)]">Pending Obligations</p>
                 <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--status-warning)] tabular-nums">{formatINR(totalPendingSettlements)}</p>
-                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{ledger.transfers.length} transfers needed</p>
-              </div>
-              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 sm:p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Ledger Health</p>
-                <p className="font-display mt-1 text-lg sm:text-xl font-semibold text-[var(--text-primary)]">Balanced</p>
-                <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">Zero variance in pool</p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{ledger.transfers.length} transfer{ledger.transfers.length === 1 ? "" : "s"} needed to settle</p>
               </div>
             </div>
 
-            {/* Cumulative Member Contributions Table */}
+            {/* Cumulative Member Contributions: Mobile Cards + Desktop Table */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Cumulative Member Contribution Ledger
               </h4>
-              <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+
+              {/* Mobile Stacked Cards */}
+              <div className="md:hidden space-y-2.5">
+                {members.map((m: any) => {
+                  const paid = memberPaid[m.id] || 0;
+                  const share = memberShare[m.id] || 0;
+                  const setPaid = memberSettlementsPaid[m.id] || 0;
+                  const setRecv = memberSettlementsReceived[m.id] || 0;
+                  const netPaise = ledger.balances[m.id] || 0;
+                  const netINR = netPaise / 100;
+                  const isCreditor = netINR > 0;
+                  const isDebtor = netINR < 0;
+                  const isCreator = group?.creatorId === m.id;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3.5 space-y-3 text-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="h-7 w-7 rounded-lg grid place-items-center font-semibold text-xs shrink-0"
+                            style={{
+                              background: m.avatarColor || DEFAULT_AVATAR_COLOR,
+                              color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
+                            }}
+                          >
+                            {m.name.charAt(0)}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-[var(--text-primary)] break-words leading-tight">{m.name}</span>
+                              {currentUser?.id === m.id && (
+                                <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
+                                  You
+                                </span>
+                              )}
+                              {isCreator && (
+                                <span className="rounded bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 text-[9px] font-semibold">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`font-display text-sm font-semibold tabular-nums shrink-0 ${
+                            isCreditor
+                              ? "text-[var(--status-positive)]"
+                              : isDebtor
+                              ? "text-[var(--status-negative)]"
+                              : "text-[var(--text-secondary)]"
+                          }`}
+                        >
+                          {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 border-t border-[var(--border-subtle)] pt-2.5 text-[11px]">
+                        <div>
+                          <span className="text-[var(--text-secondary)] block">Paid In All</span>
+                          <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(paid)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-secondary)] block">Fair Share</span>
+                          <span className="font-medium text-[var(--text-primary)] tabular-nums">{formatINR(share)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-secondary)] block">Settled Paid</span>
+                          <span className="font-medium text-[var(--text-primary)] tabular-nums">{formatINR(setPaid)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-secondary)] block">Settled Received</span>
+                          <span className="font-medium text-[var(--text-primary)] tabular-nums">{formatINR(setRecv)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
+                        <span
+                          className={`text-[11px] font-semibold ${
+                            isCreditor
+                              ? "text-[var(--status-positive)]"
+                              : isDebtor
+                              ? "text-[var(--status-negative)]"
+                              : "text-[var(--text-secondary)]"
+                          }`}
+                        >
+                          {isCreditor ? "Receiving" : isDebtor ? "Owes Pool" : "All Square"}
+                        </span>
+                        {isDebtor && (
+                          <button
+                            type="button"
+                            onClick={() => openMemberSettleUp(m.id, Math.abs(netINR))}
+                            className="min-h-[44px] rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3.5 py-2 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
+                          >
+                            Settle Up
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] uppercase text-[10px] font-semibold tracking-wider">
@@ -928,12 +1064,15 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                           <td className="p-3 pl-4 align-middle font-semibold text-[var(--text-primary)] whitespace-nowrap">
                             <div className="flex items-center gap-2 min-w-max">
                               <span
-                                className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-white keep-white text-[10px] shrink-0"
-                                style={{ background: m.avatarColor || "#739B83" }}
+                                className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-[10px] shrink-0"
+                                style={{
+                                  background: m.avatarColor || DEFAULT_AVATAR_COLOR,
+                                  color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
+                                }}
                               >
                                 {m.name.charAt(0)}
                               </span>
-                              <span className="truncate max-w-[130px]">{m.name}</span>
+                              <span className="font-semibold text-[var(--text-primary)] break-words">{m.name}</span>
                               {currentUser?.id === m.id && (
                                 <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
                                   You
@@ -975,19 +1114,8 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                             {isDebtor ? (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const transfer = ledger.transfers.find((t) => t.from === m.id);
-                                  const targetReceiver = transfer
-                                    ? transfer.to
-                                    : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
-                                  const transferAmount = transfer ? transfer.amountPaise / 100 : Math.abs(netINR);
-                                  setSettleUpData({
-                                    payerId: m.id,
-                                    receiverId: targetReceiver,
-                                    amount: transferAmount,
-                                  });
-                                }}
-                                className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-2.5 py-1 text-[11px] font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                                onClick={() => openMemberSettleUp(m.id, Math.abs(netINR))}
+                                className="rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-2.5 py-1 text-[11px] font-semibold text-[var(--brand-ink)] transition-colors"
                               >
                                 Settle Up
                               </button>
@@ -1023,7 +1151,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                   {ledger.transfers.map((t, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]"
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
@@ -1034,7 +1162,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                           Settlement Pending
                         </p>
                       </div>
-                      <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
                         <span className="font-display text-sm font-semibold text-[var(--status-positive)] tabular-nums">
                           {formatPaise(t.amountPaise)}
                         </span>
@@ -1047,7 +1175,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                               amount: t.amountPaise / 100,
                             })
                           }
-                          className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-2.5 py-1 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                          className="min-h-[44px] sm:min-h-0 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
                         >
                           1-Tap Settle
                         </button>
@@ -1102,28 +1230,140 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
         </div>
       )}
 
-      {/* TAB 1: TRAVELER RECONCILIATION TABLE */}
+      {/* TAB 1: TRAVELER RECONCILIATION TABLE / MOBILE LEDGER CARDS */}
       {activeTab === "matrix" && (
-        <div className="space-y-6">
+        <div className="sr-tab-panel space-y-6">
           <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden shadow-[var(--shadow-card)]">
-            <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Traveler / Member Reconciliation Matrix</h3>
+                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">Member Balances &amp; Settlements</h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Complete breakdown of total paid, fair share, net balances, and settlement actions.
+                  Breakdown of who paid, each member&apos;s share, and direct settlements.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleDownloadCSV}
-                className="hidden sm:flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+                className="self-start sm:self-auto flex min-h-[44px] sm:min-h-[36px] items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0"
               >
                 <Download className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-                <span>Export to CSV / Excel</span>
+                <span>Export CSV</span>
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Stacked Reconciliation Cards */}
+            <div className="md:hidden divide-y divide-[var(--border-subtle)]">
+              {members.map((m: any) => {
+                const paid = memberPaid[m.id] || 0;
+                const share = memberShare[m.id] || 0;
+                const netPaise = ledger.balances[m.id] || 0;
+                const netINR = netPaise / 100;
+                const isCreditor = netINR > 0;
+                const isDebtor = netINR < 0;
+
+                return (
+                  <div key={m.id} className="p-4 space-y-3 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="h-8 w-8 rounded-lg grid place-items-center font-semibold text-xs shrink-0"
+                          style={{
+                            background: m.avatarColor || DEFAULT_AVATAR_COLOR,
+                            color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
+                          }}
+                        >
+                          {m.name.charAt(0)}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-semibold text-[var(--text-primary)] break-words leading-tight">{m.name}</span>
+                            {currentUser?.id === m.id && (
+                              <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                              isCreditor
+                                ? "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border-[var(--status-positive-border)]"
+                                : isDebtor
+                                ? "bg-[var(--status-negative-bg)] text-[var(--status-negative)] border-[var(--status-negative-border)]"
+                                : "bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
+                            }`}
+                          >
+                            {isCreditor
+                              ? "Gets Back"
+                              : isDebtor
+                              ? "Owes Group"
+                              : "Settled / All Square"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="block text-[10px] text-[var(--text-secondary)]">Net Balance</span>
+                        <span
+                          className={`font-display text-sm font-semibold tabular-nums ${
+                            isCreditor
+                              ? "text-[var(--status-positive)]"
+                              : isDebtor
+                              ? "text-[var(--status-negative)]"
+                              : "text-[var(--text-secondary)]"
+                          }`}
+                        >
+                          {isCreditor ? `+${formatINR(netINR)}` : formatINR(netINR)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--bg-surface-secondary)] px-3 py-2 text-[11px]">
+                      <div>
+                        <span className="text-[var(--text-secondary)] block">Total Paid</span>
+                        <span className="font-semibold text-[var(--text-primary)] tabular-nums">{formatINR(paid)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[var(--text-secondary)] block">Fair Share</span>
+                        <span className="font-medium text-[var(--text-primary)] tabular-nums">{formatINR(share)}</span>
+                      </div>
+                    </div>
+
+                    {isDebtor && (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {currentUser?.isPro && (
+                          <button
+                            type="button"
+                            onClick={() => openMemberWhatsAppReminder(m, Math.abs(netINR))}
+                            className="min-h-[44px] flex-1 sm:flex-initial justify-center rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                            title="Send WhatsApp payment reminder"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>Remind</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openMemberSettleUp(m.id, Math.abs(netINR))}
+                          className="min-h-[44px] flex-1 sm:flex-initial rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 py-2 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
+                        >
+                          Settle Up
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="p-4 bg-[var(--bg-surface-secondary)] flex items-center justify-between gap-2 text-xs font-semibold text-[var(--text-primary)]">
+                <div>
+                  <span>Total Group Pool</span>
+                  <span className="block text-[11px] font-normal text-[var(--status-positive)]">Net Balanced (Variance: ₹0.00)</span>
+                </div>
+                <span className="font-display text-sm tabular-nums text-[var(--status-positive)]">{formatINR(totalSpend)}</span>
+              </div>
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] uppercase text-[10px] font-semibold tracking-wider">
@@ -1149,12 +1389,15 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         <td className="p-3.5 pl-5 align-middle font-semibold text-[var(--text-primary)] whitespace-nowrap">
                           <div className="flex items-center gap-2.5 min-w-max">
                             <span
-                              className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-white keep-white text-[10px] shrink-0"
-                              style={{ background: m.avatarColor || "#739B83" }}
+                              className="h-6 w-6 rounded-lg grid place-items-center font-semibold text-[10px] shrink-0"
+                              style={{
+                                background: m.avatarColor || DEFAULT_AVATAR_COLOR,
+                                color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
+                              }}
                             >
                               {m.name.charAt(0)}
                             </span>
-                            <span className="truncate max-w-[140px]">{m.name}</span>
+                            <span className="font-semibold text-[var(--text-primary)] break-words">{m.name}</span>
                             {currentUser?.id === m.id && (
                               <span className="rounded bg-[var(--status-positive-bg)] text-[var(--status-positive)] px-1.5 py-0.5 text-[9px] font-semibold">
                                 You
@@ -1204,20 +1447,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                               {currentUser?.isPro && (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const transfer = ledger.transfers.find((t) => t.from === m.id);
-                                    const targetReceiverId = transfer
-                                      ? transfer.to
-                                      : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
-                                    const targetReceiver = members.find((other: any) => other.id === targetReceiverId);
-                                    setWhatsAppReminderData({
-                                      debtorName: m.name,
-                                      debtorPhone: m.phone,
-                                      creditorName: targetReceiver?.name || "Creditor",
-                                      creditorUpiId: targetReceiver?.upiId,
-                                      amount: transfer ? transfer.amountPaise / 100 : Math.abs(netINR),
-                                    });
-                                  }}
+                                  onClick={() => openMemberWhatsAppReminder(m, Math.abs(netINR))}
                                   className="rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2 py-1.5 text-[11px] font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity flex items-center gap-1"
                                   title="Send WhatsApp payment reminder"
                                 >
@@ -1227,19 +1457,8 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                               )}
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const transfer = ledger.transfers.find((t) => t.from === m.id);
-                                  const targetReceiver = transfer
-                                    ? transfer.to
-                                    : members.find((other: any) => other.id !== m.id && (ledger.balances[other.id] || 0) > 0)?.id;
-                                  const transferAmount = transfer ? transfer.amountPaise / 100 : Math.abs(netINR);
-                                  setSettleUpData({
-                                    payerId: m.id,
-                                    receiverId: targetReceiver,
-                                    amount: transferAmount,
-                                  });
-                                }}
-                                className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 py-1.5 text-[11px] font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                                onClick={() => openMemberSettleUp(m.id, Math.abs(netINR))}
+                                className="rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 py-1.5 text-[11px] font-semibold text-[var(--brand-ink)] transition-colors"
                               >
                                 Settle Up
                               </button>
@@ -1270,7 +1489,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB 2: OPTIMIZED TRANSFERS */}
       {activeTab === "balances" && (
-        <div className="space-y-4">
+        <div className="sr-tab-panel space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-[var(--brand-primary)]" />
@@ -1294,69 +1513,72 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               {ledger.transfers.map((t: any, idx: number) => (
                 <div
                   key={`${t.from}-${t.to}-${idx}`}
-                  className="flex items-center justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] hover:border-[var(--brand-primary)] transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] hover:border-[var(--brand-primary)] transition-colors"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="text-left">
+                  <div className="flex items-center justify-between sm:justify-start gap-3 min-w-0 flex-1">
+                    <div className="text-left min-w-0 flex-1">
                       <span className="text-[10px] font-semibold text-[var(--status-negative)] uppercase tracking-wider block">
                         Debtor (Pays)
                       </span>
-                      <p className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[100px]">
+                      <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">
                         {names[t.from]}
                       </p>
                     </div>
 
-                    <div className="flex flex-col items-center px-1">
-                      <ArrowRight className="h-4 w-4 text-[var(--brand-primary)]" />
+                    <div className="flex flex-col items-center px-1 shrink-0">
+                      <ArrowRight className="h-4 w-4 text-[var(--brand-primary)]" aria-hidden="true" />
                       <span className="text-[9px] text-[var(--text-secondary)] uppercase">UPI / Cash</span>
                     </div>
 
-                    <div className="text-left">
+                    <div className="text-right sm:text-left min-w-0 flex-1">
                       <span className="text-[10px] font-semibold text-[var(--status-positive)] uppercase tracking-wider block">
                         Creditor (Receives)
                       </span>
-                      <p className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[100px]">
+                      <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">
                         {names[t.to]}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)]">
                     <span className="font-display text-sm font-semibold text-[var(--status-positive)] tabular-nums">
                       {formatPaise(t.amountPaise)}
                     </span>
-                    {currentUser?.isPro && (
+                    <div className="flex items-center gap-2">
+                      {currentUser?.isPro && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setWhatsAppReminderData({
+                              debtorName: names[t.from] || "Friend",
+                              debtorPhone: members.find((m: any) => m.id === t.from)?.phone,
+                              creditorName: names[t.to] || "Creditor",
+                              creditorUpiId: members.find((m: any) => m.id === t.to)?.upiId,
+                              amount: t.amountPaise / 100,
+                            })
+                          }
+                          aria-label={`Send WhatsApp payment reminder to ${names[t.from] || "member"}`}
+                          className="min-h-[44px] sm:min-h-0 rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity flex items-center gap-1"
+                          title="Send WhatsApp payment reminder"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Remind</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() =>
-                          setWhatsAppReminderData({
-                            debtorName: names[t.from] || "Friend",
-                            debtorPhone: members.find((m: any) => m.id === t.from)?.phone,
-                            creditorName: names[t.to] || "Creditor",
-                            creditorUpiId: members.find((m: any) => m.id === t.to)?.upiId,
+                          setSettleUpData({
+                            payerId: t.from,
+                            receiverId: t.to,
                             amount: t.amountPaise / 100,
                           })
                         }
-                        className="rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2.5 py-1.5 text-xs font-semibold text-[var(--status-positive)] hover:opacity-90 transition-opacity flex items-center gap-1"
-                        title="Send WhatsApp payment reminder"
+                        className="min-h-[44px] sm:min-h-0 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
                       >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">WhatsApp</span>
+                        1-Tap Settle
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSettleUpData({
-                          payerId: t.from,
-                          receiverId: t.to,
-                          amount: t.amountPaise / 100,
-                        })
-                      }
-                      className="rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
-                    >
-                      1-Tap Settle
-                    </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1367,15 +1589,16 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB 3: CIRCUIT EXPENSES LIST & MATRIX */}
       {activeTab === "expenses" && (
-        <div className="space-y-4">
+        <div className="sr-tab-panel space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5">
               {(["All", ...CATEGORIES] as const).map((cat) => (
                 <button
                   type="button"
                   key={cat}
+                  aria-pressed={categoryFilter === cat}
                   onClick={() => setCategoryFilter(cat)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`min-h-[44px] sm:min-h-[32px] rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                     categoryFilter === cat
                       ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -1402,7 +1625,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               <button
                 type="button"
                 onClick={() => setShowAddExpense(true)}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3.5 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3.5 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Add Expense</span>
@@ -1411,13 +1634,44 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
           </div>
 
           {filteredExpenses.length === 0 ? (
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center">
-              <Receipt className="mx-auto h-8 w-8 text-[var(--text-secondary)] mb-2" />
-              <p className="font-display text-sm font-semibold text-[var(--text-primary)]">No expenses recorded yet</p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Click &ldquo;+ Add Expense&rdquo; to record travel tickets, meals, or rent.
-              </p>
-            </div>
+            expenses.length > 0 && categoryFilter !== "All" ? (
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center space-y-3">
+                <Receipt className="mx-auto h-8 w-8 text-[var(--text-secondary)]" aria-hidden="true" />
+                <div>
+                  <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+                    No {categoryFilter} expenses
+                  </p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    None of the {expenses.length} recorded expenses in this group match {categoryFilter}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter("All")}
+                  className="inline-flex min-h-[44px] sm:min-h-[36px] items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+                >
+                  Show All Categories
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-8 text-center space-y-3">
+                <Receipt className="mx-auto h-8 w-8 text-[var(--text-secondary)]" aria-hidden="true" />
+                <div>
+                  <p className="font-display text-sm font-semibold text-[var(--text-primary)]">No expenses recorded yet</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    Add your first bill to record travel tickets, meals, or shared group costs.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddExpense(true)}
+                  className="inline-flex min-h-[44px] sm:min-h-[38px] items-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <span>Add Expense</span>
+                </button>
+              </div>
+            )
           ) : (
             <div className="space-y-2.5">
               {filteredExpenses.map((exp: any) => {
@@ -1442,9 +1696,12 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     key={exp.id}
                     className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)] overflow-hidden hover:border-[var(--border-strong)] transition-colors"
                   >
-                    <div
+                    <button
+                      type="button"
                       onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
-                      className="p-4 flex items-center justify-between gap-3 cursor-pointer select-none"
+                      aria-expanded={isExpanded}
+                      aria-controls={`group-expense-split-${exp.id}`}
+                      className="w-full p-4 flex items-center justify-between gap-3 cursor-pointer text-left hover:bg-[var(--bg-surface-secondary)]/40 transition-colors"
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
                         <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${style.bg} ${style.color}`}>
@@ -1452,13 +1709,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         </span>
 
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <h4 className="text-sm font-semibold text-[var(--text-primary)] break-words line-clamp-2 leading-snug">
                               {exp.title}
                             </h4>
                             {exp.isOfflinePending && (
                               <span className="shrink-0 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
-                                Pending Sync
+                                Waiting to sync
                               </span>
                             )}
                           </div>
@@ -1503,14 +1760,14 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                             {exp.splitType}
                           </p>
                         </div>
-                        <button type="button" aria-label="Toggle split breakdown" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                        <span className="text-[var(--text-secondary)] p-1" aria-hidden="true">
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </button>
+                        </span>
                       </div>
-                    </div>
+                    </button>
 
                     {isExpanded && (
-                      <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3 text-xs animate-in fade-in duration-150">
+                      <div id={`group-expense-split-${exp.id}`} className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3 text-xs">
                         {exp.currency && exp.currency !== "INR" && (
                           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] px-3 py-2 text-xs text-[var(--status-warning)] font-medium">
                             <div className="flex items-center gap-1.5">
@@ -1540,7 +1797,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                                 <div className="flex items-center gap-2">
                                   <span
                                     className="h-2.5 w-2.5 rounded-full"
-                                    style={{ background: s.user.avatarColor || "#739B83" }}
+                                    style={{ background: s.user.avatarColor || DEFAULT_AVATAR_COLOR }}
                                   />
                                   <span className="font-medium text-[var(--text-primary)]">{s.user.name}</span>
                                 </div>
@@ -1587,7 +1844,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB 4: DIRECT SETTLEMENTS LEDGER */}
       {activeTab === "settlements" && (
-        <div className="space-y-4">
+        <div className="sr-tab-panel space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-[var(--brand-primary)]" />
@@ -1625,7 +1882,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         </span>
                         {p.isOfflinePending && (
                           <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)]">
-                            Pending Sync
+                            Waiting to sync
                           </span>
                         )}
                       </p>
@@ -1646,14 +1903,14 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB 5: ACTIVITY LOG */}
       {activeTab === "activity" && (
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 sm:p-5">
+        <div className="sr-tab-panel rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 sm:p-5">
           <ActivityLogList activities={activities} />
         </div>
       )}
 
       {/* TAB 6: MEMBERS & INVITES */}
       {activeTab === "members" && (
-        <div className="space-y-5">
+        <div className="sr-tab-panel space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="font-display text-sm font-semibold text-[var(--text-primary)]">Group Members ({members.length})</h3>
             <div className="flex items-center gap-2">
@@ -1670,7 +1927,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               <button
                 type="button"
                 onClick={() => setShowAddMember(true)}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3.5 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3.5 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
               >
                 <UserPlus className="h-3.5 w-3.5" />
                 <span>Add / Invite Friends</span>
@@ -1682,24 +1939,27 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
             {members.map((m: any) => (
               <div
                 key={m.id}
-                className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-card)]"
+                className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--shadow-card)] sr-card-interactive"
               >
                 <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-semibold text-white keep-white text-sm"
-                  style={{ background: m.avatarColor || "#739B83" }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-semibold text-sm"
+                  style={{
+                    background: m.avatarColor || DEFAULT_AVATAR_COLOR,
+                    color: getAvatarTextColor(m.avatarColor || DEFAULT_AVATAR_COLOR),
+                  }}
                 >
                   {m.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{m.name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">{m.name}</p>
                     {m.role === "ADMIN" && (
                       <span className="text-[9px] bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5 shrink-0">
                         <Crown className="h-2.5 w-2.5" /> Admin
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-[var(--text-secondary)] truncate">{m.email || m.phone || "Member"}</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] break-all mt-0.5 leading-tight">{m.email || m.phone || "Member"}</p>
                 </div>
               </div>
             ))}
@@ -1709,7 +1969,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
 
       {/* TAB: FORWARDED ITINERARY */}
       {activeTab === "itinerary" && group?.itineraries && group.itineraries.length > 0 && (
-        <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="sr-tab-panel space-y-6">
           {group.itineraries.map((it: any, itIdx: number) => {
             const plan = it.planData || {};
             const budgetBreakdown = plan.budgetBreakdown;
@@ -1740,7 +2000,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/itinerary?id=${it.id}`}
-                        className="flex h-10 items-center gap-1.5 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-semibold px-4 rounded-xl text-xs hover:opacity-95 transition-opacity"
+                        className="flex h-10 items-center gap-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold px-4 rounded-xl text-xs transition-colors"
                       >
                         <span>Open in Itinerary Studio</span>
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -1764,7 +2024,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
                         {budgetBreakdown.categories.map((c: any) => (
                           <div key={c.id} className="p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)]">
-                            <span className="text-[var(--text-secondary)] text-[10px] block truncate">{c.name.split("(")[0]}</span>
+                            <span className="text-[var(--text-secondary)] text-[10px] block leading-snug">{c.name.split("(")[0].trim()}</span>
                             <span className="font-display text-sm font-semibold text-[var(--text-primary)] tabular-nums block mt-0.5">
                               ₹{Number(c.groupTotal || 0).toLocaleString()}
                             </span>
@@ -1806,9 +2066,9 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                         </div>
 
                         {day.stay && (
-                          <div className="flex items-center gap-1.5 text-xs text-[var(--status-positive)] bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] px-3 py-1 rounded-full">
-                            <Hotel className="h-3.5 w-3.5" />
-                            <span className="truncate max-w-[240px]">Stay: {day.stay}</span>
+                          <div className="flex items-center gap-1.5 text-xs text-[var(--status-positive)] bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] px-3 py-1 rounded-full shrink-0">
+                            <Hotel className="h-3.5 w-3.5 shrink-0" />
+                            <span className="break-words leading-tight">Stay: {day.stay}</span>
                           </div>
                         )}
                       </div>
@@ -2004,7 +2264,7 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
                   name: newMember.name,
                   email: newMember.email || null,
                   phone: newMember.phone || null,
-                  avatarColor: newMember.avatarColor || "#10b981",
+                  avatarColor: newMember.avatarColor || DEFAULT_AVATAR_COLOR,
                   upiId: newMember.upiId || null,
                   role: "MEMBER" as const,
                 };

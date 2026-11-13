@@ -15,12 +15,16 @@ import {
   Heart,
   Tag,
   Loader2,
-  Sparkles,
-  UserPlus
+  UserPlus,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import CreateGroupModal from "@/components/CreateGroupModal";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import DataStatusBanner from "@/components/ui/DataStatusBanner";
 import { getCachedGroupsList, saveCachedGroupsList } from "@/lib/offlineSync";
+import { parseApiJsonResponse, type FetchIssueState } from "@/lib/apiResponse";
+import { formatGroupType } from "@/lib/displayLabels";
 
 const TYPE_ICONS: Record<string, any> = {
   TRIP: Plane,
@@ -34,6 +38,8 @@ export default function GroupsPage() {
   const { currentUser, isLoading: usersLoading } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [fetchIssue, setFetchIssue] = useState<FetchIssueState | null>(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -62,22 +68,43 @@ export default function GroupsPage() {
         signal: controller?.signal,
       });
       if (timeoutId) clearTimeout(timeoutId);
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.groups)) {
-        setGroups(data.groups);
-        saveCachedGroupsList(data.groups);
+      const outcome = await parseApiJsonResponse<{ ok?: boolean; groups?: GroupDTO[] }>(
+        res,
+        "Could not load your groups."
+      );
+      if (outcome.kind === "ok" && Array.isArray(outcome.data.groups)) {
+        setGroups(outcome.data.groups);
+        saveCachedGroupsList(outcome.data.groups);
+        setFetchIssue(null);
       } else {
         const cached = getCachedGroupsList();
         if (cached.length > 0) setGroups(cached);
+        setFetchIssue(
+          outcome.kind === "offline"
+            ? { kind: "offline", message: outcome.message }
+            : { kind: "error", message: outcome.kind === "error" ? outcome.message : "Could not load your groups." }
+        );
       }
-    } catch (err) {
-      console.warn("Failed to load groups (offline mode active):", err);
+    } catch {
       const cached = getCachedGroupsList();
       if (cached.length > 0) setGroups(cached);
+      const offlineNow = typeof navigator !== "undefined" && !navigator.onLine;
+      setFetchIssue({
+        kind: offlineNow ? "offline" : "error",
+        message: offlineNow
+          ? "You are currently offline. Showing cached groups if available."
+          : "Network error while loading your groups.",
+      });
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   }, [currentUser?.id, usersLoading]);
+
+  const handleRetry = () => {
+    setIsRetrying(true);
+    fetchGroups(false);
+  };
 
   useEffect(() => {
     fetchGroups(true);
@@ -151,7 +178,7 @@ export default function GroupsPage() {
           <button
             type="button"
             onClick={() => setShowCreateGroup(true)}
-            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-5 font-semibold text-xs sm:text-sm text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity shrink-0"
+            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-5 font-semibold text-xs sm:text-sm text-[var(--brand-ink)] transition-colors shrink-0 shadow-sm"
           >
             <Plus className="h-4 w-4" />
             <span>Create New Group</span>
@@ -168,10 +195,11 @@ export default function GroupsPage() {
             <div className="flex-1 w-full flex items-center gap-2">
               <input
                 type="text"
+                aria-label="Group invite code"
                 value={joinCodeInput}
                 onChange={(e) => setJoinCodeInput(e.target.value)}
                 placeholder="Enter 8-digit invite code (e.g. TRIP2026)"
-                className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
+                className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
               />
               <button
                 type="submit"
@@ -185,34 +213,60 @@ export default function GroupsPage() {
           {joinError && <p className="text-[var(--status-negative)] text-xs mt-2 pl-1">{joinError}</p>}
         </div>
 
+        {fetchIssue && groups.length > 0 && (
+          <DataStatusBanner
+            issue={fetchIssue}
+            onRetry={handleRetry}
+            isRetrying={isRetrying}
+            cachedLabel="Showing cached group list until live sync restores."
+          />
+        )}
+
         {/* Loading State */}
-        {loading && groups.length === 0 ? (
+        {(loading || usersLoading) && groups.length === 0 ? (
           <SplitRupeeLoader
-            fullScreen={false}
+            variant="page"
             text="Your Groups"
-            subtext="Loading your active expense groups..."
+            subtext="Getting your active groups ready..."
           />
         ) : !currentUser ? (
           <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-12 text-center shadow-[var(--shadow-card)]">
             <Users className="mx-auto h-10 w-10 text-[var(--brand-primary)] mb-3" />
-            <h2 className="font-display text-xl font-semibold text-[var(--text-primary)] mb-2">Login Required</h2>
+            <h2 className="font-display text-xl font-semibold text-[var(--text-primary)] mb-2">Please log in to continue</h2>
             <p className="text-[var(--text-secondary)] text-sm max-w-md mx-auto mb-6">
-              Please login or sign up to view and manage your trip groups and shared expenses.
+              Log in or sign up to view and manage your trip groups and shared expenses.
             </p>
             <div className="flex items-center justify-center gap-3">
               <Link
                 href="/login"
-                className="h-10 inline-flex items-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-6 text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                className="h-10 inline-flex items-center rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-6 text-xs sm:text-sm font-semibold text-[var(--brand-ink)] transition-colors"
               >
                 Login
               </Link>
               <Link
                 href="/signup"
-                className="h-10 inline-flex items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-6 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+                className="h-10 inline-flex items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-6 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
                 Sign Up
               </Link>
             </div>
+          </div>
+        ) : groups.length === 0 && fetchIssue ? (
+          <div role="alert" className="rounded-2xl border border-[var(--status-negative-border)] bg-[var(--bg-surface)] p-10 text-center shadow-[var(--shadow-card)] space-y-3">
+            <AlertTriangle className="mx-auto h-10 w-10 text-[var(--status-negative)]" aria-hidden="true" />
+            <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">Could not load your groups</h2>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-md mx-auto">
+              {fetchIssue.message}
+            </p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="inline-flex min-h-[44px] sm:min-h-[40px] items-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-5 text-xs sm:text-sm font-semibold text-[var(--brand-ink)] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRetrying ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span>{isRetrying ? "Retrying..." : "Retry"}</span>
+            </button>
           </div>
         ) : groups.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-12 text-center">
@@ -224,7 +278,7 @@ export default function GroupsPage() {
             <button
               type="button"
               onClick={() => setShowCreateGroup(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-5 text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-5 text-xs sm:text-sm font-semibold text-[var(--brand-ink)] transition-colors shadow-sm"
             >
               <Plus className="h-4 w-4" />
               <span>Create Your First Group</span>
@@ -239,19 +293,19 @@ export default function GroupsPage() {
                   key={g.id}
                   href={`/groups/${g.id}`}
                   prefetch={false}
-                  className="group relative flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--brand-primary)]"
+                  className="group relative flex flex-col justify-between rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] dark:bg-[var(--bg-surface-secondary)] dark:hover:bg-[var(--bg-surface-hover)] p-5 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--brand-primary)]"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
                         <IconComponent className="h-5 w-5" />
                       </div>
-                      <span className="rounded-full bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                        {g.type}
+                      <span className="rounded-full bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)] tracking-wide">
+                        {formatGroupType(g.type)}
                       </span>
                     </div>
 
-                    <h3 className="font-display text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors line-clamp-1">
+                    <h3 className="font-display text-base font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors line-clamp-2 leading-snug break-words">
                       {g.name}
                     </h3>
                     {(g as any).description && (

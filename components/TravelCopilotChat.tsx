@@ -62,12 +62,12 @@ interface TravelCopilotChatProps {
 }
 
 const SUGGESTED_PROMPTS = [
-  { label: "💚 Why this plan is relaxed", query: "Can you explain how this plan is made comfortable and stress-free for us?", icon: Sparkles },
-  { label: "🚗 Journey & Travel Times", query: "How long will the travel take between places, and why is this timing best for us?", icon: Compass },
-  { label: "✏️ Help me adjust my plan", query: "Can you help me adjust or customize a day in our itinerary to make it even better?", icon: Sparkles },
-  { label: "🎒 What to pack & weather", query: "What clothes, footwear, and weather prep should I carry for this trip?", icon: Shirt },
-  { label: "🍛 Best local food", query: "Recommend authentic local food dishes and popular clean eateries to visit.", icon: Utensils },
-  { label: "🚕 Friendly taxi & ride tips", query: "What are the friendly local tips for getting taxis or shared rides safely?", icon: ShieldCheck },
+  { label: "Why this plan is relaxed", query: "Can you explain how this plan is made comfortable and stress-free for us?", icon: Sparkles },
+  { label: "Journey & Travel Times", query: "How long will the travel take between places, and why is this timing best for us?", icon: Compass },
+  { label: "Help me adjust my plan", query: "Can you help me adjust or customize a day in our itinerary to make it even better?", icon: Sparkles },
+  { label: "What to pack & weather", query: "What clothes, footwear, and weather prep should I carry for this trip?", icon: Shirt },
+  { label: "Best local food", query: "Recommend authentic local food dishes and popular clean eateries to visit.", icon: Utensils },
+  { label: "Friendly taxi & ride tips", query: "What are the friendly local tips for getting taxis or shared rides safely?", icon: ShieldCheck },
 ];
 
 export default function TravelCopilotChat({
@@ -108,13 +108,13 @@ export default function TravelCopilotChat({
       {
         id: "welcome",
         role: "assistant",
-        content: `👋 Hello! I'm your **SplitRupee Travel Guide & Companion**. I have all the details of your trip from **${origin}** to **${destination}**${
-          activeStartDate ? ` (${activeStartDate}${activeEndDate ? ` to ${activeEndDate}` : ""}${activeNights ? ` • ${activeNights} Nights` : ""})` : ""
+        content: `Hello! I'm your **SplitRupee Travel Guide & Companion**. I have all the details of your trip from **${origin}** to **${destination}**${
+          activeStartDate ? ` (${activeStartDate}${activeEndDate ? ` to ${activeEndDate}` : ""}${activeNights ? ` · ${activeNights} Nights` : ""})` : ""
         }.${
           auditReview
-            ? `\n\n💚 **Trip Comfort Check:** Your plan has been double-checked for a smooth, relaxed pace (Comfort Score: **${auditReview.auditScore || 98}%**)—ensuring realistic travel times on mountain roads, no exhausting rush, and verified friendly stays.`
+            ? `\n\n**Trip Comfort Check:** Your plan has been reviewed for a relaxed pace (Comfort Score: **${auditReview.auditScore || 98}%**), ensuring realistic travel times, unhurried transit, and suitable stay timing.`
             : ""
-        }\n\nFeel free to ask me anything—whether you want to tweak a day, check train routes, or find great local food!`,
+        }\n\nFeel free to ask me anything, whether you want to tweak a day, check transit options, or find local food recommendations.`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       }
     ];
@@ -163,7 +163,7 @@ export default function TravelCopilotChat({
         id: "offline-" + Date.now(),
         role: "assistant",
         content:
-          "📡 You're currently offline. AI Travel Guide replies require an internet connection — you can continue browsing your saved itinerary, budgets, checklists, and export PDF/ICS files offline!",
+          "You're currently offline. AI Travel Guide replies require an internet connection, though you can continue browsing your saved itinerary, budgets, checklists, and export PDF/ICS files offline.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, offlineMsg]);
@@ -213,7 +213,7 @@ export default function TravelCopilotChat({
           id: "offline-" + Date.now(),
           role: "assistant",
           content:
-            "📡 You're currently offline. AI Travel Guide replies require an internet connection — your saved itinerary and notes stay available offline.",
+            "You're currently offline. AI Travel Guide replies require an internet connection, while your saved itinerary and notes stay available offline.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
         setMessages((prev) => [...prev, offlineMsg]);
@@ -324,13 +324,13 @@ export default function TravelCopilotChat({
       {/* Header */}
       <div className="travel-copilot-header flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)]">
         <div className="travel-copilot-header-info flex items-center gap-3">
-          <div className="travel-copilot-avatar-icon relative flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D]">
+          <div className="travel-copilot-avatar-icon relative flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-primary)] text-[var(--brand-ink)]">
             <Bot className="h-5 w-5" />
             <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 rounded-full bg-[var(--status-positive)] ring-2 ring-[var(--bg-surface)]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="travel-copilot-title font-display font-semibold text-[var(--text-primary)] text-base">Personal Travel Guide</h3>
+              <h3 id="travel-copilot-modal-title" className="travel-copilot-title font-display font-semibold text-[var(--text-primary)] text-base">Personal Travel Guide</h3>
               <span className="travel-copilot-badge rounded-full bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-positive)]">
                 Verified Local Guide
               </span>
@@ -347,7 +347,7 @@ export default function TravelCopilotChat({
               type="button"
               onClick={onSavePlan}
               disabled={isSaving}
-              className="flex h-8 items-center gap-1.5 px-3 rounded-lg bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              className="flex min-h-[44px] sm:min-h-0 sm:h-8 items-center gap-1.5 px-3 rounded-lg bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--status-positive)] text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
               title="Save updated itinerary & travel notes"
             >
               {isSaving ? (
@@ -369,8 +369,8 @@ export default function TravelCopilotChat({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close modal"
-              className="travel-copilot-close-button rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+              aria-label="Close Personal Travel Guide"
+              className="travel-copilot-close-button h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -429,7 +429,7 @@ export default function TravelCopilotChat({
             <div
               className={`travel-copilot-message-bubble max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-sm ${
                 msg.role === "user"
-                  ? "travel-copilot-user-bubble bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-medium rounded-tr-none"
+                  ? "travel-copilot-user-bubble bg-[var(--brand-primary)] text-[var(--brand-ink)] font-medium rounded-tr-none"
                   : "travel-copilot-assistant-bubble bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-tl-none"
               }`}
             >
@@ -462,7 +462,7 @@ export default function TravelCopilotChat({
                         <button
                           type="button"
                           onClick={() => handleApproveModification(msg.id, msg.proposedModification)}
-                          className="flex items-center gap-1.5 bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] font-semibold px-3 py-1.5 rounded-lg text-xs hover:opacity-95 transition-opacity cursor-pointer"
+                          className="flex items-center gap-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] font-semibold px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5" /> Apply to Itinerary
                         </button>
@@ -531,7 +531,7 @@ export default function TravelCopilotChat({
             type="submit"
             disabled={loading || !inputQuery.trim()}
             aria-label="Send message"
-            className="travel-copilot-send-button flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity disabled:opacity-50 shrink-0"
+            className="travel-copilot-send-button flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-[var(--brand-ink)] transition-colors disabled:opacity-50 shrink-0"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>

@@ -3,17 +3,12 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import {
-  Calculator,
   Plus,
   Trash2,
   Users,
-  Percent,
   Receipt,
-  ArrowRight,
-  Share2,
   Copy,
   Check,
-  Sparkles,
 } from "lucide-react";
 import { formatINR, roundFigure } from "@/lib/money";
 
@@ -69,7 +64,7 @@ export default function CalculatorPage() {
   };
 
   const copySummary = () => {
-    const text = `SplitRupee Bill Split Summary 🧾\nSubtotal: ${formatINR(
+    const text = `SplitRupee Bill Split Summary\nSubtotal: ${formatINR(
       subtotal
     )}\nGST (${gstPercent}%): ${formatINR(gstAmount)}\nTip (${tipPercent}%): ${formatINR(
       tipAmount
@@ -85,10 +80,7 @@ export default function CalculatorPage() {
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 space-y-10">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-1 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
-          <Calculator className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-          <span>Free Online Split Calculator</span>
-        </div>
+        <p className="text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Online Split Calculator</p>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)]">
           Bill, GST &amp; Tip Split Calculator
         </h1>
@@ -99,22 +91,26 @@ export default function CalculatorPage() {
 
       {/* Mode Switcher */}
       <div className="flex justify-center">
-        <div className="inline-flex rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-1 text-xs font-medium">
+        <div className="inline-flex rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] p-1 text-xs font-medium">
           <button
+            type="button"
+            aria-pressed={mode === "quick"}
             onClick={() => setMode("quick")}
-            className={`rounded-md px-5 py-2 transition-colors ${
+            className={`min-h-[44px] sm:min-h-0 rounded-md px-5 py-2 transition-colors ${
               mode === "quick"
-                ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] shadow-sm"
+                ? "bg-[var(--brand-primary)] text-[var(--brand-ink)] font-semibold shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             Quick Total Split
           </button>
           <button
+            type="button"
+            aria-pressed={mode === "itemized"}
             onClick={() => setMode("itemized")}
-            className={`rounded-md px-5 py-2 transition-colors ${
+            className={`min-h-[44px] sm:min-h-0 rounded-md px-5 py-2 transition-colors ${
               mode === "itemized"
-                ? "bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-white dark:text-[#171F1D] shadow-sm"
+                ? "bg-[var(--brand-primary)] text-[var(--brand-ink)] font-semibold shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
@@ -129,7 +125,10 @@ export default function CalculatorPage() {
         <div className="md:col-span-7 space-y-6">
           {mode === "quick" ? (
             <div>
-              <label className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-2">
+              <label
+                htmlFor="calc-bill-amount"
+                className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-2"
+              >
                 Total Bill Amount (₹)
               </label>
               <div className="relative">
@@ -137,25 +136,27 @@ export default function CalculatorPage() {
                   ₹
                 </span>
                 <input
+                  id="calc-bill-amount"
                   type="number"
                   min="0"
                   step="10"
                   value={billAmount || ""}
                   onChange={(e) => setBillAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] py-3.5 pl-10 pr-4 font-display text-2xl font-bold tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
+                  className="w-full rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] py-3.5 pl-10 pr-4 font-display text-2xl font-bold tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)]"
                   placeholder="0.00"
                 />
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <label className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+              <div id="calc-items-heading" className="block text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
                 Itemized Dishes &amp; Items
-              </label>
-              <div className="space-y-2">
+              </div>
+              <div className="space-y-2" role="list" aria-labelledby="calc-items-heading">
                 {items.map((item) => (
                   <div
                     key={item.id}
+                    role="listitem"
                     className="flex items-center justify-between rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 py-2.5 text-xs"
                   >
                     <span className="font-medium text-[var(--text-primary)]">{item.name}</span>
@@ -164,11 +165,12 @@ export default function CalculatorPage() {
                         {formatINR(item.amount)}
                       </span>
                       <button
+                        type="button"
                         onClick={() => removeItem(item.id)}
-                        className="text-[var(--text-secondary)] hover:text-[var(--status-negative)] transition-colors"
+                        className="cursor-pointer h-11 w-11 sm:h-7 sm:w-7 flex items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--status-negative)] transition-colors"
                         aria-label={`Remove ${item.name}`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -179,24 +181,27 @@ export default function CalculatorPage() {
               <div className="flex gap-2">
                 <input
                   type="text"
+                  aria-label="Dish or item name"
                   placeholder="Dish / item name"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  className="flex-1 rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
+                  className="flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)]"
                 />
                 <input
                   type="number"
+                  aria-label="Dish or item amount in rupees"
                   placeholder="₹ Amount"
                   value={newItemAmount}
                   onChange={(e) => setNewItemAmount(e.target.value)}
-                  className="w-28 rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3 py-2 text-xs tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
+                  className="w-28 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3 py-2 text-xs tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)]"
                 />
                 <button
+                  type="button"
                   onClick={addItem}
-                  className="rounded-lg bg-[var(--brand-dark)] px-3 py-2 text-xs font-medium text-white hover:opacity-95 transition-opacity"
+                  className="cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 py-2 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
                   aria-label="Add itemized item"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -205,38 +210,41 @@ export default function CalculatorPage() {
           {/* Number of People Slider */}
           <div className="space-y-2.5 pt-1">
             <div className="flex items-center justify-between text-xs font-medium">
-              <span className="text-[var(--text-secondary)] flex items-center gap-1.5">
-                <Users className="h-4 w-4 text-[var(--brand-primary)]" /> Split Between
-              </span>
+              <label htmlFor="calc-num-people" className="text-[var(--text-secondary)] flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-[var(--brand-primary)]" aria-hidden="true" /> Split Between
+              </label>
               <span className="font-display text-sm font-semibold tabular-nums text-[var(--text-primary)] bg-[var(--bg-surface-secondary)] border border-[color:var(--border-subtle)] px-2.5 py-0.5 rounded-md">
                 {numPeople} {numPeople === 1 ? "person" : "people"}
               </span>
             </div>
             <input
+              id="calc-num-people"
               type="range"
               min="1"
               max="20"
               value={numPeople}
               onChange={(e) => setNumPeople(parseInt(e.target.value) || 1)}
-              className="w-full accent-[var(--brand-dark)] dark:accent-[var(--brand-primary)] cursor-pointer"
+              className="w-full accent-[var(--brand-primary)] cursor-pointer"
             />
           </div>
 
           {/* GST and Tip Selectors */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+            <div className="space-y-2" role="group" aria-labelledby="calc-gst-label">
+              <span id="calc-gst-label" className="block text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                 GST / VAT (%)
-              </label>
+              </span>
               <div className="flex gap-1.5">
                 {[0, 5, 12, 18].map((pct) => (
                   <button
                     key={pct}
+                    type="button"
+                    aria-pressed={gstPercent === pct}
                     onClick={() => setGstPercent(pct)}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium tabular-nums border transition-colors ${
+                    className={`cursor-pointer flex-1 min-h-[44px] sm:min-h-[36px] rounded-lg py-1.5 text-xs font-medium tabular-nums border transition-colors ${
                       gstPercent === pct
                         ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--status-positive)]"
-                        : "border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[color:var(--border-strong)]"
+                        : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
                     }`}
                   >
                     {pct}%
@@ -245,19 +253,21 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+            <div className="space-y-2" role="group" aria-labelledby="calc-tip-label">
+              <span id="calc-tip-label" className="block text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                 Tip / Service (%)
-              </label>
+              </span>
               <div className="flex gap-1.5">
                 {[0, 5, 10, 15].map((pct) => (
                   <button
                     key={pct}
+                    type="button"
+                    aria-pressed={tipPercent === pct}
                     onClick={() => setTipPercent(pct)}
-                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium tabular-nums border transition-colors ${
+                    className={`cursor-pointer flex-1 min-h-[44px] sm:min-h-[36px] rounded-lg py-1.5 text-xs font-medium tabular-nums border transition-colors ${
                       tipPercent === pct
                         ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--status-positive)]"
-                        : "border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[color:var(--border-strong)]"
+                        : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
                     }`}
                   >
                     {pct}%
@@ -304,7 +314,7 @@ export default function CalculatorPage() {
               <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">
                 Each Person Pays
               </span>
-              <div className="font-display text-3xl font-bold tabular-nums text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+              <div className="font-display text-3xl font-bold tabular-nums text-[var(--brand-primary)]">
                 {formatINR(perPerson)}
               </div>
               <span className="text-[11px] text-[var(--text-secondary)]">
@@ -316,8 +326,9 @@ export default function CalculatorPage() {
           {/* Action buttons */}
           <div className="space-y-2.5">
             <button
+              type="button"
               onClick={copySummary}
-              className="w-full flex items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] py-2.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+              className="w-full min-h-[44px] sm:min-h-0 flex items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] py-2.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               {copied ? (
                 <>
@@ -334,10 +345,9 @@ export default function CalculatorPage() {
 
             <Link
               href="/signup"
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] py-2.5 text-xs font-medium text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+              className="w-full min-h-[44px] sm:min-h-0 flex items-center justify-center rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] py-2.5 text-xs font-semibold text-[var(--brand-ink)] transition-colors shadow-sm"
             >
               <span>Save &amp; Split in SplitRupee App</span>
-              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>

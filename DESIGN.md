@@ -37,35 +37,40 @@ Avoid generic AI-generated SaaS aesthetics.
 
 | Token | Color |
 |---|---|
-| Background | #F5F4EF |
+| Background | #F5F5EF |
 | Surface | #FFFFFF |
-| Secondary surface | #EEEEE7 |
-| Primary text | #26332D |
-| Secondary text | #758078 |
-| Primary brand | #739B83 |
-| Dark brand | #263A32 |
-| Accent | #D9A86C |
-| Border | #E6E9E3 |
-| Positive | #56866A |
-| Negative | #C36F69 |
-| Warning | #C89550 |
+| Secondary surface | #EAECE4 |
+| Primary text | #1D3027 |
+| Secondary text | #596B60 |
+| Primary green | #28734D |
+| Accent green (large text/graphics) | #4C9A6A |
+| Dark brand | #1D3027 |
+| Warm gold fill / ink | #D9A86C / #8A530C |
+| Border | #D8E0D8 |
+| Control border (strong) | #6E7D73 |
+| Positive | #216643 |
+| Negative | #9E3B33 |
+| Warning | #8A530C |
 
 ### Dark Theme
 
 | Token | Color |
 |---|---|
-| Background | #171F1D |
-| Surface | #222C29 |
-| Secondary surface | #293530 |
-| Primary text | #F3F4EE |
-| Secondary text | #A5B2A9 |
-| Primary brand | #8DB69A |
-| Dark brand | #739B83 |
-| Accent | #D9A86C |
-| Border | #35413B |
-| Positive | #8DB69A |
-| Negative | #DB8980 |
-| Warning | #D9B078 |
+| Main canvas | #141E19 |
+| Sidebar / header chrome | #1A2921 |
+| Main cards surface | #24342B |
+| Elevated surface | #2B3D32 |
+| Primary text | #F5F7F3 |
+| Secondary text | #C0CEC3 |
+| Primary green | #91D2A4 |
+| Accent green | #AEE0BC |
+| Dark brand | #72BD89 |
+| Warm gold | #E5BA6B |
+| Border | #455B4B |
+| Control border (strong) | #92A799 |
+| Positive | #91D2A4 |
+| Negative | #F5B0A8 |
+| Warning | #E5BA6B |
 
 Use semantic color tokens instead of hardcoding colors inside individual components.
 

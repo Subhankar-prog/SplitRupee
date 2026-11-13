@@ -1,11 +1,11 @@
 {
-  "name": "SplitRupee — Indian Split Expenses & Travel",
+  "name": "SplitRupee: Group Expenses & UPI Settlements",
   "short_name": "SplitRupee",
-  "description": "Split expenses, manage group budgets, minimize debts and travel effortlessly across India.",
+  "description": "Split expenses, manage group budgets, simplify debts, and settle up via UPI across India.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#10b981",
+  "background_color": "#F6EFE3",
+  "theme_color": "#AD5434",
   "orientation": "portrait-primary",
   "icons": [
     {

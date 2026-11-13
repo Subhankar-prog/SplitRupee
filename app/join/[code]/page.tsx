@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@/lib/userContext";
+import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
 import { Users, CheckCircle2, ArrowRight, Loader2, Sparkles, Plane, Home, Heart, Tag } from "lucide-react";
 
 import Link from "next/link";
@@ -118,8 +119,11 @@ export default function JoinGroupPage({ params: routeParams }: { params?: { code
               <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-4 space-y-3">
                 <div className="flex items-center justify-center gap-3">
                   <div
-                    className="flex h-9 w-9 items-center justify-center rounded-xl font-semibold text-[#171F1D] text-xs"
-                    style={{ background: currentUser.avatarColor || "#739B83" }}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl font-semibold text-xs"
+                    style={{
+                      background: currentUser.avatarColor || DEFAULT_AVATAR_COLOR,
+                      color: getAvatarTextColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR),
+                    }}
                   >
                     {currentUser.name.charAt(0).toUpperCase()}
                   </div>
@@ -133,7 +137,7 @@ export default function JoinGroupPage({ params: routeParams }: { params?: { code
                   type="button"
                   onClick={() => handleJoin()}
                   disabled={loading}
-                  className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
+                  className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   <span>Join Group as {currentUser.name}</span>
@@ -157,8 +161,11 @@ export default function JoinGroupPage({ params: routeParams }: { params?: { code
                     >
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="flex h-7 w-7 items-center justify-center rounded-lg font-semibold text-[#171F1D] text-[11px]"
-                          style={{ background: u.avatarColor || "#739B83" }}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg font-semibold text-[11px]"
+                          style={{
+                            background: u.avatarColor || DEFAULT_AVATAR_COLOR,
+                            color: getAvatarTextColor(u.avatarColor || DEFAULT_AVATAR_COLOR),
+                          }}
                         >
                           {u.name.charAt(0).toUpperCase()}
                         </div>

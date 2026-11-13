@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, QrCode, CheckCircle2, Loader2, ArrowRight, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import React, { useId, useState } from "react";
+import { QrCode, CheckCircle2, Loader2, ArrowRight, ShieldCheck, Trash2 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
+import { ModalShell } from "@/components/ui/primitives";
 
 interface AddUpiModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface AddUpiModalProps {
 
 export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
   const { currentUser, setCurrentUser, refreshUsers } = useUser();
+  const upiInputId = useId();
   const [upiId, setUpiId] = useState(currentUser?.upiId || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -120,74 +122,69 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
   const quickHandles = ["@okhdfcbank", "@okaxis", "@paytm", "@ybl", "@ibl"];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-3xl border border-emerald-500/25 bg-slate-900 p-6 sm:p-7 shadow-2xl space-y-5 relative">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400">
-              <QrCode className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-1.5">
-                Add UPI ID for Instant Settlements
-              </h3>
-              <p className="text-xs text-slate-400">
-                Friends can settle their debts to you in 1-click
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-xl bg-white/5 text-slate-400 hover:text-white transition"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning)]">
+            <QrCode className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span>Add UPI ID for Instant Settlements</span>
+        </span>
+      }
+      subtitle="Friends can settle their debts to you in 1 click"
+      maxWidthClass="max-w-md"
+    >
+      <div className="space-y-5">
         {/* Benefits Alert */}
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-[11.5px] text-amber-200/90 space-y-1">
-          <div className="flex items-center gap-1.5 font-semibold text-amber-300">
-            <Sparkles className="h-3.5 w-3.5" />
+        <div className="rounded-2xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-xs text-[var(--text-primary)] space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-[var(--status-warning)]">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>Why is this important?</span>
           </div>
-          <p className="leading-relaxed text-[11px] text-amber-200/80">
-            When group members settle up, SplitRupee generates direct Google Pay / PhonePe / Paytm deep-links with your UPI ID prefilled.
+          <p className="leading-relaxed text-[11px] text-[var(--text-secondary)]">
+            When group members settle up, SplitRupee generates direct Google Pay, PhonePe, or Paytm payment links with your UPI ID prefilled.
           </p>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-2.5 text-xs text-[var(--status-negative)]">
+          <div
+            role="alert"
+            className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-2.5 text-xs text-[var(--status-negative)]"
+          >
             {error}
           </div>
         )}
 
         {saved ? (
-          <div className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-6 text-center space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-[var(--status-positive)] mx-auto" />
+          <div
+            role="status"
+            className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-6 text-center space-y-2"
+          >
+            <CheckCircle2 className="h-8 w-8 text-[var(--status-positive)] mx-auto" aria-hidden="true" />
             <p className="font-display text-sm font-semibold text-[var(--text-primary)]">UPI ID Saved Successfully!</p>
             <p className="text-xs text-[var(--text-secondary)]">One-tap settlements are now active on your account.</p>
           </div>
         ) : (
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label htmlFor="upi-input" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              <label htmlFor={upiInputId} className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Your UPI ID (VPA)
               </label>
               <div className="relative">
                 <input
-                  id="upi-input"
+                  id={upiInputId}
                   type="text"
                   required
                   value={upiId}
                   onChange={(e) => setUpiId(e.target.value)}
-                  placeholder="e.g. rahul@okhdfcbank or 9876543210@paytm"
-                  className="h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 pr-10 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+                  placeholder="e.g. name@okhdfcbank or 9876543210@paytm"
+                  className="h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 pr-10 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                   autoFocus
                 />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]">
-                  <QrCode className="h-4 w-4" />
+                <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]">
+                  <QrCode className="h-4 w-4" aria-hidden="true" />
                 </div>
               </div>
 
@@ -202,7 +199,7 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
                       const prefix = upiId.includes("@") ? upiId.split("@")[0] : upiId || (currentUser.name || "user").toLowerCase().replace(/\s+/g, "");
                       setUpiId(prefix + handle);
                     }}
-                    className="text-[11px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-2 py-0.5 text-[var(--text-secondary)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)] transition-colors"
+                    className="cursor-pointer text-[11px] rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-2 py-0.5 text-[var(--text-primary)] hover:border-[var(--brand-primary)] transition-colors"
                   >
                     {handle}
                   </button>
@@ -214,7 +211,7 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+                className="cursor-pointer h-10 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
                 Later
               </button>
@@ -223,23 +220,23 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
                   type="button"
                   onClick={handleDelete}
                   disabled={loading}
-                  className="h-10 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3.5 text-xs font-semibold text-[var(--status-negative)] hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                  className="cursor-pointer h-10 rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] px-3.5 text-xs font-semibold text-[var(--status-negative)] hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Remove UPI</span>
                 </button>
               )}
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
+                className="cursor-pointer flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <>
                     <span>Save UPI ID</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </>
                 )}
               </button>
@@ -248,10 +245,10 @@ export default function AddUpiModal({ isOpen, onClose }: AddUpiModalProps) {
         )}
 
         <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
-          <ShieldCheck className="h-3.5 w-3.5 text-[var(--status-positive)] shrink-0" />
+          <ShieldCheck className="h-3.5 w-3.5 text-[var(--status-positive)] shrink-0" aria-hidden="true" />
           <span>Your UPI ID is only used to receive settlements directly into your bank.</span>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useId, useState, useMemo, useEffect, useRef } from "react";
 import { useUser } from "@/lib/userContext";
 import {
   X,
@@ -21,6 +21,8 @@ import type { MemberDTO } from "@/lib/types";
 import type { Transfer } from "@/lib/debt";
 import { formatINR, roundFigure } from "@/lib/money";
 import { addOfflinePayment, getCachedGroup } from "@/lib/offlineSync";
+import { useDialogAccessibility } from "@/components/ui/primitives";
+import QrCodeImage from "@/components/ui/QrCodeImage";
 
 interface Props {
   groupId: string;
@@ -48,6 +50,7 @@ export default function SettleUpModal({
   onSettled,
 }: Props) {
   const { currentUser } = useUser();
+  const baseId = useId();
 
   // Role resolution: Server-backed creatorId check or ADMIN role check
   const isAdmin = useMemo(() => {
@@ -130,6 +133,9 @@ export default function SettleUpModal({
   const [isSavingUPI, setIsSavingUPI] = useState(false);
   const [upiSavedMsg, setUpiSavedMsg] = useState("");
   const [attemptToken, setAttemptToken] = useState(() => `attempt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogAccessibility(true, onClose, dialogRef, loading);
 
   const refreshAttemptToken = () => setAttemptToken(`attempt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`);
 
@@ -362,11 +368,18 @@ export default function SettleUpModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 overflow-hidden sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-6 shadow-popover max-h-[92dvh] sm:max-h-[90vh] overflow-y-auto sr-modal-panel"
       >
         <div className="sm:hidden flex justify-center mb-2 -mt-1">
           <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
@@ -375,7 +388,7 @@ export default function SettleUpModal({
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <h2 id={titleId} className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-[var(--brand-primary)]" />
               Settle Up with UPI / Cash
             </h2>
@@ -387,7 +400,7 @@ export default function SettleUpModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -409,11 +422,11 @@ export default function SettleUpModal({
           )}
 
           {/* Transfer Direction Banner */}
-          <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <ArrowRight className="h-4 w-4 text-[var(--status-positive)] shrink-0" />
-              <div className="truncate">
-                <span className="text-xs font-semibold text-[var(--text-primary)] tracking-wide truncate">
+          <div className="rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-start gap-2 min-w-0 flex-1">
+              <ArrowRight className="h-4 w-4 text-[var(--status-positive)] shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-semibold text-[var(--text-primary)] tracking-wide break-words">
                   {payer?.name || "Payer"} → {receiver?.name || "Receiver"}
                 </span>
                 <span className="font-display text-xs font-semibold text-[var(--status-positive)] ml-1.5 tabular-nums">
@@ -421,7 +434,7 @@ export default function SettleUpModal({
                 </span>
               </div>
             </div>
-            <span className="text-[10px] font-semibold text-[var(--status-positive)] uppercase tracking-wider shrink-0 ml-2 bg-[var(--bg-surface)] px-2 py-0.5 rounded-full border border-[var(--status-positive-border)]">
+            <span className="text-[10px] font-semibold text-[var(--status-positive)] uppercase tracking-wider shrink-0 self-start sm:self-center bg-[var(--bg-surface)] px-2 py-0.5 rounded-full border border-[var(--status-positive-border)]">
               Direction
             </span>
           </div>
@@ -447,19 +460,20 @@ export default function SettleUpModal({
           )}
 
           {/* Payer and Receiver Selection */}
-          <div className="grid grid-cols-11 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3">
-            <div className="col-span-5">
+          <div className="grid grid-cols-1 sm:grid-cols-11 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3">
+            <div className="sm:col-span-5">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                <label htmlFor={`${baseId}-payer`} className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                   Payer (Who pays)
                 </label>
-                {!isAdmin && <Lock className="h-3 w-3 text-[var(--text-secondary)]" />}
+                {!isAdmin && <Lock className="h-3 w-3 text-[var(--text-secondary)]" aria-hidden="true" />}
               </div>
               <select
+                id={`${baseId}-payer`}
                 value={payerId}
                 disabled={!isAdmin}
                 onChange={(e) => handlePayerChange(e.target.value)}
-                className={`mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] ${
+                className={`mt-1 h-10 sm:h-9 w-full rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] ${
                   !isAdmin ? "opacity-75 cursor-not-allowed" : ""
                 }`}
               >
@@ -471,22 +485,23 @@ export default function SettleUpModal({
               </select>
             </div>
 
-            <div className="col-span-1 grid place-items-center pt-5">
-              <ArrowRight className="h-4 w-4 text-[var(--brand-primary)]" />
+            <div className="sm:col-span-1 grid place-items-center py-0.5 sm:pt-5">
+              <ArrowRight className="h-4 w-4 text-[var(--brand-primary)] rotate-90 sm:rotate-0" aria-hidden="true" />
             </div>
 
-            <div className="col-span-5">
+            <div className="sm:col-span-5">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                <label htmlFor={`${baseId}-receiver`} className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                   Receiver (Gets paid)
                 </label>
-                {!isAdmin && <Lock className="h-3 w-3 text-[var(--text-secondary)]" />}
+                {!isAdmin && <Lock className="h-3 w-3 text-[var(--text-secondary)]" aria-hidden="true" />}
               </div>
               <select
+                id={`${baseId}-receiver`}
                 value={receiverId}
                 disabled={!isAdmin}
                 onChange={(e) => handleReceiverChange(e.target.value)}
-                className={`mt-1 h-9 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] ${
+                className={`mt-1 h-10 sm:h-9 w-full rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 text-xs font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)] ${
                   !isAdmin ? "opacity-75 cursor-not-allowed" : ""
                 }`}
               >
@@ -504,12 +519,12 @@ export default function SettleUpModal({
           {/* Amount Input */}
           <div>
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Amount Paid (₹)</label>
+              <label htmlFor={`${baseId}-amount`} className="text-xs font-medium text-[var(--text-secondary)]">Amount Paid (₹)</label>
               {maxOutstandingRupees > 0 && (
                 <button
                   type="button"
                   onClick={() => setAmount(String(roundFigure(maxOutstandingRupees)))}
-                  className="text-[11px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
+                  className="cursor-pointer text-[11px] font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
                 >
                   Pay Full ({formatINR(maxOutstandingRupees)})
                 </button>
@@ -520,6 +535,7 @@ export default function SettleUpModal({
                 ₹
               </span>
               <input
+                id={`${baseId}-amount`}
                 type="number"
                 step="any"
                 min="0.01"
@@ -531,7 +547,7 @@ export default function SettleUpModal({
                   refreshAttemptToken();
                 }}
                 required
-                className="h-11 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-8 pr-4 font-display text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] tabular-nums transition-colors"
+                className="h-11 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] pl-8 pr-4 font-display text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] tabular-nums transition-colors"
               />
             </div>
           </div>
@@ -587,7 +603,7 @@ export default function SettleUpModal({
               {/* Receiver UPI Input with live validation */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                  <label htmlFor={`${baseId}-receiver-upi`} className="text-[11px] font-medium text-[var(--text-secondary)]">
                     {receiver.name}&apos;s UPI ID (VPA):
                   </label>
                   {upiSavedMsg && (
@@ -598,11 +614,12 @@ export default function SettleUpModal({
                 </div>
                 <div className="flex items-center gap-2">
                   <input
+                    id={`${baseId}-receiver-upi`}
                     type="text"
                     value={effectiveUPI}
                     onChange={(e) => setManualUpiOverride(e.target.value.toLowerCase().trim())}
                     placeholder="e.g. 6372466462@ybl, name@okhdfcbank"
-                    className="h-9 flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] transition-colors"
+                    className="h-9 flex-1 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
                   />
                   {effectiveUPI && effectiveUPI !== receiver.upiId && (
                     <button
@@ -652,11 +669,13 @@ export default function SettleUpModal({
               {/* Dynamic QR Code & Mobile Deep Link */}
               {isValidUPI && numAmount > 0 && (
                 <div className="flex flex-col sm:flex-row items-center gap-4 pt-1">
-                  <div className="bg-white p-2 rounded-xl border border-[#E6E9E3] shrink-0">
-                    <img
+                  <div className="bg-white p-2 rounded-xl border border-[#D8C8B5] shrink-0">
+                    <QrCodeImage
                       src={qrCodeUrl}
                       alt="UPI QR Code"
-                      className="h-28 w-28 object-contain"
+                      size={112}
+                      fallbackLabel="UPI QR unavailable"
+                      fallbackValue={effectiveUPI}
                     />
                   </div>
 
@@ -666,7 +685,7 @@ export default function SettleUpModal({
                     </p>
                     <a
                       href={upiUri}
-                      className="w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                      className="w-full inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       <span>Pay ₹{roundFigure(numAmount)} via UPI App</span>
@@ -697,13 +716,14 @@ export default function SettleUpModal({
 
           {/* Notes Input */}
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Notes / Payment Reference</label>
+            <label htmlFor={`${baseId}-notes`} className="text-xs font-medium text-[var(--text-secondary)]">Notes / Payment Reference</label>
             <input
+              id={`${baseId}-notes`}
               type="text"
               placeholder="e.g. Paid via Google Pay / Paytm / Cash handover"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] transition-colors"
+              className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] transition-colors"
             />
           </div>
 
@@ -719,7 +739,7 @@ export default function SettleUpModal({
             <button
               type="submit"
               disabled={loading || numAmount <= 0}
-              className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
+              className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
             >
               {loading ? "Recording..." : "Record as Settled"}
             </button>

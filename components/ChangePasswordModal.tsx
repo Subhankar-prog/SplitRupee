@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Lock, CheckCircle2, Loader2, KeyRound } from "lucide-react";
+import React, { useId, useState } from "react";
+import { Lock, CheckCircle2, Loader2, KeyRound } from "lucide-react";
 import { useUser } from "@/lib/userContext";
+import { ModalShell } from "@/components/ui/primitives";
 
 interface Props {
   onClose: () => void;
@@ -10,6 +11,8 @@ interface Props {
 
 export default function ChangePasswordModal({ onClose }: Props) {
   const { currentUser } = useUser();
+  const newPassId = useId();
+  const confirmPassId = useId();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -58,90 +61,99 @@ export default function ChangePasswordModal({ onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-3xl border border-white/15 bg-slate-900 p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <KeyRound className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white">Change Password</h3>
-              <p className="text-xs text-slate-400">Update security credentials for {currentUser?.name}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-xl bg-white/5 text-slate-400 hover:text-white transition"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
+    <ModalShell
+      isOpen={true}
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] text-[var(--status-positive)]">
+            <KeyRound className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span>Change Password</span>
+        </span>
+      }
+      subtitle={currentUser?.name ? `Update security credentials for ${currentUser.name}` : "Update your security credentials"}
+      maxWidthClass="max-w-md"
+    >
+      <div className="space-y-5">
         {error && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+          <div
+            role="alert"
+            className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]"
+          >
             {error}
           </div>
         )}
 
         {success ? (
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
-            <p className="text-sm font-bold text-white">Password Updated!</p>
-            <p className="text-xs text-slate-300">Your new password has been saved securely.</p>
+          <div
+            role="status"
+            className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] p-5 text-center space-y-2"
+          >
+            <CheckCircle2 className="h-8 w-8 text-[var(--status-positive)] mx-auto" aria-hidden="true" />
+            <p className="font-display text-sm font-semibold text-[var(--text-primary)]">Password Updated!</p>
+            <p className="text-xs text-[var(--text-secondary)]">Your new password has been saved securely.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">New Password</label>
+              <label htmlFor={newPassId} className="block font-medium text-[var(--text-secondary)] mb-1.5">
+                New Password
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" aria-hidden="true" />
                 <input
+                  id={newPassId}
                   type="password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-white placeholder-slate-500 outline-none focus:border-emerald-500"
+                  placeholder="Enter new password"
+                  autoComplete="new-password"
+                  className="h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] pl-10 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Confirm New Password</label>
+              <label htmlFor={confirmPassId} className="block font-medium text-[var(--text-secondary)] mb-1.5">
+                Confirm New Password
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" aria-hidden="true" />
                 <input
+                  id={confirmPassId}
                   type="password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-white placeholder-slate-500 outline-none focus:border-emerald-500"
+                  placeholder="Re-enter new password"
+                  autoComplete="new-password"
+                  className="h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] pl-10 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 font-semibold text-slate-300 hover:bg-white/10"
+                className="cursor-pointer flex-1 h-10 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-2.5 font-bold text-slate-950 hover:opacity-95 disabled:opacity-50 transition shadow-lg shadow-emerald-500/20"
+                className="cursor-pointer flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                 <span>Update Password</span>
               </button>
             </div>
           </form>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 }

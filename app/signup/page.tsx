@@ -11,9 +11,9 @@ export default function SignupPage() {
       <Suspense
         fallback={
           <SplitRupeeLoader
-            fullScreen={false}
+            variant="page"
             text="SplitRupee"
-            subtext="Preparing account creation..."
+            subtext="Preparing your account setup..."
           />
         }
       >

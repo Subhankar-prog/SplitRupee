@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/lib/userContext";
+import { DEFAULT_AVATAR_COLOR } from "@/lib/avatarColors";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import GoogleAuthModal from "@/components/GoogleAuthModal";
 import {
   User,
@@ -38,11 +40,23 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
   const [isToggled, setIsToggled] = useState(initialMode === "signup");
   const [hasAnimated, setHasAnimated] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const signinPanelRef = useRef<HTMLDivElement>(null);
+  const signupPanelRef = useRef<HTMLDivElement>(null);
 
   // Sync mode with props if changed externally
   useEffect(() => {
     setIsToggled(initialMode === "signup");
   }, [initialMode]);
+
+  // Isolate hidden panel focus & screen reader subtree when sliding between Sign In and Sign Up
+  useEffect(() => {
+    if (signinPanelRef.current) {
+      (signinPanelRef.current as HTMLDivElement & { inert: boolean }).inert = isToggled;
+    }
+    if (signupPanelRef.current) {
+      (signupPanelRef.current as HTMLDivElement & { inert: boolean }).inert = !isToggled;
+    }
+  }, [isToggled]);
 
   function handleToggle(targetMode: "login" | "signup") {
     setHasAnimated(true);
@@ -185,7 +199,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         name: signupName.trim(),
         email: trimmedId.toLowerCase(),
         authMethod: "google",
-        avatarColor: "#10b981",
+        avatarColor: DEFAULT_AVATAR_COLOR,
         upiId: signupUpiId.trim() || undefined,
       };
 
@@ -246,7 +260,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
       name: signupName.trim(),
       password: signupPassword.trim(),
       authMethod: isEmail ? "email" : "phone",
-      avatarColor: "#10b981",
+      avatarColor: DEFAULT_AVATAR_COLOR,
       upiId: signupUpiId.trim() || undefined,
     };
 
@@ -349,10 +363,10 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         {/* =========================================================================
             1. SIGN IN CREDENTIALS PANEL (Left side on desktop when untoggled)
            ========================================================================= */}
-        <div className="credentials-panel signin">
+        <div ref={signinPanelRef} aria-hidden={isToggled} className="credentials-panel signin">
           {/* Brand Icon & Heading */}
           <div className="slide-element flex flex-col items-center mb-3 text-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] text-base mb-1.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)] text-base mb-1.5">
               ₹
             </div>
             <h2>Sign In</h2>
@@ -406,6 +420,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               <label htmlFor="login-pass">Password</label>
               <button
                 type="button"
+                tabIndex={isToggled ? -1 : 0}
                 onClick={() => setShowLoginPassword((p) => !p)}
                 className="eye-toggle"
                 aria-label={showLoginPassword ? "Hide password" : "Show password"}
@@ -422,6 +437,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             <div className="slide-element flex justify-end pt-2 pb-2">
               <Link
                 href="/forgot-password"
+                tabIndex={isToggled ? -1 : 0}
                 className="text-[11.5px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline"
               >
                 Forgot password?
@@ -433,6 +449,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               <button
                 type="submit"
                 disabled={loginLoading}
+                tabIndex={isToggled ? -1 : 0}
                 className="submit-button"
               >
                 {loginLoading ? (
@@ -447,7 +464,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             {/* Divider */}
             <div className="slide-element flex items-center gap-2 pt-3 pb-1.5">
               <div className="flex-1 border-t border-[var(--border-subtle)]" />
-              <span className="text-[9.5px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                 OR CONTINUE WITH GOOGLE
               </span>
               <div className="flex-1 border-t border-[var(--border-subtle)]" />
@@ -455,31 +472,11 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
 
             {/* 1-Click Google OAuth Button */}
             <div className="slide-element">
-              <button
-                type="button"
+              <GoogleAuthButton
                 onClick={handleGoogleSignIn}
-                className="w-full h-10 flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[12px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] transition-colors"
-              >
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
-                  <path
-                    fill="#EA4335"
-                    d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
-                  />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
+                tabIndex={isToggled ? -1 : 0}
+                className="h-10"
+              />
             </div>
 
             {/* Switch to Signup */}
@@ -488,6 +485,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                 Don&apos;t have an account?{" "}
                 <button
                   type="button"
+                  tabIndex={isToggled ? -1 : 0}
                   onClick={() => handleToggle("signup")}
                   className="register-trigger"
                 >
@@ -501,7 +499,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         {/* =========================================================================
             2. SIGN IN WELCOME SECTION (Right side on desktop when untoggled)
            ========================================================================= */}
-        <div className="welcome-section signin">
+        <div aria-hidden={isToggled} className="welcome-section signin">
           <div className="slide-element text-right max-w-[285px]">
             <h2>Welcome Back</h2>
             <p>
@@ -510,17 +508,17 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
           </div>
 
           <div className="slide-element mt-6 space-y-3.5 max-w-[250px] ml-auto">
-            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#E8EDE9]">
+            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#F8F0E4]">
               <span>Smart expense splitting</span>
-              <Split className="h-4 w-4 text-[#8DB69A] shrink-0" />
+              <Split className="h-4 w-4 text-[#A5B995] shrink-0" />
             </div>
-            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#E8EDE9]">
+            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#F8F0E4]">
               <span>Clear group balances</span>
-              <Scale className="h-4 w-4 text-[#8DB69A] shrink-0" />
+              <Scale className="h-4 w-4 text-[#E28A63] shrink-0" />
             </div>
-            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#E8EDE9]">
+            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#F8F0E4]">
               <span>Quick UPI settlement links</span>
-              <QrCode className="h-4 w-4 text-[#D9A86C] shrink-0" />
+              <QrCode className="h-4 w-4 text-[#F0BD70] shrink-0" />
             </div>
           </div>
         </div>
@@ -528,10 +526,10 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         {/* =========================================================================
             3. SIGN UP CREDENTIALS PANEL (Right side on desktop when toggled)
            ========================================================================= */}
-        <div className="credentials-panel signup">
+        <div ref={signupPanelRef} aria-hidden={!isToggled} className="credentials-panel signup">
           {/* Brand Icon & Heading */}
           <div className="slide-element flex flex-col items-center mb-2 text-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] font-display font-bold text-white dark:text-[#171F1D] text-base mb-1.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)] text-base mb-1.5">
               {isGoogleOnboarding ? (
                 <CheckCircle2 className="h-5 w-5" />
               ) : (
@@ -573,6 +571,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               </div>
               <button
                 type="button"
+                tabIndex={isToggled ? 0 : -1}
                 onClick={handleCancelGoogleOnboarding}
                 className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline ml-2 shrink-0"
                 title="Cancel Google sign-in and switch to standard mode"
@@ -660,9 +659,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               </div>
             </div>
 
-            {/* Passwords in 2-Column Grid */}
+            {/* Passwords in 2-Column Grid on >=640px, Stacked on Narrow Phones */}
             {!isGoogleOnboarding && (
-              <div className="slide-element grid grid-cols-2 gap-3 !mt-4">
+              <div className="slide-element grid grid-cols-1 sm:grid-cols-2 gap-3 !mt-4">
                 <div className="field-wrapper !mt-0">
                   <input
                     id="signup-pass"
@@ -726,6 +725,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               <button
                 type="submit"
                 disabled={signupLoading}
+                tabIndex={isToggled ? 0 : -1}
                 className="submit-button"
               >
                 {signupLoading ? (
@@ -746,38 +746,18 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
               <>
                 <div className="slide-element flex items-center gap-2 pt-2.5 pb-1">
                   <div className="flex-1 border-t border-[var(--border-subtle)]" />
-                  <span className="text-[9.5px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                     OR
                   </span>
                   <div className="flex-1 border-t border-[var(--border-subtle)]" />
                 </div>
 
                 <div className="slide-element">
-                  <button
-                    type="button"
+                  <GoogleAuthButton
                     onClick={handleGoogleSignIn}
-                    className="w-full h-10 flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[12px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] transition-colors"
-                  >
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24">
-                      <path
-                        fill="#EA4335"
-                        d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-                      />
-                      <path
-                        fill="#4285F4"
-                        d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
-                      />
-                    </svg>
-                    <span>Continue with Google</span>
-                  </button>
+                    tabIndex={isToggled ? 0 : -1}
+                    className="h-10"
+                  />
                 </div>
               </>
             )}
@@ -789,6 +769,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                   Prefer password signup?{" "}
                   <button
                     type="button"
+                    tabIndex={isToggled ? 0 : -1}
                     onClick={handleCancelGoogleOnboarding}
                     className="register-trigger"
                   >
@@ -800,6 +781,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                   Already have an account?{" "}
                   <button
                     type="button"
+                    tabIndex={isToggled ? 0 : -1}
                     onClick={() => handleToggle("login")}
                     className="login-trigger"
                   >
@@ -814,7 +796,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         {/* =========================================================================
             4. SIGN UP WELCOME SECTION (Left side on desktop when toggled)
            ========================================================================= */}
-        <div className="welcome-section signup">
+        <div aria-hidden={!isToggled} className="welcome-section signup">
           <div className="slide-element text-left max-w-[235px]">
             <h2>{isGoogleOnboarding ? "Almost Ready" : "Get Started"}</h2>
             <p>
@@ -825,16 +807,16 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
           </div>
 
           <div className="slide-element mt-6 space-y-3.5 max-w-[235px]">
-            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#E8EDE9]">
-              <Users className="h-4 w-4 text-[#8DB69A] shrink-0" />
+            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#F8F0E4]">
+              <Users className="h-4 w-4 text-[#A5B995] shrink-0" />
               <span>Split expenses with your group</span>
             </div>
-            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#E8EDE9]">
-              <GitFork className="h-4 w-4 text-[#8DB69A] shrink-0" />
+            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#F8F0E4]">
+              <GitFork className="h-4 w-4 text-[#E28A63] shrink-0" />
               <span>Track who owes whom</span>
             </div>
-            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#E8EDE9]">
-              <Smartphone className="h-4 w-4 text-[#D9A86C] shrink-0" />
+            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#F8F0E4]">
+              <Smartphone className="h-4 w-4 text-[#F0BD70] shrink-0" />
               <span>Direct UPI settlement links</span>
             </div>
           </div>

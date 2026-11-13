@@ -113,7 +113,7 @@ function ResetPasswordContent() {
   if (verifying) {
     return (
       <div className="w-full max-w-[440px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center shadow-[var(--shadow-popover)]">
-        <SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Verifying reset link..." />
+        <SplitRupeeLoader variant="modal" text="SplitRupee" subtext="Verifying reset link..." />
       </div>
     );
   }
@@ -134,7 +134,7 @@ function ResetPasswordContent() {
         <div className="pt-2">
           <Link
             href="/forgot-password"
-            className="w-full h-11 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity inline-flex items-center justify-center gap-2"
+            className="w-full h-11 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs sm:text-sm font-semibold text-[var(--brand-ink)] transition-colors inline-flex items-center justify-center gap-2"
           >
             <ArrowRight className="h-4 w-4" />
             <span>Request New Reset Link</span>
@@ -214,7 +214,7 @@ function ResetPasswordContent() {
           <button
             type="submit"
             disabled={submitting || Boolean(success)}
-            className="w-full h-11 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs sm:text-sm font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
+            className="w-full h-11 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs sm:text-sm font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>
@@ -247,7 +247,7 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <AuthLayout>
-      <Suspense fallback={<SplitRupeeLoader fullScreen={false} text="SplitRupee" subtext="Loading..." />}>
+      <Suspense fallback={<SplitRupeeLoader variant="page" text="SplitRupee" subtext="Loading..." />}>
         <ResetPasswordContent />
       </Suspense>
     </AuthLayout>

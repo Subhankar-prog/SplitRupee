@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { useUser } from "@/lib/userContext";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 import { X, Plane, Home, Heart, Tag, Check, Users, Plus, UserPlus, Info } from "lucide-react";
 import type { GroupTypeName } from "@/lib/types";
 
@@ -20,11 +21,15 @@ export default function CreateGroupModal({
   onCreated: (groupId: string) => void;
 }) {
   const { currentUser } = useUser();
+  const baseId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<GroupTypeName>("TRIP");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useDialogAccessibility(true, onClose, dialogRef, loading);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,16 +81,27 @@ export default function CreateGroupModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 sr-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover"
+        aria-labelledby={`${baseId}-title`}
+        tabIndex={-1}
+        className="relative w-full max-w-lg rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-popover outline-none sr-modal-panel"
       >
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-              <Users className="h-5 w-5 text-[var(--brand-primary)]" />
+            <h2
+              id={`${baseId}-title`}
+              className="font-display text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2"
+            >
+              <Users className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
               Create New Group
             </h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -96,9 +112,9 @@ export default function CreateGroupModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="grid h-11 w-11 sm:h-8 sm:w-8 place-items-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -111,34 +127,36 @@ export default function CreateGroupModal({
 
           {/* Group Name */}
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Group Name</label>
+            <label htmlFor={`${baseId}-name`} className="text-xs font-medium text-[var(--text-secondary)]">Group Name</label>
             <input
+              id={`${baseId}-name`}
               type="text"
               placeholder="e.g. Manali Road Trip or Flat 402 Rent"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="mt-1 h-10 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] transition-colors"
+              className="mt-1 h-10 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] transition-colors"
             />
           </div>
 
           {/* Group Description */}
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
+            <label htmlFor={`${baseId}-desc`} className="text-xs font-medium text-[var(--text-secondary)]">
               Description <span className="text-[11px] font-normal opacity-80">(Optional)</span>
             </label>
             <textarea
+              id={`${baseId}-desc`}
               placeholder="Add trip dates, apartment rules, or a short note..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--status-positive-bg)] resize-none transition-colors"
+              className="mt-1 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3.5 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)] resize-none transition-colors"
             />
           </div>
 
           {/* Group Type */}
-          <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Group Type</label>
+          <div role="group" aria-labelledby={`${baseId}-type-label`}>
+            <span id={`${baseId}-type-label`} className="text-xs font-medium text-[var(--text-secondary)]">Group Type</span>
             <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {GROUP_TYPES.map((gt) => {
                 const Icon = gt.icon;
@@ -147,11 +165,12 @@ export default function CreateGroupModal({
                   <button
                     key={gt.type}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() => setType(gt.type)}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
+                    className={`cursor-pointer flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-xs font-medium transition-colors ${
                       isSelected
                         ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]"
-                        : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+                        : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -185,7 +204,7 @@ export default function CreateGroupModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 h-10 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 disabled:opacity-50 transition-opacity"
+              className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors"
             >
               {loading ? "Creating..." : "Create Group"}
             </button>

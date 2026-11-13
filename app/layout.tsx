@@ -24,7 +24,7 @@ const manrope = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "SplitRupee — Personal & Group Expense Management",
+  title: "SplitRupee: Personal & Group Expense Management",
   description:
     "Split expenses, manage group budgets, minimize debts, and settle up via UPI with calm clarity.",
   manifest: "/manifest.json",
@@ -42,11 +42,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F4EF" },
-    { media: "(prefers-color-scheme: dark)", color: "#171F1D" },
+    { media: "(prefers-color-scheme: light)", color: "#F6EFE3" },
+    { media: "(prefers-color-scheme: dark)", color: "#171613" },
   ],
 };
 

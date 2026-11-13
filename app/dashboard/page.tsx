@@ -9,10 +9,13 @@ import {
   type ExpenseDTO,
   type PaymentDTO,
   type ActivityLogDTO,
-  CATEGORIES,
+  type CategoryName,
 } from "@/lib/types";
+import { buildCategoryDistribution } from "@/lib/categoryChart";
 import { buildLedger, computeNetBalances } from "@/lib/debt";
 import { formatINR, formatPaise } from "@/lib/money";
+import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
+import ScrollReveal from "@/components/ui/ScrollReveal";
 import {
   Users,
   Plus,
@@ -27,16 +30,26 @@ import {
   ChevronRight,
   TrendingUp,
   Receipt,
-  Sparkles,
   Loader2,
   Wallet,
   UserPlus,
+  AlertTriangle,
+  RefreshCw,
+  Utensils,
+  Zap,
+  ShoppingBag,
+  Film,
+  Shapes,
+  Compass,
+  ArrowRight,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
 import SettleUpModal from "@/components/SettleUpModal";
 import ActivityLogList from "@/components/ActivityLogList";
 import SplitRupeeLoader from "@/components/SplitRupeeLoader";
+import DataStatusBanner from "@/components/ui/DataStatusBanner";
+import { parseApiJsonResponse, type FetchIssueState } from "@/lib/apiResponse";
 import {
   getCachedGroupsList,
   saveCachedGroupsList,
@@ -55,6 +68,16 @@ const TYPE_ICONS = {
   OTHER: Tag,
 };
 
+const CATEGORY_ICONS: Record<CategoryName, typeof Utensils> = {
+  Food: Utensils,
+  Rent: Home,
+  Travel: Plane,
+  Utilities: Zap,
+  Shopping: ShoppingBag,
+  Entertainment: Film,
+  Miscellaneous: Shapes,
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const { currentUser, users, isLoading: usersLoading } = useUser();
@@ -63,6 +86,8 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<ActivityLogDTO[]>([]);
   const [groupDetails, setGroupDetails] = useState<Record<string, any>>({});
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const [fetchIssue, setFetchIssue] = useState<FetchIssueState | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -154,11 +179,21 @@ export default function DashboardPage() {
     applyOfflineCacheFallback();
 
     try {
+      let nextIssue: FetchIssueState | null = null;
+      const recordIssue = (issue: FetchIssueState) => {
+        if (!nextIssue || (nextIssue.kind === "offline" && issue.kind === "error")) {
+          nextIssue = issue;
+        }
+      };
+
       // 1. Fetch groups
       const gRes = await fetch(`/api/groups?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
-      const gData = await gRes.json();
-      if (gData.ok && Array.isArray(gData.groups)) {
-        const userGroups: GroupDTO[] = gData.groups;
+      const gOutcome = await parseApiJsonResponse<{ ok?: boolean; groups?: GroupDTO[] }>(
+        gRes,
+        "Could not load your groups."
+      );
+      if (gOutcome.kind === "ok" && Array.isArray(gOutcome.data.groups)) {
+        const userGroups: GroupDTO[] = gOutcome.data.groups;
         setGroups(userGroups);
         saveCachedGroupsList(userGroups);
 
@@ -168,10 +203,13 @@ export default function DashboardPage() {
           userGroups.map(async (g) => {
             try {
               const detailRes = await fetch(`/api/groups/${g.id}?_t=${Date.now()}`);
-              const detailData = await detailRes.json();
-              if (detailData.ok && detailData.group) {
-                saveCachedGroup(g.id, detailData.group);
-                detailsMap[g.id] = getCachedGroup(g.id) || detailData.group;
+              const detailOutcome = await parseApiJsonResponse<{ ok?: boolean; group?: any }>(
+                detailRes,
+                `Could not load ${g.name}.`
+              );
+              if (detailOutcome.kind === "ok" && detailOutcome.data.group) {
+                saveCachedGroup(g.id, detailOutcome.data.group);
+                detailsMap[g.id] = getCachedGroup(g.id) || detailOutcome.data.group;
               } else {
                 const cachedDetail = getCachedGroup(g.id);
                 if (cachedDetail) detailsMap[g.id] = cachedDetail;
@@ -186,6 +224,11 @@ export default function DashboardPage() {
           setGroupDetails(detailsMap);
         }
       } else {
+        recordIssue(
+          gOutcome.kind === "offline"
+            ? { kind: "offline", message: gOutcome.message }
+            : { kind: "error", message: gOutcome.kind === "error" ? gOutcome.message : "Could not load your groups." }
+        );
         const cachedList = getCachedGroupsList();
         if (cachedList.length > 0) {
           setGroups(cachedList);
@@ -200,28 +243,53 @@ export default function DashboardPage() {
 
       // 3. Fetch all expenses for user
       const eRes = await fetch(`/api/expenses?userId=${encodeURIComponent(currentUser.id)}&_t=${Date.now()}`);
-      const eData = await eRes.json();
-      if (eData.ok && Array.isArray(eData.expenses)) {
-        saveCachedAllExpenses(eData.expenses);
+      const eOutcome = await parseApiJsonResponse<{ ok?: boolean; expenses?: ExpenseDTO[] }>(
+        eRes,
+        "Could not load your expenses."
+      );
+      if (eOutcome.kind === "ok" && Array.isArray(eOutcome.data.expenses)) {
+        saveCachedAllExpenses(eOutcome.data.expenses);
         setExpenses(getCachedAllExpenses());
       } else {
+        recordIssue(
+          eOutcome.kind === "offline"
+            ? { kind: "offline", message: eOutcome.message }
+            : { kind: "error", message: eOutcome.kind === "error" ? eOutcome.message : "Could not load your expenses." }
+        );
         setExpenses(getCachedAllExpenses());
       }
 
       // 4. Fetch recent activities
       const aRes = await fetch(`/api/activity?userId=${encodeURIComponent(currentUser.id)}&limit=10&_t=${Date.now()}`);
-      const aData = await aRes.json();
-      if (aData.ok && Array.isArray(aData.activities)) {
-        saveCachedActivities(currentUser.id, aData.activities);
+      const aOutcome = await parseApiJsonResponse<{ ok?: boolean; activities?: ActivityLogDTO[] }>(
+        aRes,
+        "Could not load recent activity."
+      );
+      if (aOutcome.kind === "ok" && Array.isArray(aOutcome.data.activities)) {
+        saveCachedActivities(currentUser.id, aOutcome.data.activities);
         setActivities(getCachedActivities(currentUser.id));
       } else {
+        recordIssue(
+          aOutcome.kind === "offline"
+            ? { kind: "offline", message: aOutcome.message }
+            : { kind: "error", message: aOutcome.kind === "error" ? aOutcome.message : "Could not load recent activity." }
+        );
         setActivities(getCachedActivities(currentUser.id));
       }
-    } catch (e) {
-      console.warn("Failed to load live dashboard data (offline fallback active):", e);
+
+      setFetchIssue(nextIssue);
+    } catch {
       applyOfflineCacheFallback();
+      const offlineNow = typeof navigator !== "undefined" && !navigator.onLine;
+      setFetchIssue({
+        kind: offlineNow ? "offline" : "error",
+        message: offlineNow
+          ? "You are currently offline. Showing cached dashboard data if available."
+          : "Network error while loading dashboard data.",
+      });
     } finally {
       setInitialLoaded(true);
+      setIsRetrying(false);
     }
   }, [currentUser?.id, applyOfflineCacheFallback]);
 
@@ -310,34 +378,22 @@ export default function DashboardPage() {
     return { net: totalNet, youOwe: totalOwe, youAreOwed: totalOwed, totalSpend, groupBalances, friendsBalances };
   }, [currentUser, groupDetails]);
 
-  const categoryBreakdown = useMemo(() => {
-    const totals: Record<string, number> = {};
-    let sum = 0;
-    expenses.forEach((exp) => {
-      const cat = exp.category || "Miscellaneous";
-      const amt = exp.totalAmount || 0;
-      totals[cat] = (totals[cat] || 0) + amt;
-      sum += amt;
-    });
-    const palette = ["#263A32", "#739B83", "#D9A86C", "#5E7B6D", "#A5B2A9", "#8E7A5B", "#758078"];
-    const ordered = [...CATEGORIES]
-      .map((cat, idx) => ({
-        category: cat,
-        amount: totals[cat] || 0,
-        pct: sum > 0 ? ((totals[cat] || 0) / sum) * 100 : 0,
-        color: palette[idx % palette.length],
-      }))
-      .filter((row) => row.amount > 0)
-      .sort((a, b) => b.amount - a.amount);
-    return { rows: ordered, grandTotal: sum };
-  }, [expenses]);
+  const categoryBreakdown = useMemo(
+    () => buildCategoryDistribution(expenses),
+    [expenses]
+  );
 
-  if (usersLoading || (!initialLoaded && !currentUser)) {
+  const handleRetryDashboard = () => {
+    setIsRetrying(true);
+    loadDashboardData();
+  };
+
+  if (usersLoading || (currentUser && !initialLoaded)) {
     return (
       <SplitRupeeLoader
-        fullScreen={false}
-        text="SplitRupee Dashboard"
-        subtext="Loading your groups, expenses and balances..."
+        variant="page"
+        text="SplitRupee"
+        subtext="Getting your groups and balances ready..."
       />
     );
   }
@@ -354,13 +410,13 @@ export default function DashboardPage() {
           <div className="mt-5 flex gap-3 justify-center">
             <Link
               href="/login"
-              className="h-9 inline-flex items-center rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+              className="h-9 inline-flex items-center rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
             >
               Log In
             </Link>
             <Link
               href="/signup"
-              className="h-9 inline-flex items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+              className="h-9 inline-flex items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
               Sign Up
             </Link>
@@ -370,8 +426,39 @@ export default function DashboardPage() {
     );
   }
 
+  const hasAnyDashboardData = groups.length > 0 || expenses.length > 0 || activities.length > 0;
+
+  if (!hasAnyDashboardData && fetchIssue) {
+    return (
+      <div className="grid min-h-[50vh] place-items-center p-4">
+        <div role="alert" className="rounded-2xl border border-[var(--status-negative-border)] bg-[var(--bg-surface)] p-8 max-w-md text-center shadow-[var(--shadow-card)] space-y-3">
+          <AlertTriangle className="mx-auto h-9 w-9 text-[var(--status-negative)]" aria-hidden="true" />
+          <h1 className="font-display text-lg font-semibold text-[var(--text-primary)]">Could not load dashboard</h1>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{fetchIssue.message}</p>
+          <button
+            type="button"
+            onClick={handleRetryDashboard}
+            disabled={isRetrying}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-5 text-xs font-semibold text-[var(--brand-ink)] transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? "animate-spin" : ""}`} aria-hidden="true" />
+            <span>{isRetrying ? "Retrying..." : "Retry"}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6">
+      {fetchIssue && hasAnyDashboardData && (
+        <DataStatusBanner
+          issue={fetchIssue}
+          onRetry={handleRetryDashboard}
+          isRetrying={isRetrying}
+          cachedLabel="Showing cached dashboard figures until live connection restores."
+        />
+      )}
       {/* Top Welcome & Summary Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -386,222 +473,143 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/itinerary"
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] dark:bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] dark:hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
-            <Plane className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+            <Plane className="h-3.5 w-3.5 text-[var(--status-info)]" aria-hidden="true" />
             <span>Trip Planner</span>
           </Link>
           <button
             type="button"
             onClick={() => setShowCreateGroup(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] dark:bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] dark:hover:bg-[var(--bg-surface-hover)] transition-colors"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" aria-hidden="true" />
             <span>New Group</span>
           </button>
           <button
             type="button"
             onClick={() => setShowAddExpense(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors shadow-sm"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Add Expense</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Net Balance */}
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Total Net Balance</span>
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)]">
-              <TrendingUp className="h-4 w-4" />
-            </span>
-          </div>
-          <p
-            className={`font-display mt-3 text-2xl font-semibold tracking-tight tabular-nums ${
-              overallStats.net > 0
-                ? "text-[var(--status-positive)]"
-                : overallStats.net < 0
-                ? "text-[var(--status-negative)]"
-                : "text-[var(--text-primary)]"
-            }`}
-          >
-            {overallStats.net > 0
-              ? `+ ${formatPaise(overallStats.net)}`
-              : overallStats.net < 0
-              ? `- ${formatPaise(Math.abs(overallStats.net))}`
-              : "₹0.00"}
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-            {overallStats.net > 0
-              ? "Net receivable across groups"
-              : overallStats.net < 0
-              ? "Net payable across groups"
-              : "All balances settled"}
-          </p>
-        </div>
-
-        {/* You Owe */}
-        <div className="rounded-2xl border border-[var(--status-negative-border)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Amount Owed</span>
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--status-negative-bg)] text-[var(--status-negative)]">
-              <ArrowUpRight className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="font-display mt-3 text-2xl font-semibold tracking-tight text-[var(--status-negative)] tabular-nums">
-            {formatPaise(overallStats.youOwe)}
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-            Outstanding to group members
-          </p>
-        </div>
-
-        {/* You are Owed */}
-        <div className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Amount to Receive</span>
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--status-positive-bg)] text-[var(--status-positive)]">
-              <ArrowDownLeft className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="font-display mt-3 text-2xl font-semibold tracking-tight text-[var(--status-positive)] tabular-nums">
-            {formatPaise(overallStats.youAreOwed)}
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-            Collectible from friends
-          </p>
-        </div>
-
-        {/* Total Group Volume */}
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-secondary)]">Total Tracked Spend</span>
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--status-warning-bg)] text-[var(--status-warning)]">
-              <Receipt className="h-4 w-4" />
-            </span>
-          </div>
-          <p className="font-display mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
-            {formatINR(overallStats.totalSpend)}
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-            Across {expenses.length} recorded {expenses.length === 1 ? "expense" : "expenses"}
-          </p>
-        </div>
-      </div>
-
-      {/* Expense Distribution Chart + Invite Code Bar */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Expense Distribution by Category */}
-        <div className="lg:col-span-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] space-y-4">
-          <div className="flex items-center justify-between">
+      {/* Focal Financial Standing Overview */}
+      <ScrollReveal
+        as="section"
+        aria-label="Financial standing summary"
+        className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)] overflow-hidden"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[var(--border-subtle)]">
+          {/* Primary Focal Metric: Net Balance */}
+          <div className="lg:col-span-5 p-5 sm:p-6 flex flex-col justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                Total Net Balance
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
+                  overallStats.net > 0
+                    ? "bg-[var(--status-positive-bg)] text-[var(--status-positive)] border-[var(--status-positive-border)]"
+                    : overallStats.net < 0
+                    ? "bg-[var(--status-negative-bg)] text-[var(--status-negative)] border-[var(--status-negative-border)]"
+                    : "bg-[var(--status-info-bg)] text-[var(--status-info)] border-[var(--status-info-border)]"
+                }`}
+              >
+                <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                <span>
+                  {overallStats.net > 0
+                    ? "Receivable"
+                    : overallStats.net < 0
+                    ? "Payable"
+                    : "Settled"}
+                </span>
+              </span>
+            </div>
             <div>
-              <h2 className="font-display text-sm sm:text-base font-semibold text-[var(--text-primary)]">
-                Expense Distribution
-              </h2>
-              <p className="text-[11px] text-[var(--text-secondary)]">
-                Breakdown by spending category across all expenses
+              <p
+                className={`font-display text-3xl sm:text-[32px] font-semibold tracking-tight tabular-nums ${
+                  overallStats.net > 0
+                    ? "text-[var(--status-positive)]"
+                    : overallStats.net < 0
+                    ? "text-[var(--status-negative)]"
+                    : "text-[var(--text-primary)]"
+                }`}
+              >
+                {overallStats.net > 0
+                  ? `+ ${formatPaise(overallStats.net)}`
+                  : overallStats.net < 0
+                  ? `- ${formatPaise(Math.abs(overallStats.net))}`
+                  : "₹0.00"}
+              </p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                {overallStats.net > 0
+                  ? "Net receivable across all groups"
+                  : overallStats.net < 0
+                  ? "Net payable to group members"
+                  : "All balances settled across groups"}
               </p>
             </div>
-            <Link
-              href="/expenses"
-              className="text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline flex items-center gap-1"
-            >
-              <span>All Expenses</span>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
           </div>
 
-          {categoryBreakdown.rows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-6 text-center text-xs text-[var(--text-secondary)]">
-              No category expenses recorded yet. Add your first expense to view distribution.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Restrained Stacked Proportion Bar */}
-              <div
-                className="flex h-2.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface-secondary)]"
-                role="img"
-                aria-label="Category expense distribution bar"
-              >
-                {categoryBreakdown.rows.map((row) => (
-                  <div
-                    key={row.category}
-                    style={{ width: `${Math.max(row.pct, 2)}%`, backgroundColor: row.color }}
-                    title={`${row.category}: ${formatINR(row.amount)} (${row.pct.toFixed(0)}%)`}
-                  />
-                ))}
+          {/* Supporting Metrics via Hairline Dividers */}
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)]">
+            <div className="p-4 sm:p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">Amount Owed</span>
+                <ArrowUpRight className="h-4 w-4 text-[var(--status-negative)] shrink-0" aria-hidden="true" />
               </div>
-
-              {/* Clean Legend & Share List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 pt-1">
-                {categoryBreakdown.rows.map((row) => (
-                  <div key={row.category} className="flex items-center justify-between text-xs py-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="h-2.5 w-2.5 rounded-sm shrink-0"
-                        style={{ backgroundColor: row.color }}
-                      />
-                      <span className="font-medium text-[var(--text-primary)] truncate">
-                        {row.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2.5 shrink-0 tabular-nums">
-                      <span className="text-[11px] text-[var(--text-secondary)]">
-                        {row.pct.toFixed(0)}%
-                      </span>
-                      <span className="font-semibold text-[var(--text-primary)]">
-                        {formatINR(row.amount)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div className="mt-2.5">
+                <p className="font-display text-xl font-semibold tracking-tight text-[var(--status-negative)] tabular-nums">
+                  {formatPaise(overallStats.youOwe)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">To group members</p>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Quick Join via Code Card */}
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] flex flex-col justify-between space-y-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
-              <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
-              <span>Join a Group by Code</span>
+            <div className="p-4 sm:p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">Amount to Receive</span>
+                <ArrowDownLeft className="h-4 w-4 text-[var(--status-positive)] shrink-0" aria-hidden="true" />
+              </div>
+              <div className="mt-2.5">
+                <p className="font-display text-xl font-semibold tracking-tight text-[var(--status-positive)] tabular-nums">
+                  {formatPaise(overallStats.youAreOwed)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Collectible from friends</p>
+              </div>
             </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
-              Have an invite code from a friend? Enter it below to jump straight into the group ledger.
-            </p>
+
+            <div className="p-4 sm:p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">Tracked Spend</span>
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[var(--status-info-bg)] border border-[var(--status-info-border)] text-[var(--status-info)]">
+                  <Receipt className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                </span>
+              </div>
+              <div className="mt-2.5">
+                <p className="font-display text-xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
+                  {formatINR(overallStats.totalSpend)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
+                  Across {expenses.length} {expenses.length === 1 ? "expense" : "expenses"}
+                </p>
+              </div>
+            </div>
           </div>
-          <form onSubmit={handleJoinGroup} className="space-y-2.5">
-            <input
-              type="text"
-              value={joinCodeInput}
-              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-              placeholder="Enter code (e.g. TRIP2026)"
-              className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] px-3.5 text-xs sm:text-sm font-mono uppercase text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={joining || !joinCodeInput.trim()}
-              className="h-10 w-full rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1.5"
-            >
-              {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join Group"}
-            </button>
-            {joinError && <p className="text-[var(--status-negative)] text-xs">{joinError}</p>}
-          </form>
         </div>
-      </div>
+      </ScrollReveal>
 
-      {/* Main Grid: Groups & Friends Standings */}
+      {/* Primary Workspace: Groups & Friends Standings Above the Fold */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Groups List (2 Cols) */}
         <div className="lg:col-span-2 space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-[var(--brand-primary)]" />
+              <Users className="h-4 w-4 text-[var(--brand-dark)] dark:text-[var(--brand-primary)]" aria-hidden="true" />
               <h2 className="font-display text-base font-semibold text-[var(--text-primary)]">Your Groups</h2>
             </div>
             <button
@@ -625,24 +633,24 @@ export default function DashboardPage() {
                   key={g.id}
                   href={`/groups/${g.id}`}
                   prefetch={false}
-                  className="group rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] hover:border-[var(--brand-primary)] transition-colors flex flex-col justify-between"
+                  className="group rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] dark:hover:bg-[var(--bg-surface-secondary)] p-4 shadow-[var(--shadow-card)] hover:border-[var(--brand-primary)] sr-card-interactive flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--status-positive-bg)] border border-[var(--status-positive-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-tint-bg)] border border-[var(--brand-tint-border)] text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
                           <Icon className="h-5 w-5" />
                         </span>
                         <div className="min-w-0">
-                          <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors truncate">
+                          <h3 className="font-display text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] transition-colors break-words line-clamp-2 leading-snug">
                             {g.name}
                           </h3>
-                          <p className="text-[11px] text-[var(--text-secondary)]">
+                          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                             {g.members.length} members
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-secondary)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-0.5 transition-all" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-secondary)] group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand-primary)] group-hover:translate-x-0.5 transition-all" />
                     </div>
 
                     <div className="mt-4 flex items-center justify-between text-xs border-t border-[var(--border-subtle)] pt-3">
@@ -653,7 +661,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded-xl bg-[var(--bg-surface-secondary)] p-2.5 flex items-center justify-between text-xs">
+                  <div className="mt-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] p-2.5 flex items-center justify-between text-xs">
                     <span className="text-[11px] text-[var(--text-secondary)]">Your standing</span>
                     <span
                       className={`font-semibold tabular-nums ${
@@ -661,7 +669,7 @@ export default function DashboardPage() {
                           ? "text-[var(--status-positive)]"
                           : net < 0
                           ? "text-[var(--status-negative)]"
-                          : "text-[var(--text-secondary)]"
+                          : "text-[var(--status-info)]"
                       }`}
                     >
                       {net > 0
@@ -676,7 +684,7 @@ export default function DashboardPage() {
             })}
 
             {groups.length === 0 && (
-              <div className="col-span-2 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-8 text-center">
+              <div className="sm:col-span-2 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] p-6 sm:p-8 text-center">
                 <Users className="mx-auto h-8 w-8 text-[var(--text-secondary)] mb-2" />
                 <p className="font-display text-sm font-semibold text-[var(--text-primary)]">No groups yet</p>
                 <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-sm mx-auto">
@@ -685,7 +693,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateGroup(true)}
-                  className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95"
+                  className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
                 >
                   <Plus className="h-4 w-4" /> Create Group
                 </button>
@@ -698,7 +706,7 @@ export default function DashboardPage() {
         <div className="space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-[var(--brand-primary)]" />
+              <CheckCircle2 className="h-4 w-4 text-[var(--status-positive)]" aria-hidden="true" />
               <h2 className="font-display text-base font-semibold text-[var(--text-primary)]">Friends Balances</h2>
             </div>
           </div>
@@ -715,19 +723,22 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={user.id}
-                      className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-semibold text-white keep-white text-xs"
-                          style={{ background: user.avatarColor || "#739B83" }}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-semibold text-xs"
+                          style={{
+                            background: user.avatarColor || DEFAULT_AVATAR_COLOR,
+                            color: getAvatarTextColor(user.avatarColor || DEFAULT_AVATAR_COLOR),
+                          }}
                         >
                           {user.name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-[var(--text-primary)] truncate">{user.name}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">{user.name}</p>
                           <p
-                            className={`text-[11px] font-semibold tabular-nums ${
+                            className={`text-[11px] font-semibold tabular-nums mt-0.5 ${
                               isOwed ? "text-[var(--status-positive)]" : "text-[var(--status-negative)]"
                             }`}
                           >
@@ -759,7 +770,7 @@ export default function DashboardPage() {
                             amount: Math.abs(net) / 100,
                           });
                         }}
-                        className="rounded-lg border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--status-positive)] hover:bg-[var(--brand-dark)] hover:text-white dark:hover:bg-[var(--brand-primary)] dark:hover:text-[#171F1D] transition-colors shrink-0"
+                        className="min-h-[44px] sm:min-h-0 rounded-lg border border-[var(--brand-tint-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink)] hover:border-[var(--brand-primary)] transition-colors shrink-0"
                       >
                         Settle Up
                       </button>
@@ -772,11 +783,171 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Expense Distribution Chart + Quick Join via Code */}
+      <ScrollReveal className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Expense Distribution by Category */}
+        <div className="lg:col-span-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-sm sm:text-base font-semibold text-[var(--text-primary)]">
+                Expense Distribution
+              </h2>
+              <p className="text-[11px] text-[var(--text-secondary)]">
+                Breakdown by spending category across all expenses
+              </p>
+            </div>
+            <Link
+              href="/expenses"
+              className="text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline flex items-center gap-1"
+            >
+              <span>All Expenses</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {categoryBreakdown.rows.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-6 text-center text-xs text-[var(--text-secondary)]">
+              No category expenses recorded yet. Add your first expense to view distribution.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Exact Proportional Stacked Overview Bar with Card-Surface Hairline Dividers */}
+              <div
+                className="flex h-3.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-canvas)] border border-[var(--border-subtle)] divide-x-2 divide-[var(--bg-surface)]"
+                role="img"
+                aria-label={categoryBreakdown.ariaSummary}
+              >
+                {categoryBreakdown.rows.map((row) => (
+                  <div
+                    key={row.category}
+                    style={{ width: `${row.pct}%`, backgroundColor: row.color }}
+                    title={`${row.category}: ${formatINR(row.amount)} (${row.pctLabel})`}
+                  />
+                ))}
+              </div>
+
+              {/* Category Share Legend Rows with Icons, Exact Percentage Bars & Accessible Contrast */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3 pt-1">
+                {categoryBreakdown.rows.map((row) => {
+                  const CatIcon = CATEGORY_ICONS[row.category] || Shapes;
+                  return (
+                    <div key={row.category} className="space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className="h-3 w-3 rounded-sm shrink-0 border border-[var(--border-subtle)]"
+                            style={{ backgroundColor: row.color }}
+                            aria-hidden="true"
+                          />
+                          <CatIcon
+                            className="h-3.5 w-3.5 shrink-0 text-[var(--text-secondary)]"
+                            aria-hidden="true"
+                          />
+                          <span className="font-medium text-[var(--text-primary)] whitespace-nowrap">
+                            {row.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                          <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                            {row.pctLabel}
+                          </span>
+                          <span className="font-semibold text-[var(--text-primary)]">
+                            {formatINR(row.amount)}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-canvas)]"
+                        aria-hidden="true"
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${row.pct}%`, backgroundColor: row.color }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Join via Code Card */}
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] flex flex-col justify-between space-y-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
+              <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
+              <span>Join a Group by Code</span>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+              Have an invite code from a friend? Enter it below to jump straight into the group ledger.
+            </p>
+          </div>
+          <form onSubmit={handleJoinGroup} className="space-y-2.5">
+            <input
+              type="text"
+              aria-label="Group invite code"
+              value={joinCodeInput}
+              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+              placeholder="Enter code (e.g. TRIP2026)"
+              className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] px-3.5 text-xs sm:text-sm font-mono uppercase text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={joining || !joinCodeInput.trim()}
+              className="min-h-[44px] sm:min-h-[40px] w-full rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors disabled:bg-[var(--bg-surface-secondary)] disabled:text-[var(--text-secondary)] disabled:border disabled:border-[var(--border-subtle)] flex items-center justify-center gap-1.5"
+            >
+              {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join Group"}
+            </button>
+            {joinError && <p className="text-[var(--status-negative)] text-xs">{joinError}</p>}
+          </form>
+        </div>
+      </ScrollReveal>
+
+      {/* Featured Tool: AI Travel & Trip Itinerary Planner Spotlight */}
+      <ScrollReveal
+        as="section"
+        aria-label="Trip Planner Spotlight"
+        className="rounded-2xl border border-[var(--border-subtle)] bg-[#29251F] dark:bg-[#24221D] text-[#F8F0E4] p-5 sm:p-6 shadow-[var(--shadow-card)] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+      >
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#51483D] bg-[#362E25] text-[#E28A63] mt-0.5">
+            <Compass className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#F0BD70]">
+                Flagship Travel Tool
+              </span>
+              <span className="text-[#8E8070]" aria-hidden="true">·</span>
+              <span className="text-[11px] text-[#C8BBAA]">
+                Rail, Bus, Flight &amp; Stay Caps
+              </span>
+            </div>
+            <h2 className="font-display text-base sm:text-lg font-semibold text-[#F8F0E4]">
+              Plan a multi-day group trip before splitting expenses
+            </h2>
+            <p className="text-xs sm:text-sm text-[#C8BBAA] leading-relaxed max-w-2xl">
+              Generate day-wise transit legs and per-person INR budgets, edit schedules with the Travel Guide Copilot, and link saved itineraries directly to any SplitRupee group.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/itinerary"
+          className="inline-flex min-h-[44px] sm:min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#E28A63] hover:bg-[#F09A72] px-4 py-2 text-xs sm:text-sm font-semibold text-[#171613] transition-colors"
+        >
+          <span>Open Trip Planner</span>
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </ScrollReveal>
+
       {/* Bottom Section: Recent Audit Log / Activity Feed */}
       <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[var(--brand-primary)]" />
+            <Activity className="h-4 w-4 text-[var(--status-info)]" aria-hidden="true" />
             <h2 className="font-display text-base font-semibold text-[var(--text-primary)]">Recent Activity & Audit Trail</h2>
           </div>
           <Link

@@ -2,16 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  HelpCircle,
-  ChevronDown,
-  Sparkles,
-  Smartphone,
-  ShieldCheck,
-  Zap,
-  Users,
-  ArrowRight,
-} from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 
 interface FaqItem {
   question: string;
@@ -82,10 +73,7 @@ export default function FaqPage() {
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 space-y-10">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border-subtle)] bg-[var(--bg-surface-secondary)] px-3.5 py-1 text-xs font-medium text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">
-          <HelpCircle className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-          <span>Frequently Asked Questions</span>
-        </div>
+        <p className="text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)]">Frequently Asked Questions</p>
         <h1 className="font-display text-3xl sm:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
           Everything you need to know about SplitRupee
         </h1>
@@ -95,12 +83,16 @@ export default function FaqPage() {
 
         {/* Search bar */}
         <div className="pt-3 max-w-md mx-auto">
+          <label htmlFor="faq-search" className="sr-only">
+            Search frequently asked questions
+          </label>
           <input
+            id="faq-search"
             type="text"
             placeholder="Search questions (e.g. UPI, QR, invite, ghost member)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
+            className="w-full rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 py-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] dark:focus-visible:ring-[var(--brand-primary)]"
           />
         </div>
       </div>
@@ -116,11 +108,13 @@ export default function FaqPage() {
         ].map((cat) => (
           <button
             key={cat.id}
+            type="button"
+            aria-pressed={activeCategory === cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`rounded-lg px-4 py-2 text-xs font-medium border transition-colors ${
+            className={`min-h-[44px] sm:min-h-0 rounded-lg px-4 py-2 text-xs font-medium border transition-colors ${
               activeCategory === cat.id
                 ? "border-[var(--brand-primary)] bg-[var(--status-positive-bg)] text-[var(--status-positive)]"
-                : "border-[color:var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[color:var(--border-strong)]"
+                : "border-[var(--border-strong)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
             }`}
           >
             {cat.label}
@@ -130,37 +124,71 @@ export default function FaqPage() {
 
       {/* FAQ Accordion List */}
       <div className="space-y-3">
-        {filteredFaqs.map((faq, idx) => {
-          const isOpen = openIndex === idx;
-          return (
-            <div
-              key={faq.question}
-              className={`rounded-xl border transition-colors ${
-                isOpen
-                  ? "border-[var(--brand-primary)]/50 bg-[var(--bg-surface)] shadow-[var(--shadow-card)]"
-                  : "border-[color:var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[color:var(--border-strong)]"
-              }`}
-            >
-              <button
-                onClick={() => setOpenIndex(isOpen ? null : idx)}
-                className="flex w-full items-center justify-between p-5 text-left font-display text-sm font-semibold text-[var(--text-primary)]"
-              >
-                <span>{faq.question}</span>
-                <ChevronDown
-                  className={`h-4 w-4 text-[var(--brand-primary)] transition-transform duration-200 shrink-0 ml-4 ${
-                    isOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {isOpen && (
-                <div className="px-5 pb-5 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[color:var(--border-subtle)] pt-3.5">
-                  {faq.answer}
-                </div>
-              )}
+        {filteredFaqs.length === 0 ? (
+          <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[var(--bg-surface)] p-8 text-center space-y-3">
+            <Search className="mx-auto h-7 w-7 text-[var(--text-secondary)]" aria-hidden="true" />
+            <div>
+              <h3 className="font-display text-sm font-semibold text-[var(--text-primary)]">
+                No matching questions found
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                Try a different keyword or reset the category filter to browse all answers.
+              </p>
             </div>
-          );
-        })}
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setActiveCategory("all");
+              }}
+              className="min-h-[44px] sm:min-h-[36px] inline-flex items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+            >
+              Reset Search &amp; Filters
+            </button>
+          </div>
+        ) : (
+          filteredFaqs.map((faq, idx) => {
+            const isOpen = openIndex === idx;
+            return (
+              <div
+                key={faq.question}
+                className={`rounded-xl border transition-colors ${
+                  isOpen
+                    ? "border-[var(--brand-primary)] bg-[var(--bg-surface)] shadow-[var(--shadow-card)]"
+                    : "border-[color:var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[color:var(--border-strong)]"
+                }`}
+              >
+                <button
+                  type="button"
+                  id={`faq-trigger-${idx}`}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-panel-${idx}`}
+                  onClick={() => setOpenIndex(isOpen ? null : idx)}
+                  className="flex w-full items-center justify-between p-5 text-left font-display text-sm font-semibold text-[var(--text-primary)]"
+                >
+                  <span>{faq.question}</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`h-4 w-4 text-[var(--brand-primary)] transition-transform duration-200 shrink-0 ml-4 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div
+                    id={`faq-panel-${idx}`}
+                    role="region"
+                    aria-labelledby={`faq-trigger-${idx}`}
+                    className="px-5 pb-5 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[color:var(--border-subtle)] pt-3.5"
+                  >
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Still have questions banner */}
@@ -173,10 +201,9 @@ export default function FaqPage() {
         </div>
         <Link
           href="/contact"
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-6 py-2.5 text-xs font-medium text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity shrink-0"
+          className="inline-flex min-h-[44px] sm:min-h-0 items-center justify-center rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-6 py-2.5 text-xs font-medium text-[var(--brand-ink)] transition-colors shrink-0"
         >
           <span>Contact Support</span>
-          <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
     </div>

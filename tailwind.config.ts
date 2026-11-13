@@ -14,6 +14,7 @@ const config: Config = {
       },
       colors: {
         canvas: "var(--bg-canvas)",
+        chrome: "var(--bg-chrome)",
         surface: "var(--bg-surface)",
         "surface-alt": "var(--bg-surface-secondary)",
         ink: "var(--text-primary)",
@@ -21,9 +22,14 @@ const config: Config = {
         edge: "var(--border-subtle)",
         sage: {
           DEFAULT: "var(--brand-primary)",
+          accent: "var(--brand-accent)",
           dark: "var(--brand-dark)",
         },
         sand: "var(--accent-sand)",
+        gold: {
+          DEFAULT: "var(--accent-gold)",
+          ink: "var(--accent-gold-ink)",
+        },
         positive: "var(--status-positive)",
         negative: "var(--status-negative)",
         warning: "var(--status-warning)",

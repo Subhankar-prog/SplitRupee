@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useId, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useUser } from "@/lib/userContext";
 import {
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { formatINR, roundFigure } from "@/lib/money";
 import type { MemberDTO } from "@/lib/types";
+import { useDialogAccessibility } from "@/components/ui/primitives";
 
 interface RecurringItem {
   id: string;
@@ -69,6 +70,7 @@ export default function RecurringExpensesModal({
   onExpenseCreated,
 }: RecurringExpensesModalProps) {
   const [recurringList, setRecurringList] = useState<RecurringItem[]>([]);
+  const baseId = useId();
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -186,36 +188,46 @@ export default function RecurringExpensesModal({
   }
 
   const { currentUser } = useUser();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogAccessibility(isOpen, onClose, dialogRef);
 
   if (!isOpen) return null;
 
   if (!currentUser?.isPro) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4 backdrop-blur-sm animate-in fade-in duration-150">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)] p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
+          aria-labelledby={titleId}
           className="relative w-full max-w-md rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-center space-y-4 shadow-popover"
         >
           <button
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="absolute top-4 right-4 rounded-lg p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="absolute top-3 right-3 h-11 w-11 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
           <div className="mx-auto h-11 w-11 rounded-xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] text-[var(--status-warning)] grid place-items-center">
             <Repeat className="h-5 w-5" />
           </div>
-          <h3 className="font-display text-lg font-semibold text-[var(--text-primary)]">SplitRupee Pro Feature</h3>
+          <h3 id={titleId} className="font-display text-lg font-semibold text-[var(--text-primary)]">SplitRupee Pro Feature</h3>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
             Automated recurring expenses (Flat Rent, Cook Salary, Maid, Wi-Fi) are exclusively available for Pro members.
           </p>
           <Link
             href="/pro"
             onClick={onClose}
-            className="inline-flex h-10 items-center justify-center gap-2 w-full rounded-xl bg-[var(--accent-sand)] px-4 text-xs font-semibold text-[#171F1D] hover:opacity-95 transition-opacity"
+            className="inline-flex h-10 items-center justify-center gap-2 w-full rounded-xl bg-[var(--accent-gold)] hover:bg-[var(--accent-gold-hover)] px-4 text-xs font-semibold text-[#171613] transition-colors"
           >
             <Sparkles className="h-4 w-4" />
             <span>Upgrade to Pro</span>
@@ -226,10 +238,17 @@ export default function RecurringExpensesModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--overlay-backdrop)] p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-popover flex flex-col max-h-[88vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -241,11 +260,11 @@ export default function RecurringExpensesModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">
+                <h3 id={titleId} className="font-display text-base font-semibold text-[var(--text-primary)]">
                   Automated Recurring Expenses
                 </h3>
-                <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] text-[9px] font-semibold px-1.5 py-0.5 flex items-center gap-1">
-                  <Sparkles className="h-2.5 w-2.5" /> PRO
+                <span className="rounded-full bg-[var(--status-warning-bg)] text-[var(--status-warning)] border border-[var(--status-warning-border)] text-[11px] font-semibold px-2 py-0.5 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" aria-hidden="true" /> PRO
                 </span>
               </div>
               <p className="text-[11px] text-[var(--text-secondary)]">
@@ -257,7 +276,7 @@ export default function RecurringExpensesModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="h-8 w-8 rounded-lg border border-[var(--border-subtle)] grid place-items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+            className="h-11 w-11 sm:h-8 sm:w-8 rounded-lg border border-[var(--border-subtle)] grid place-items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -274,7 +293,7 @@ export default function RecurringExpensesModal({
               <button
                 type="button"
                 onClick={() => setShowAddForm(true)}
-                className="flex h-8 items-center gap-1.5 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity"
+                className="flex h-8 items-center gap-1.5 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Add Recurring Bill</span>
@@ -284,7 +303,7 @@ export default function RecurringExpensesModal({
 
           {/* Add Form */}
           {showAddForm && (
-            <form onSubmit={handleCreate} className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--bg-surface-secondary)] p-4 space-y-3.5 animate-in fade-in">
+            <form onSubmit={handleCreate} className="rounded-2xl border border-[var(--status-positive-border)] bg-[var(--bg-surface-secondary)] p-4 space-y-3.5">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] flex items-center gap-1.5">
                   <Repeat className="h-3.5 w-3.5" /> Set Up Recurring Expense
@@ -333,19 +352,21 @@ export default function RecurringExpensesModal({
               {/* Title & Amount */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">Bill Title</label>
+                  <label htmlFor={`${baseId}-title`} className="text-[11px] font-medium text-[var(--text-secondary)]">Bill Title</label>
                   <input
+                    id={`${baseId}-title`}
                     type="text"
                     placeholder="e.g. Flat 402 Rent, Cook salary"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
-                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)]"
+                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">Amount (₹)</label>
+                  <label htmlFor={`${baseId}-amount`} className="text-[11px] font-medium text-[var(--text-secondary)]">Amount (₹)</label>
                   <input
+                    id={`${baseId}-amount`}
                     type="number"
                     step="1"
                     min="1"
@@ -359,7 +380,7 @@ export default function RecurringExpensesModal({
                       }
                     }}
                     required
-                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-semibold tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 outline-none focus:border-[var(--brand-primary)]"
+                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs font-semibold tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-primary)]"
                   />
                 </div>
               </div>
@@ -367,11 +388,12 @@ export default function RecurringExpensesModal({
               {/* Paid By & Day of Month */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">Paid By</label>
+                  <label htmlFor={`${baseId}-paidby`} className="text-[11px] font-medium text-[var(--text-secondary)]">Paid By</label>
                   <select
+                    id={`${baseId}-paidby`}
                     value={paidById}
                     onChange={(e) => setPaidById(e.target.value)}
-                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
+                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
                   >
                     {members.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -381,11 +403,12 @@ export default function RecurringExpensesModal({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium text-[var(--text-secondary)]">Post Day of Month</label>
+                  <label htmlFor={`${baseId}-day`} className="text-[11px] font-medium text-[var(--text-secondary)]">Post Day of Month</label>
                   <select
+                    id={`${baseId}-day`}
                     value={dayOfMonth}
                     onChange={(e) => setDayOfMonth(e.target.value)}
-                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
+                    className="mt-1 h-9 w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
                   >
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                       <option key={d} value={d}>
@@ -407,7 +430,7 @@ export default function RecurringExpensesModal({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="h-9 rounded-xl bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95 transition-opacity disabled:opacity-50"
+                  className="h-9 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors disabled:opacity-50"
                 >
                   {submitting ? "Saving..." : "Start Auto-Posting"}
                 </button>
@@ -431,7 +454,7 @@ export default function RecurringExpensesModal({
               <button
                 type="button"
                 onClick={() => setShowAddForm(true)}
-                className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--brand-dark)] dark:bg-[var(--brand-primary)] px-3 text-xs font-semibold text-white dark:text-[#171F1D] hover:opacity-95"
+                className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
               >
                 <Plus className="h-3 w-3" />
                 <span>Add First Recurring Bill</span>
@@ -460,7 +483,7 @@ export default function RecurringExpensesModal({
                           <h5 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] truncate">
                             {item.title}
                           </h5>
-                          <span className="rounded-full bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] text-[9px] font-semibold px-1.5 py-0.5">
+                          <span className="rounded-full bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] text-[11px] font-semibold px-2 py-0.5">
                             Active
                           </span>
                         </div>
@@ -481,7 +504,8 @@ export default function RecurringExpensesModal({
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id)}
-                        className="h-8 w-8 rounded-lg border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] grid place-items-center text-[var(--status-negative)] hover:opacity-90 transition-opacity"
+                        className="h-11 w-11 sm:h-8 sm:w-8 rounded-lg border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] grid place-items-center text-[var(--status-negative)] hover:opacity-90 transition-opacity"
+                        aria-label={`Delete recurring rule ${item.title}`}
                         title="Delete recurring rule"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

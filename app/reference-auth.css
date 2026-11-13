@@ -20,28 +20,34 @@
     transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Split Architectural Brand Panel (replaces neon rotating diagonal glow) */
+/* Split Architectural Brand Panel (Warm Deep Chocolate) */
 .auth-wrapper .background-shape {
     position: absolute;
     right: 0;
     top: 0;
     height: 100%;
     width: 50%;
-    background: #263A32;
+    background: #29251F;
     transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 1;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 1px solid rgba(248, 240, 228, 0.12);
 }
 
 html.dark .auth-wrapper .background-shape,
 [data-theme="dark"] .auth-wrapper .background-shape {
-    background: #1B2723;
+    background: #1C1A16;
+    border-left: 1px solid var(--border-subtle);
 }
 
 .auth-wrapper.toggled .background-shape {
     transform: translateX(-100%);
     border-left: none;
     border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html.dark .auth-wrapper.toggled .background-shape,
+[data-theme="dark"] .auth-wrapper.toggled .background-shape {
+    border-right: 1px solid var(--border-subtle);
 }
 
 .auth-wrapper .secondary-shape {
@@ -130,7 +136,7 @@ html.dark .auth-wrapper .background-shape,
     width: 100%;
     height: 100%;
     background: var(--bg-surface-secondary);
-    border: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
     outline: none;
     font-size: 13.5px;
@@ -147,7 +153,8 @@ html.dark .auth-wrapper .background-shape,
 
 .field-wrapper input:focus {
     background: var(--bg-surface);
-    box-shadow: 0 0 0 3px var(--status-positive-bg);
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 1px;
 }
 
 .field-wrapper label {
@@ -168,14 +175,8 @@ html.dark .auth-wrapper .background-shape,
     top: 8px;
     transform: translateY(0);
     font-size: 10px;
-    color: var(--brand-dark);
-    font-weight: 600;
-}
-
-html.dark .field-wrapper input:focus ~ label,
-html.dark .field-wrapper input:not(:placeholder-shown) ~ label,
-html.dark .field-wrapper input[data-has-value="true"] ~ label {
     color: var(--brand-primary);
+    font-weight: 600;
 }
 
 .field-wrapper .field-icon {
@@ -214,28 +215,22 @@ html.dark .field-wrapper input[data-has-value="true"] ~ label {
     position: relative;
     width: 100%;
     height: 44px;
-    background: var(--brand-dark);
+    background: var(--brand-primary);
     border-radius: 12px;
     cursor: pointer;
     font-size: 13.5px;
     font-weight: 600;
     border: 1px solid transparent;
-    color: #ffffff;
+    color: var(--brand-ink);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    transition: opacity 0.15s ease;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
-html.dark .submit-button,
-[data-theme="dark"] .submit-button {
-    background: var(--brand-primary);
-    color: #171F1D;
-}
-
-.submit-button:hover {
-    opacity: 0.94;
+.submit-button:hover:not(:disabled) {
+    background: var(--brand-primary-hover);
 }
 
 .submit-button:disabled {
@@ -254,16 +249,11 @@ html.dark .submit-button,
 .switch-link a,
 .switch-link button {
     text-decoration: none;
-    color: var(--brand-dark);
+    color: var(--brand-primary);
     font-weight: 600;
     background: none;
     border: none;
     cursor: pointer;
-}
-
-html.dark .switch-link a,
-html.dark .switch-link button {
-    color: var(--brand-primary);
 }
 
 .switch-link a:hover,
@@ -330,14 +320,14 @@ html.dark .switch-link button {
     font-size: 26px;
     font-weight: 600;
     line-height: 1.2;
-    color: #F3F4EE;
+    color: #F8F0E4;
     letter-spacing: -0.02em;
 }
 
 .welcome-section p {
     font-size: 13px;
     margin-top: 8px;
-    color: #C9D2CB;
+    color: #C8BBAA;
     line-height: 1.55;
     max-width: 290px;
 }
@@ -390,5 +380,19 @@ html.dark .switch-link button {
     .credentials-panel.signup .slide-element {
         transform: none !important;
         opacity: 1 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .ref-auth-container {
+        padding: 8px 6px;
+    }
+
+    .auth-wrapper .credentials-panel {
+        padding: 22px 16px;
+    }
+
+    .field-wrapper {
+        margin-top: 14px;
     }
 }
