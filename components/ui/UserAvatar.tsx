@@ -110,7 +110,6 @@ export default function UserAvatar({
           src={avatarUrl!}
           alt={alt || cleanName}
           referrerPolicy={referrerPolicy}
-          crossOrigin="anonymous"
           loading="lazy"
           decoding="async"
           onError={() => setImgError(true)}
