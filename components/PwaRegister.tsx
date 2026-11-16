@@ -98,13 +98,22 @@ export default function PwaRegister() {
 
   if (isOffline) {
     return (
-      <div className="fixed top-14 sm:top-16 left-0 right-0 z-40 pointer-events-none transition-all duration-200">
-        <div className="flex items-center justify-center gap-2 bg-[var(--status-warning-bg)] border-b border-[var(--status-warning-border)] text-[var(--text-primary)] py-1.5 px-4 shadow-sm backdrop-blur-sm text-xs font-medium text-center">
-          <WifiOff className="h-3.5 w-3.5 shrink-0 text-[var(--status-warning)]" />
-          <span>
-            You&apos;re currently offline. Your changes are saved locally
-            {pendingCount > 0 ? ` (${pendingCount} change${pendingCount > 1 ? "s" : ""} waiting to sync)` : ""}.
-          </span>
+      <div className="fixed bottom-20 md:bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-40 pointer-events-auto transition-all duration-200">
+        <div className="flex items-center justify-between gap-3 bg-[var(--bg-surface)] dark:bg-[var(--bg-surface-secondary)] border border-[var(--status-warning-border)] text-[var(--text-primary)] py-2 px-3.5 rounded-2xl shadow-[var(--shadow-popover)] text-xs font-medium">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="flex h-2 w-2 rounded-full bg-[var(--status-warning)] shrink-0 animate-pulse" />
+            <WifiOff className="h-3.5 w-3.5 shrink-0 text-[var(--status-warning)]" />
+            <span className="truncate">
+              Offline Mode • Saved locally
+              {pendingCount > 0 ? ` (${pendingCount} queued)` : ""}
+            </span>
+          </div>
+          <a
+            href="/offline"
+            className="shrink-0 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] underline hover:opacity-80"
+          >
+            Details
+          </a>
         </div>
       </div>
     );
@@ -112,8 +121,9 @@ export default function PwaRegister() {
 
   if (showReconnected) {
     return (
-      <div className="fixed top-14 sm:top-16 left-0 right-0 z-40 pointer-events-none transition-all duration-200">
-        <div className="flex items-center justify-center gap-2 bg-[var(--status-positive-bg)] border-b border-[var(--status-positive-border)] text-[var(--text-primary)] py-1.5 px-4 shadow-sm backdrop-blur-sm text-xs font-medium text-center">
+      <div className="fixed bottom-20 md:bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-40 pointer-events-auto transition-all duration-200">
+        <div className="flex items-center gap-2.5 bg-[var(--bg-surface)] dark:bg-[var(--bg-surface-secondary)] border border-[var(--status-positive-border)] text-[var(--text-primary)] py-2 px-3.5 rounded-2xl shadow-[var(--shadow-popover)] text-xs font-medium">
+          <span className="flex h-2 w-2 rounded-full bg-[var(--status-positive)] shrink-0" />
           <Wifi className="h-3.5 w-3.5 shrink-0 text-[var(--status-positive)]" />
           <span>Back online! Connection restored.</span>
         </div>

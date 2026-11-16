@@ -47,7 +47,6 @@ export default function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const joinCodeInputId = useId();
-  const mobileDrawerRef = useRef<HTMLElement>(null);
   const { currentUser } = useUser();
   const [groups, setGroups] = useState<GroupDTO[]>([]);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -57,8 +56,6 @@ export default function Sidebar({
   const [joining, setJoining] = useState(false);
   const [joinErr, setJoinErr] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  useDialogAccessibility(Boolean(isOpen), () => onClose?.(), mobileDrawerRef);
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -344,39 +341,7 @@ export default function Sidebar({
         {sidebarContent}
       </aside>
 
-      {/* Mobile Slide-Over Drawer */}
-      {isOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div
-            className="fixed inset-0 bg-[var(--overlay-backdrop)] overscroll-contain touch-none sr-modal-backdrop"
-            onClick={onClose}
-            aria-hidden="true"
-          />
-          <aside
-            ref={mobileDrawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation drawer"
-            tabIndex={-1}
-            className="relative z-10 w-72 max-w-[85vw] h-full border-r border-[var(--border-subtle)] bg-[var(--bg-chrome)] shadow-[var(--shadow-popover)] flex flex-col outline-none overscroll-contain sr-drawer-panel"
-          >
-            <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border-subtle)]">
-              <span className="font-display text-sm font-semibold text-[var(--text-primary)]">
-                Navigation
-              </span>
-              <button
-                type="button"
-                onClick={onClose}
-                className="grid h-11 w-11 place-items-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-secondary)] hover:text-[var(--text-primary)]"
-                aria-label="Close navigation"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">{sidebarContent}</div>
-          </aside>
-        </div>
-      )}
+
 
       {/* Mobile Bottom Navigation Bar */}
       <nav

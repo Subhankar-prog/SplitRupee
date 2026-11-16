@@ -99,7 +99,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { userId, name, phone, upiId, avatarColor, customAvatarUrl, removeCustomAvatar, syncGoogleAvatar } = body;
+    const { userId, name, phone, upiId, avatarColor, customAvatarUrl, removeCustomAvatar, useInitials, syncGoogleAvatar } = body;
 
     if (!userId) {
       return NextResponse.json({ ok: false, error: "userId is required" }, { status: 400 });
@@ -366,11 +366,15 @@ export async function PATCH(req: Request) {
     }
 
     // Avatar updates according to priority:
-    // 1. Custom avatar
-    // 2. Google avatar
-    // 3. Initials fallback
+    // 1. Explicit initials preference (clears custom and photo)
+    // 2. Preset / Custom avatar (e.g. /avatars/avatar-X.svg)
+    // 3. Google avatar
+    // 4. Initials fallback
     const avatarUpdates: any = {};
-    if (removeCustomAvatar === true) {
+    if (useInitials === true) {
+      avatarUpdates.customAvatarUrl = null;
+      avatarUpdates.avatarUrl = null;
+    } else if (removeCustomAvatar === true) {
       avatarUpdates.customAvatarUrl = null;
       avatarUpdates.avatarUrl = currentUser.googleAvatarUrl || null;
     } else if (customAvatarUrl !== undefined) {

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-phoenix" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" />
+      <stop offset="100%" stop-color="#991B1B" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="50" fill="url(#bg-phoenix)" />
+  <!-- Flame Wings -->
+  <path d="M50 20 C42 34 32 46 22 48 C30 52 40 48 44 44 C34 56 26 66 32 74 C38 68 44 58 46 52 C44 64 42 76 50 82 C58 76 56 64 54 52 C56 58 62 68 68 74 C74 66 66 56 56 44 C60 48 70 52 78 48 C68 46 58 34 50 20 Z" fill="#FBBF24" />
+  <path d="M50 26 C44 38 38 48 30 50 C38 52 44 48 46 44 C40 54 36 62 40 68 C44 62 47 54 48 50 C47 60 46 70 50 74 C54 70 53 60 52 50 C53 54 56 62 60 68 C64 62 60 54 54 44 C56 48 62 52 70 50 C62 48 56 38 50 26 Z" fill="#F59E0B" />
+  <circle cx="50" cy="38" r="4" fill="#FEF3C7" />
+</svg>

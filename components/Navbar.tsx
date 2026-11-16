@@ -195,8 +195,19 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     }
     const uid: string = userId;
     let isMounted = true;
-    const mapActivitiesToNotifs = (list: any[], readWatermark: number) =>
-      list.slice(0, 5).map((a: any) => {
+    const getReadNotifIds = (): Set<string> => {
+      if (typeof window === "undefined") return new Set();
+      try {
+        const raw = localStorage.getItem(`splitrupee_notif_read_ids_${uid}`);
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+      } catch {
+        return new Set();
+      }
+    };
+
+    const mapActivitiesToNotifs = (list: any[], readWatermark: number) => {
+      const readIds = getReadNotifIds();
+      return list.slice(0, 5).map((a: any) => {
         const createdMs = new Date(a.createdAt).getTime();
         const diffMins = Math.floor((Date.now() - createdMs) / (1000 * 60));
         let timeStr = "Just now";
@@ -230,14 +241,16 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         }
 
         const isRecent = Number.isFinite(createdMs) && createdMs > readWatermark;
+        const isIndividuallyRead = readIds.has(a.id);
         return {
           id: a.id,
           title,
           desc,
           time: timeStr,
-          unread: isRecent && a.userId !== uid,
+          unread: isRecent && a.userId !== uid && !isIndividuallyRead,
         };
       });
+    };
 
     const readWatermark =
       typeof window !== "undefined"
@@ -293,9 +306,26 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
     const now = Date.now();
     if (typeof window !== "undefined") {
       localStorage.setItem(`splitrupee_notif_read_${currentUser.id}`, String(now));
+      localStorage.removeItem(`splitrupee_notif_read_ids_${currentUser.id}`);
     }
     setNotifReadAt(now);
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  }
+
+  function handleNotificationClick(notifId: string) {
+    if (!currentUser?.id) return;
+    const uid = currentUser.id;
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notifId ? { ...n, unread: false } : n))
+    );
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`splitrupee_notif_read_ids_${uid}`);
+        const set = stored ? new Set(JSON.parse(stored)) : new Set<string>();
+        set.add(notifId);
+        localStorage.setItem(`splitrupee_notif_read_ids_${uid}`, JSON.stringify(Array.from(set)));
+      } catch {}
+    }
   }
 
   const profileRef = useRef<HTMLDivElement>(null);
@@ -449,17 +479,31 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                   {notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`rounded-xl p-2.5 text-xs border ${
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleNotificationClick(n.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleNotificationClick(n.id);
+                        }
+                      }}
+                      className={`rounded-xl p-2.5 text-xs border cursor-pointer transition-all hover:scale-[1.01] ${
                         n.unread
-                          ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]"
-                          : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]"
+                          ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] shadow-xs"
+                          : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] opacity-85"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-[var(--text-primary)] text-[11px]">{n.title}</p>
-                        <span className="text-[11px] text-[var(--text-secondary)] shrink-0">{n.time}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {n.unread && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-positive)] shrink-0" aria-label="Unread" />
+                          )}
+                          <p className="font-semibold text-[var(--text-primary)] text-[11px] truncate">{n.title}</p>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-secondary)] shrink-0">{n.time}</span>
                       </div>
-                      <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{n.desc}</p>
+                      <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">{n.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -765,30 +809,19 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         {isAppRoute && currentUser ? (
           <div className="md:hidden px-3.5 py-2.5 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <button
-                  type="button"
-                  onClick={onToggleSidebar}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-                  title="Open menu"
-                  aria-label="Open navigation"
-                >
-                  <Menu className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)]">
-                    <span className="text-base">₹</span>
-                  </div>
-                  <div className="leading-tight min-w-0">
-                    <span className="font-display font-bold tracking-tight text-[var(--text-primary)] text-sm block truncate">
-                      SplitRupee
-                    </span>
-                    <span className="text-[10px] text-[var(--text-secondary)] tracking-wider uppercase font-medium block -mt-0.5 truncate">
-                      Expense Ledger
-                    </span>
-                  </div>
-                </Link>
-              </div>
+              <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)]">
+                  <span className="text-base">₹</span>
+                </div>
+                <div className="leading-tight min-w-0">
+                  <span className="font-display font-bold tracking-tight text-[var(--text-primary)] text-sm block truncate">
+                    SplitRupee
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] tracking-wider uppercase font-medium block -mt-0.5 truncate">
+                    Expense Ledger
+                  </span>
+                </div>
+              </Link>
 
               {!currentUser.isPro && (
                 <Link
@@ -918,17 +951,31 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
                             {notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`rounded-xl p-2.5 text-xs border ${
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleNotificationClick(n.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    handleNotificationClick(n.id);
+                                  }
+                                }}
+                                className={`rounded-xl p-2.5 text-xs border cursor-pointer transition-all ${
                                   n.unread
-                                    ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)]"
-                                    : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)]"
+                                    ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] shadow-xs"
+                                    : "bg-[var(--bg-surface-secondary)] border-[var(--border-subtle)] opacity-85"
                                 }`}
                               >
-                                <div className="flex items-center justify-between">
-                                  <p className="font-semibold text-[var(--text-primary)] text-[11px]">{n.title}</p>
-                                  <span className="text-[10px] text-[var(--text-secondary)]">{n.time}</span>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    {n.unread && (
+                                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-positive)] shrink-0" aria-label="Unread" />
+                                    )}
+                                    <p className="font-semibold text-[var(--text-primary)] text-[11px] truncate">{n.title}</p>
+                                  </div>
+                                  <span className="text-[10px] text-[var(--text-secondary)] shrink-0">{n.time}</span>
                                 </div>
-                                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{n.desc}</p>
+                                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">{n.desc}</p>
                               </div>
                             ))}
                           </div>

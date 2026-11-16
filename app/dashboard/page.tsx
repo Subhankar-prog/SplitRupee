@@ -43,6 +43,8 @@ import {
   Shapes,
   Compass,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
@@ -89,6 +91,11 @@ export default function DashboardPage() {
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [fetchIssue, setFetchIssue] = useState<FetchIssueState | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+
+  // Progressive disclosure for long sections
+  const [showAllGroups, setShowAllGroups] = useState(false);
+  const [showAllBalances, setShowAllBalances] = useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false);
 
   // Modals
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -623,7 +630,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            {groups.map((g) => {
+            {(showAllGroups ? groups : groups.slice(0, 4)).map((g) => {
               const Icon = TYPE_ICONS[g.type] || Tag;
               const net = overallStats.groupBalances[g.id] ?? 0;
               const detail = groupDetails[g.id];
@@ -701,6 +708,21 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {groups.length > 4 && (
+            <button
+              type="button"
+              onClick={() => setShowAllGroups(!showAllGroups)}
+              className="w-full mt-3 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-secondary)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <span>{showAllGroups ? "Show Less Groups" : `View All Groups (${groups.length})`}</span>
+              {showAllGroups ? (
+                <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Right Col: Direct Friends Balances & Settlements */}
@@ -719,63 +741,86 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {Object.values(overallStats.friendsBalances).map(({ user, net, groupId }) => {
-                  const isOwed = net > 0;
+                {(() => {
+                  const allBalances = Object.values(overallStats.friendsBalances);
+                  const visibleBalances = showAllBalances ? allBalances : allBalances.slice(0, 3);
                   return (
-                    <div
-                      key={user.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <UserAvatar
-                          name={user.name}
-                          avatarUrl={user.avatarUrl}
-                          avatarColor={user.avatarColor}
-                          size="md"
-                          shape="square"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">{user.name}</p>
-                          <p
-                            className={`text-[11px] font-semibold tabular-nums mt-0.5 ${
-                              isOwed ? "text-[var(--status-positive)]" : "text-[var(--status-negative)]"
-                            }`}
+                    <>
+                      {visibleBalances.map(({ user, net, groupId }) => {
+                        const isOwed = net > 0;
+                        return (
+                          <div
+                            key={user.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] p-3"
                           >
-                            {isOwed ? `owes you ${formatPaise(net)}` : `you owe ${formatPaise(-net)}`}
-                          </p>
-                        </div>
-                      </div>
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <UserAvatar
+                                name={user.name}
+                                avatarUrl={user.avatarUrl}
+                                avatarColor={user.avatarColor}
+                                size="md"
+                                shape="square"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-[var(--text-primary)] break-words leading-tight">{user.name}</p>
+                                <p
+                                  className={`text-[11px] font-semibold tabular-nums mt-0.5 ${
+                                    isOwed ? "text-[var(--status-positive)]" : "text-[var(--status-negative)]"
+                                  }`}
+                                >
+                                  {isOwed ? `owes you ${formatPaise(net)}` : `you owe ${formatPaise(-net)}`}
+                                </p>
+                              </div>
+                            </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const gDetail = groupDetails[groupId];
-                          const gLedger = gDetail
-                            ? buildLedger(
-                                gDetail.expenses.map((e: any) => ({ paidById: e.paidById, splits: e.splits })),
-                                gDetail.members.map((m: any) => m.id),
-                                gDetail.payments.map((p: any) => ({ payerId: p.payerId, receiverId: p.receiverId, amount: p.amount }))
-                              )
-                            : { transfers: [], balances: {} };
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const gDetail = groupDetails[groupId];
+                                const gLedger = gDetail
+                                  ? buildLedger(
+                                      gDetail.expenses.map((e: any) => ({ paidById: e.paidById, splits: e.splits })),
+                                      gDetail.members.map((m: any) => m.id),
+                                      gDetail.payments.map((p: any) => ({ payerId: p.payerId, receiverId: p.receiverId, amount: p.amount }))
+                                    )
+                                  : { transfers: [], balances: {} };
 
-                          setSettleUpData({
-                            groupId,
-                            members: gDetail?.members || [currentUser, user],
-                            groupCreatorId: gDetail?.creatorId,
-                            transfers: gLedger.transfers,
-                            balances: gLedger.balances,
-                            payerId: isOwed ? user.id : currentUser.id,
-                            receiverId: isOwed ? currentUser.id : user.id,
-                            amount: Math.abs(net) / 100,
-                          });
-                        }}
-                        className="min-h-[44px] sm:min-h-0 rounded-lg border border-[var(--brand-tint-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink)] hover:border-[var(--brand-primary)] transition-colors shrink-0"
-                      >
-                        Settle Up
-                      </button>
-                    </div>
+                                setSettleUpData({
+                                  groupId,
+                                  members: gDetail?.members || [currentUser, user],
+                                  groupCreatorId: gDetail?.creatorId,
+                                  transfers: gLedger.transfers,
+                                  balances: gLedger.balances,
+                                  payerId: isOwed ? user.id : currentUser.id,
+                                  receiverId: isOwed ? currentUser.id : user.id,
+                                  amount: Math.abs(net) / 100,
+                                });
+                              }}
+                              className="min-h-[44px] sm:min-h-0 rounded-lg border border-[var(--brand-tint-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[11px] font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-ink)] hover:border-[var(--brand-primary)] transition-colors shrink-0 cursor-pointer"
+                            >
+                              Settle Up
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {allBalances.length > 3 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllBalances(!showAllBalances)}
+                          className="w-full mt-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <span>{showAllBalances ? "Show Less" : `View More (${allBalances.length - 3} more)`}</span>
+                          {showAllBalances ? (
+                            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                          )}
+                        </button>
+                      )}
+                    </>
                   );
-                })}
+                })()}
               </div>
             )}
           </div>
@@ -957,7 +1002,22 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        <ActivityLogList activities={activities} showGroupName={true} />
+        <ActivityLogList activities={showAllActivities ? activities : activities.slice(0, 3)} showGroupName={true} />
+
+        {activities.length > 3 && (
+          <button
+            type="button"
+            onClick={() => setShowAllActivities(!showAllActivities)}
+            className="w-full mt-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <span>{showAllActivities ? "Show Less Activity" : `View More Activity (${activities.length - 3} more)`}</span>
+            {showAllActivities ? (
+              <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Modals */}

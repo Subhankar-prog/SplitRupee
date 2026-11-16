@@ -19,8 +19,7 @@ import {
   ShieldCheck,
   Smartphone,
   Trash2,
-  Camera,
-  Upload,
+  Palette,
   Image as ImageIcon,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
@@ -30,6 +29,7 @@ import {
   DEFAULT_AVATAR_COLOR,
   getAvatarTextColor,
 } from "@/lib/avatarColors";
+import { PRESET_AVATARS, isPresetAvatar } from "@/lib/presetAvatars";
 import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import QrCodeImage from "@/components/ui/QrCodeImage";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -60,7 +60,7 @@ export default function ProfileSettingsModal({
   const [avatarColor, setAvatarColor] = useState(DEFAULT_AVATAR_COLOR);
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
   const [removeCustomAvatar, setRemoveCustomAvatar] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [useInitialsOnly, setUseInitialsOnly] = useState(false);
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
@@ -126,27 +126,31 @@ export default function ProfileSettingsModal({
       setAvatarColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR);
       setCustomAvatarUrl(currentUser.customAvatarUrl || null);
       setRemoveCustomAvatar(false);
+      setUseInitialsOnly(!currentUser.customAvatarUrl && !currentUser.avatarUrl && !currentUser.googleAvatarUrl);
     }
   }, [currentUser, isOpen]);
 
-  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Please select an image smaller than 2MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setCustomAvatarUrl(reader.result);
-        setRemoveCustomAvatar(false);
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleSelectPreset = (url: string) => {
+    setCustomAvatarUrl(url);
+    setRemoveCustomAvatar(false);
+    setUseInitialsOnly(false);
   };
 
-  const effectiveAvatarUrl = removeCustomAvatar
+  const handleSelectGooglePhoto = () => {
+    setCustomAvatarUrl(null);
+    setRemoveCustomAvatar(true);
+    setUseInitialsOnly(false);
+  };
+
+  const handleSelectInitials = () => {
+    setCustomAvatarUrl(null);
+    setRemoveCustomAvatar(false);
+    setUseInitialsOnly(true);
+  };
+
+  const effectiveAvatarUrl = useInitialsOnly
+    ? null
+    : removeCustomAvatar
     ? (currentUser?.googleAvatarUrl || null)
     : (customAvatarUrl || currentUser?.avatarUrl || null);
 
@@ -220,7 +224,9 @@ export default function ProfileSettingsModal({
         avatarColor,
       };
 
-      if (removeCustomAvatar) {
+      if (useInitialsOnly) {
+        patchPayload.useInitials = true;
+      } else if (removeCustomAvatar) {
         patchPayload.removeCustomAvatar = true;
       } else if (customAvatarUrl && customAvatarUrl !== currentUser.customAvatarUrl) {
         patchPayload.customAvatarUrl = customAvatarUrl;
@@ -372,16 +378,18 @@ export default function ProfileSettingsModal({
               />
             </div>
 
-            {/* Profile Picture & Avatar Priority */}
-            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-3">
+            {/* Profile Picture & Preset Avatar Selection */}
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[var(--text-secondary)]">Profile Picture</span>
+                <span className="text-xs font-medium text-[var(--text-secondary)]">Profile Avatar</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)]">
-                  {!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)
-                    ? "Priority 1: Custom Photo"
-                    : currentUser.googleAvatarUrl
-                    ? "Priority 2: Google Photo"
-                    : "Priority 3: Initials Fallback"}
+                  {isPresetAvatar(effectiveAvatarUrl)
+                    ? "Curated Preset"
+                    : effectiveAvatarUrl && effectiveAvatarUrl === currentUser.googleAvatarUrl
+                    ? "Google Profile"
+                    : !effectiveAvatarUrl
+                    ? "Initials"
+                    : "Current Avatar"}
                 </span>
               </div>
 
@@ -393,52 +401,91 @@ export default function ProfileSettingsModal({
                   size="xl"
                   shape="rounded"
                   isPro={currentUser.isPro}
-                  className="shadow-sm border border-[var(--border-subtle)]"
+                  className="shadow-sm border border-[var(--border-subtle)] shrink-0"
                 />
 
-                <div className="flex-1 space-y-1.5 min-w-0">
+                <div className="flex-1 space-y-2 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--brand-primary)] text-xs font-semibold text-[var(--text-primary)] transition-colors"
-                    >
-                      <Camera className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-                      <span>Upload Custom Photo</span>
-                    </button>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarFile}
-                      className="hidden"
-                      aria-label="Upload custom avatar image"
-                    />
-
-                    {(!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)) && (
+                    {currentUser.googleAvatarUrl && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setCustomAvatarUrl(null);
-                          setRemoveCustomAvatar(true);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] text-[var(--status-negative)] text-xs font-semibold hover:opacity-90 transition-opacity"
-                        title="Remove custom photo and revert to Google profile picture or initials"
+                        onClick={handleSelectGooglePhoto}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                          effectiveAvatarUrl === currentUser.googleAvatarUrl && !useInitialsOnly
+                            ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-ink)]"
+                            : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
+                        }`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span>Revert to Google Photo</span>
+                        <span>Use Google Photo</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={handleSelectInitials}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                        useInitialsOnly || (!effectiveAvatarUrl && !currentUser.googleAvatarUrl)
+                          ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-ink)]"
+                          : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
+                      }`}
+                    >
+                      <Palette className="h-3.5 w-3.5" />
+                      <span>Use Initials</span>
+                    </button>
                   </div>
 
                   <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
-                    {!removeCustomAvatar && (customAvatarUrl || currentUser.customAvatarUrl)
-                      ? "Custom avatar overrides Google profile photo and won't be replaced on Google login."
-                      : currentUser.googleAvatarUrl
-                      ? "Automatically synced from your Google account. You can override it with a custom photo anytime."
-                      : "Using your initials and theme color. Connect Google or upload a photo to customize."}
+                    {currentUser.googleAvatarUrl
+                      ? "Select a curated avatar, Google photo, or custom initials."
+                      : "Choose a curated avatar below or style your initials with color themes."}
                   </p>
+                </div>
+              </div>
+
+              {/* Preset Avatars Grid */}
+              <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+                    <span>Curated Avatars</span>
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)]">Zero DB storage</span>
+                </div>
+
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {PRESET_AVATARS.map((preset) => {
+                    const isSelected = effectiveAvatarUrl === preset.url && !useInitialsOnly;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset.url)}
+                        title={preset.name}
+                        aria-label={`Select ${preset.name} avatar`}
+                        className={`group relative p-1 rounded-xl border transition-all duration-150 flex flex-col items-center gap-0.5 cursor-pointer ${
+                          isSelected
+                            ? "border-[var(--brand-primary)] bg-[var(--bg-surface-secondary)] ring-2 ring-[var(--brand-primary)] ring-offset-1 ring-offset-[var(--bg-surface)] scale-105"
+                            : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] hover:border-[var(--brand-primary)] hover:scale-105"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={preset.url}
+                          alt={preset.name}
+                          className="h-8 w-8 rounded-full object-cover"
+                          loading="lazy"
+                        />
+                        <span className="text-[8px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate max-w-[44px] leading-tight text-center">
+                          {preset.name.split(" ")[0]}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-ink)] shadow-sm">
+                            <Check className="h-2 w-2 stroke-[3]" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
