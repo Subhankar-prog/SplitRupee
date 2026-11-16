@@ -507,25 +507,25 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             2. SIGN IN WELCOME SECTION (Right side on desktop when untoggled)
            ========================================================================= */}
         <div aria-hidden={isToggled} className="welcome-section signin">
-          <div className="slide-element text-right max-w-[285px]">
+          <div className="slide-element text-right max-w-[310px]">
             <h2>Welcome Back</h2>
             <p>
               Track shared expenses, simplify group debts, and settle balances with ease.
             </p>
           </div>
 
-          <div className="slide-element mt-6 space-y-3.5 max-w-[250px] ml-auto">
-            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#F8F0E4]">
+          <div className="slide-element mt-4 flex flex-wrap gap-2 justify-end max-w-[310px] ml-auto">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
+              <Split className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
               <span>Smart expense splitting</span>
-              <Split className="h-4 w-4 text-[#A5B995] shrink-0" />
             </div>
-            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#F8F0E4]">
-              <span>Clear group balances</span>
-              <Scale className="h-4 w-4 text-[#E28A63] shrink-0" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
+              <Scale className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
+              <span>Clear balances</span>
             </div>
-            <div className="flex items-center justify-end gap-2.5 text-xs font-medium text-[#F8F0E4]">
-              <span>Quick UPI settlement links</span>
-              <QrCode className="h-4 w-4 text-[#F0BD70] shrink-0" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
+              <QrCode className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
+              <span>UPI settlement links</span>
             </div>
           </div>
         </div>
@@ -813,7 +813,7 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             4. SIGN UP WELCOME SECTION (Left side on desktop when toggled)
            ========================================================================= */}
         <div aria-hidden={!isToggled} className="welcome-section signup">
-          <div className="slide-element text-left max-w-[235px]">
+          <div className="slide-element text-left max-w-[310px]">
             <h2>{isGoogleOnboarding ? "Almost Ready" : "Get Started"}</h2>
             <p>
               {isGoogleOnboarding
@@ -822,18 +822,18 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             </p>
           </div>
 
-          <div className="slide-element mt-6 space-y-3.5 max-w-[235px]">
-            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#F8F0E4]">
-              <Users className="h-4 w-4 text-[#A5B995] shrink-0" />
-              <span>Split expenses with your group</span>
+          <div className="slide-element mt-4 flex flex-wrap gap-2 justify-start max-w-[310px]">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
+              <Users className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
+              <span>Group expense splitting</span>
             </div>
-            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#F8F0E4]">
-              <GitFork className="h-4 w-4 text-[#E28A63] shrink-0" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
+              <GitFork className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
               <span>Track who owes whom</span>
             </div>
-            <div className="flex items-center justify-start gap-2.5 text-xs font-medium text-[#F8F0E4]">
-              <Smartphone className="h-4 w-4 text-[#F0BD70] shrink-0" />
-              <span>Direct UPI settlement links</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
+              <Smartphone className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
+              <span>1-tap settlements</span>
             </div>
           </div>
         </div>
