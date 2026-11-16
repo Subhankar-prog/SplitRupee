@@ -52,7 +52,7 @@ export default function PwaRegister() {
             const installingWorker = reg.installing;
             if (installingWorker) {
               installingWorker.onstatechange = () => {
-                if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+                if (installingWorker.state === "installed") {
                   installingWorker.postMessage({ type: "SKIP_WAITING" });
                 }
               };
@@ -63,11 +63,7 @@ export default function PwaRegister() {
         }
       };
 
-      if (document.readyState === "complete" || document.readyState === "interactive") {
-        registerSW();
-      } else {
-        window.addEventListener("load", registerSW, { once: true });
-      }
+      registerSW();
     }
 
     // 2. Always monitor network online/offline state & queued items across both dev and prod

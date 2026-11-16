@@ -447,7 +447,6 @@ export default function ProfileSettingsModal({
                       <Type className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
                       <span>Funky Typography Style</span>
                     </span>
-                    <span className="text-[10px] text-[var(--text-secondary)]">Zero storage footprint</span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
