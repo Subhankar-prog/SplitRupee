@@ -621,3 +621,55 @@ textarea:focus-visible {
 .keep-white * {
   color: #FFFFFF;
 }
+
+/* =========================================================================
+   FUNKY INITIALS AVATAR TYPOGRAPHY
+   ========================================================================= */
+.avatar-font-funky {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  transform: skewX(-6deg);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.avatar-font-comic {
+  font-family: "Impact", "Arial Black", system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transform: rotate(-3deg) scale(1.04);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.avatar-font-stencil {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.avatar-font-groovy {
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.avatar-font-serif {
+  font-family: "Georgia", "Cambria", serif;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.avatar-font-modern {
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}

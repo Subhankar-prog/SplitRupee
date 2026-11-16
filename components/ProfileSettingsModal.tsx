@@ -20,6 +20,7 @@ import {
   Smartphone,
   Trash2,
   Palette,
+  Type,
   Image as ImageIcon,
 } from "lucide-react";
 import { useUser } from "@/lib/userContext";
@@ -29,7 +30,7 @@ import {
   DEFAULT_AVATAR_COLOR,
   getAvatarTextColor,
 } from "@/lib/avatarColors";
-import { PRESET_AVATARS, isPresetAvatar } from "@/lib/presetAvatars";
+import { INITIAL_FONT_STYLES, getInitialFontClass, getInitials } from "@/lib/initialFonts";
 import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import QrCodeImage from "@/components/ui/QrCodeImage";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -58,9 +59,8 @@ export default function ProfileSettingsModal({
   const [phone, setPhone] = useState("");
   const [upiId, setUpiId] = useState("");
   const [avatarColor, setAvatarColor] = useState(DEFAULT_AVATAR_COLOR);
-  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null);
-  const [removeCustomAvatar, setRemoveCustomAvatar] = useState(false);
-  const [useInitialsOnly, setUseInitialsOnly] = useState(false);
+  const [initialFont, setInitialFont] = useState<string>("funky");
+  const [useGooglePhoto, setUseGooglePhoto] = useState<boolean>(false);
   const [preferredCurrency, setPreferredCurrency] = useState("INR");
 
   const [saving, setSaving] = useState(false);
@@ -124,35 +124,36 @@ export default function ProfileSettingsModal({
       setPhone(currentUser.phone || "");
       setUpiId(currentUser.upiId || "");
       setAvatarColor(currentUser.avatarColor || DEFAULT_AVATAR_COLOR);
-      setCustomAvatarUrl(currentUser.customAvatarUrl || null);
-      setRemoveCustomAvatar(false);
-      setUseInitialsOnly(!currentUser.customAvatarUrl && !currentUser.avatarUrl && !currentUser.googleAvatarUrl);
+      const isGoogleActive = Boolean(
+        currentUser.googleAvatarUrl &&
+        currentUser.avatarUrl === currentUser.googleAvatarUrl &&
+        !currentUser.customAvatarUrl
+      );
+      setUseGooglePhoto(isGoogleActive);
+      if (currentUser.customAvatarUrl?.startsWith("font:")) {
+        setInitialFont(currentUser.customAvatarUrl.replace("font:", ""));
+      } else {
+        setInitialFont("funky");
+      }
     }
   }, [currentUser, isOpen]);
 
-  const handleSelectPreset = (url: string) => {
-    setCustomAvatarUrl(url);
-    setRemoveCustomAvatar(false);
-    setUseInitialsOnly(false);
+  const handleSelectFont = (fontId: string) => {
+    setInitialFont(fontId);
+    setUseGooglePhoto(false);
   };
 
   const handleSelectGooglePhoto = () => {
-    setCustomAvatarUrl(null);
-    setRemoveCustomAvatar(true);
-    setUseInitialsOnly(false);
+    setUseGooglePhoto(true);
   };
 
   const handleSelectInitials = () => {
-    setCustomAvatarUrl(null);
-    setRemoveCustomAvatar(false);
-    setUseInitialsOnly(true);
+    setUseGooglePhoto(false);
   };
 
-  const effectiveAvatarUrl = useInitialsOnly
-    ? null
-    : removeCustomAvatar
+  const effectiveAvatarUrl = useGooglePhoto
     ? (currentUser?.googleAvatarUrl || null)
-    : (customAvatarUrl || currentUser?.avatarUrl || null);
+    : `font:${initialFont}`;
 
   // Read currency preference from localStorage
   useEffect(() => {
@@ -224,12 +225,10 @@ export default function ProfileSettingsModal({
         avatarColor,
       };
 
-      if (useInitialsOnly) {
-        patchPayload.useInitials = true;
-      } else if (removeCustomAvatar) {
+      if (useGooglePhoto) {
         patchPayload.removeCustomAvatar = true;
-      } else if (customAvatarUrl && customAvatarUrl !== currentUser.customAvatarUrl) {
-        patchPayload.customAvatarUrl = customAvatarUrl;
+      } else {
+        patchPayload.customAvatarUrl = `font:${initialFont}`;
       }
 
       const res = await fetch("/api/users", {
@@ -378,18 +377,14 @@ export default function ProfileSettingsModal({
               />
             </div>
 
-            {/* Profile Picture & Preset Avatar Selection */}
+            {/* Profile Picture & Funky Initials Typography Selector */}
             <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3.5 space-y-3.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-[var(--text-secondary)]">Profile Avatar</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-[var(--text-secondary)]">
-                  {isPresetAvatar(effectiveAvatarUrl)
-                    ? "Curated Preset"
-                    : effectiveAvatarUrl && effectiveAvatarUrl === currentUser.googleAvatarUrl
+                  {useGooglePhoto && currentUser.googleAvatarUrl
                     ? "Google Profile"
-                    : !effectiveAvatarUrl
-                    ? "Initials"
-                    : "Current Avatar"}
+                    : "Funky Initials"}
                 </span>
               </div>
 
@@ -398,6 +393,7 @@ export default function ProfileSettingsModal({
                   name={name || currentUser.name}
                   avatarUrl={effectiveAvatarUrl}
                   avatarColor={avatarColor}
+                  fontStyle={initialFont}
                   size="xl"
                   shape="rounded"
                   isPro={currentUser.isPro}
@@ -411,11 +407,12 @@ export default function ProfileSettingsModal({
                         type="button"
                         onClick={handleSelectGooglePhoto}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                          effectiveAvatarUrl === currentUser.googleAvatarUrl && !useInitialsOnly
+                          useGooglePhoto
                             ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-ink)]"
                             : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
                         }`}
                       >
+                        <ImageIcon className="h-3.5 w-3.5" />
                         <span>Use Google Photo</span>
                       </button>
                     )}
@@ -424,70 +421,76 @@ export default function ProfileSettingsModal({
                       type="button"
                       onClick={handleSelectInitials}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                        useInitialsOnly || (!effectiveAvatarUrl && !currentUser.googleAvatarUrl)
+                        !useGooglePhoto
                           ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-ink)]"
                           : "border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] text-[var(--text-primary)] hover:border-[var(--brand-primary)]"
                       }`}
                     >
                       <Palette className="h-3.5 w-3.5" />
-                      <span>Use Initials</span>
+                      <span>Funky Typography</span>
                     </button>
                   </div>
 
                   <p className="text-[11px] text-[var(--text-secondary)] leading-tight">
                     {currentUser.googleAvatarUrl
-                      ? "Select a curated avatar, Google photo, or custom initials."
-                      : "Choose a curated avatar below or style your initials with color themes."}
+                      ? "Switch between your Google account photo or custom funky initials typography."
+                      : "Choose a funky display typography style for your initials below."}
                   </p>
                 </div>
               </div>
 
-              {/* Preset Avatars Grid */}
-              <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
-                    <span>Curated Avatars</span>
-                  </span>
-                  <span className="text-[10px] text-[var(--text-secondary)]">Zero DB storage</span>
-                </div>
+              {/* Funky Initials Typography Grid */}
+              {!useGooglePhoto && (
+                <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Type className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
+                      <span>Funky Typography Style</span>
+                    </span>
+                    <span className="text-[10px] text-[var(--text-secondary)]">Zero storage footprint</span>
+                  </div>
 
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                  {PRESET_AVATARS.map((preset) => {
-                    const isSelected = effectiveAvatarUrl === preset.url && !useInitialsOnly;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleSelectPreset(preset.url)}
-                        title={preset.name}
-                        aria-label={`Select ${preset.name} avatar`}
-                        className={`group relative p-1 rounded-xl border transition-all duration-150 flex flex-col items-center gap-0.5 cursor-pointer ${
-                          isSelected
-                            ? "border-[var(--brand-primary)] bg-[var(--bg-surface-secondary)] ring-2 ring-[var(--brand-primary)] ring-offset-1 ring-offset-[var(--bg-surface)] scale-105"
-                            : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] hover:border-[var(--brand-primary)] hover:scale-105"
-                        }`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={preset.url}
-                          alt={preset.name}
-                          className="h-8 w-8 rounded-full object-cover"
-                          loading="lazy"
-                        />
-                        <span className="text-[8px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate max-w-[44px] leading-tight text-center">
-                          {preset.name.split(" ")[0]}
-                        </span>
-                        {isSelected && (
-                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-ink)] shadow-sm">
-                            <Check className="h-2 w-2 stroke-[3]" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {INITIAL_FONT_STYLES.map((style) => {
+                      const isSelected = initialFont === style.id;
+                      return (
+                        <button
+                          key={style.id}
+                          type="button"
+                          onClick={() => handleSelectFont(style.id)}
+                          className={`group relative p-2 rounded-xl border transition-all duration-150 flex items-center gap-2.5 cursor-pointer text-left ${
+                            isSelected
+                              ? "border-[var(--brand-primary)] bg-[var(--bg-surface-secondary)] ring-2 ring-[var(--brand-primary)] ring-offset-1 ring-offset-[var(--bg-surface)] scale-[1.02]"
+                              : "border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] hover:border-[var(--brand-primary)]"
+                          }`}
+                        >
+                          <div
+                            className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
+                            style={{ backgroundColor: avatarColor, color: getAvatarTextColor(avatarColor) }}
+                          >
+                            <span className={`text-sm select-none ${style.className}`}>
+                              {getInitials(name || currentUser.name)}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
+                              {style.name}
+                            </div>
+                            <div className="text-[9px] text-[var(--text-secondary)] truncate">
+                              {style.description}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <span className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--brand-ink)] shadow-sm">
+                              <Check className="h-2 w-2 stroke-[3]" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Avatar Color Picker */}

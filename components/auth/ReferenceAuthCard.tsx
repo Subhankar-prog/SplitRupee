@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  WifiOff,
 } from "lucide-react";
 
 interface ReferenceAuthCardProps {
@@ -36,8 +37,23 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
   const [isToggled, setIsToggled] = useState(initialMode === "signup");
   const [hasAnimated, setHasAnimated] = useState(false);
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const signinPanelRef = useRef<HTMLDivElement>(null);
   const signupPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setIsOffline(!navigator.onLine);
+      const onOnline = () => setIsOffline(false);
+      const onOffline = () => setIsOffline(true);
+      window.addEventListener("online", onOnline);
+      window.addEventListener("offline", onOffline);
+      return () => {
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+      };
+    }
+  }, []);
 
   // Sync mode with props if changed externally
   useEffect(() => {
@@ -377,6 +393,21 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
             </p>
           </div>
 
+          {isOffline && (
+            <div
+              role="alert"
+              className="slide-element mb-2.5 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-center text-xs text-[var(--status-warning)] flex items-center justify-center gap-1.5"
+            >
+              <WifiOff className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Internet required for sign-in.{" "}
+                <Link href="/offline" className="underline font-semibold hover:opacity-80">
+                  Offline mode
+                </Link>
+              </span>
+            </div>
+          )}
+
           {loginError && (
             <div
               role="alert"
@@ -523,6 +554,21 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
                 : "Create your account to start managing shared expenses"}
             </p>
           </div>
+
+          {isOffline && (
+            <div
+              role="alert"
+              className="slide-element mb-2.5 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-center text-xs text-[var(--status-warning)] flex items-center justify-center gap-1.5"
+            >
+              <WifiOff className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Internet required for sign-up.{" "}
+                <Link href="/offline" className="underline font-semibold hover:opacity-80">
+                  Offline mode
+                </Link>
+              </span>
+            </div>
+          )}
 
           {/* Google Verified Banner during First-Time Onboarding */}
           {isGoogleOnboarding && (

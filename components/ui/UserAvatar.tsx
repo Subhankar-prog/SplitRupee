@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
+import { getInitialFontClass } from "@/lib/initialFonts";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | string;
 export type AvatarShape = "rounded" | "circle" | "square";
@@ -10,6 +11,7 @@ export interface UserAvatarProps {
   name?: string | null;
   avatarUrl?: string | null;
   avatarColor?: string | null;
+  fontStyle?: string | null;
   size?: AvatarSize;
   shape?: AvatarShape;
   isPro?: boolean;
@@ -50,6 +52,7 @@ export default function UserAvatar({
   name = "User",
   avatarUrl,
   avatarColor,
+  fontStyle,
   size = "md",
   shape = "rounded",
   isPro = false,
@@ -92,7 +95,15 @@ export default function UserAvatar({
     ? "#171613"
     : getAvatarTextColor(resolvedColor);
 
-  const hasValidImage = Boolean(avatarUrl && avatarUrl.trim() && !imgError);
+  const hasValidImage = Boolean(
+    avatarUrl &&
+      avatarUrl.trim() &&
+      !avatarUrl.startsWith("font:") &&
+      !avatarUrl.startsWith("/avatars/") &&
+      !imgError
+  );
+
+  const fontClass = getInitialFontClass(fontStyle || (avatarUrl?.startsWith("font:") ? avatarUrl : null));
 
   return (
     <div
@@ -117,7 +128,7 @@ export default function UserAvatar({
         />
       ) : (
         <span
-          className={`leading-none select-none tracking-tight ${sizeStyles.text}`}
+          className={`leading-none select-none tracking-tight ${sizeStyles.text} ${fontClass}`}
           aria-hidden="true"
         >
           {initials}

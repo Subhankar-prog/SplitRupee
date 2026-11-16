@@ -18,8 +18,26 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<MemberDTO[]>([]);
 
-  const [currentUser, setCurrentUser] = useState<MemberDTO | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<MemberDTO | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("splitrupee_session_user");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && (parsed.id || parsed.email)) return parsed;
+        }
+      } catch {}
+    }
+    return null;
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("splitrupee_session_user");
+      if (saved || !navigator.onLine) return false;
+    }
+    return true;
+  });
 
   const refreshUsers = useCallback(async () => {
     try {
@@ -39,6 +57,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (parsedUser) {
         setCurrentUser((prev) => prev || parsedUser);
         setIsLoading(false);
+      }
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setIsLoading(false);
+        return;
       }
 
       const queryUrl = parsedUser?.id
@@ -115,6 +138,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshUsers();
+    if (typeof window !== "undefined") {
+      const handleOnline = () => refreshUsers();
+      window.addEventListener("online", handleOnline);
+      return () => window.removeEventListener("online", handleOnline);
+    }
   }, [refreshUsers]);
 
   const login = useCallback((user: MemberDTO) => {

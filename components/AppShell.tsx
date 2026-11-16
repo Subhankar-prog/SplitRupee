@@ -83,7 +83,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !currentUser && isAppRoute) {
-      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        router.replace("/offline");
+      } else {
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      }
     }
   }, [isLoading, currentUser, isAppRoute, pathname, router]);
 

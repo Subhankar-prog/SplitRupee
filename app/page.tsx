@@ -236,12 +236,28 @@ export default function LandingPage() {
   const [activeUseCase, setActiveUseCase] = useState<UseCaseId>("trips");
   const [activeShowcase, setActiveShowcase] = useState<ShowcaseTabId>("passbook");
 
-  // Redirect signed-in users straight to their dashboard
+  // Redirect signed-in users straight to their dashboard; if offline and logged-out, route cleanly to /offline
   useEffect(() => {
-    if (!isLoading && currentUser) {
-      router.replace("/dashboard");
+    if (!isLoading) {
+      if (currentUser) {
+        router.replace("/dashboard");
+      } else if (typeof navigator !== "undefined" && !navigator.onLine) {
+        router.replace("/offline");
+      }
     }
   }, [currentUser, isLoading, router]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const handleOffline = () => {
+        if (!currentUser) {
+          router.replace("/offline");
+        }
+      };
+      window.addEventListener("offline", handleOffline);
+      return () => window.removeEventListener("offline", handleOffline);
+    }
+  }, [currentUser, router]);
 
   if (!isLoading && currentUser) {
     return (

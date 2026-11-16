@@ -16,12 +16,14 @@ import {
   History,
   Compass,
   CloudUpload,
-  HardDrive,
-  RefreshCw,
+  LogIn,
+  Lock,
 } from "lucide-react";
 import { getOfflineQueue, syncOfflineQueue } from "@/lib/offlineSync";
+import { useUser } from "@/lib/userContext";
 
 export default function OfflinePage() {
+  const { currentUser } = useUser();
   const [retrying, setRetrying] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [onlineNow, setOnlineNow] = useState(false);
@@ -69,7 +71,11 @@ export default function OfflinePage() {
     setRetrying(true);
     if (typeof window !== "undefined") {
       if (navigator.onLine) {
-        window.location.href = "/dashboard";
+        if (currentUser) {
+          window.location.href = "/dashboard";
+        } else {
+          window.location.href = "/login";
+        }
       } else {
         setTimeout(() => {
           setOnlineNow(navigator.onLine);
@@ -78,6 +84,8 @@ export default function OfflinePage() {
       }
     }
   };
+
+  const isUserLoggedIn = Boolean(currentUser);
 
   return (
     <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col justify-center items-center px-4 py-8 sm:py-14 relative overflow-hidden">
@@ -91,7 +99,13 @@ export default function OfflinePage() {
         {/* Offline Badge & Emblem */}
         <div className="flex flex-col items-center gap-3">
           <div className="relative inline-flex items-center justify-center p-4 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)]">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] text-[var(--status-warning)]">
+            <div
+              className={`grid h-16 w-16 place-items-center rounded-2xl border ${
+                onlineNow
+                  ? "bg-[var(--status-positive-bg)] border-[var(--status-positive-border)] text-[var(--status-positive)]"
+                  : "bg-[var(--status-warning-bg)] border-[var(--status-warning-border)] text-[var(--status-warning)]"
+              }`}
+            >
               {onlineNow ? <Wifi className="h-8 w-8 text-[var(--status-positive)]" /> : <WifiOff className="h-8 w-8" />}
             </div>
             <span
@@ -109,18 +123,48 @@ export default function OfflinePage() {
                 : "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning)]"
             }`}
           >
-            <span className={`h-2 w-2 rounded-full ${onlineNow ? "bg-[var(--status-positive)]" : "bg-[var(--status-warning)] animate-pulse"}`} />
-            <span>{onlineNow ? "Internet Connection Restored" : "Offline Mode Active"}</span>
+            <span
+              className={`h-2 w-2 rounded-full ${
+                onlineNow ? "bg-[var(--status-positive)]" : "bg-[var(--status-warning)] animate-pulse"
+              }`}
+            />
+            <span>
+              {onlineNow
+                ? "Internet Connection Restored"
+                : isUserLoggedIn
+                ? "Local Mode Active (Logged In)"
+                : "Internet Required for Login"}
+            </span>
           </div>
         </div>
 
         {/* Hero Title & Description */}
         <div className="space-y-2.5">
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-            {onlineNow ? "You're Back Online!" : "You are Browsing Offline"}
+            {onlineNow
+              ? "You're Back Online!"
+              : isUserLoggedIn
+              ? "Local Offline Mode Active"
+              : "Internet Connection Required"}
           </h1>
+
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-md mx-auto leading-relaxed">
-            SplitRupee is built with full offline capability. Every expense you record, group ledger you view, and calculation you make is stored safely in your browser and automatically syncs when reconnected.
+            {onlineNow ? (
+              isUserLoggedIn ? (
+                "Your internet connection is back. You can now sync your offline changes across your groups."
+              ) : (
+                "Your internet connection is restored. You can now sign in to your SplitRupee account."
+              )
+            ) : isUserLoggedIn ? (
+              <>
+                You are browsing in local mode as{" "}
+                <strong className="text-[var(--text-primary)] font-semibold">{currentUser?.name}</strong>. Your
+                cached expenses and group balances are available right now. Any new actions you record will be queued
+                and synced upon confirmation once you reconnect.
+              </>
+            ) : (
+              "You are currently offline. SplitRupee requires an active internet connection to authenticate and log into your account. Once logged in, the entire app functions offline in local mode."
+            )}
           </p>
         </div>
 
@@ -136,149 +180,205 @@ export default function OfflinePage() {
             <span>{retrying ? "Checking connection..." : "Check Connection"}</span>
           </button>
 
-          {pendingCount > 0 && (
-            <button
-              type="button"
-              onClick={handleSyncNow}
-              disabled={syncing}
-              className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-4 text-xs sm:text-sm font-semibold text-[var(--status-warning)] hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
-            >
-              <CloudUpload className={`h-4 w-4 ${syncing ? "animate-pulse" : ""}`} />
-              <span>{syncing ? "Syncing..." : `Sync ${pendingCount} Queued Action${pendingCount > 1 ? "s" : ""}`}</span>
-            </button>
+          {/* If Logged In: Show Sync & Dashboard Buttons */}
+          {isUserLoggedIn ? (
+            <>
+              {pendingCount > 0 && onlineNow && (
+                <button
+                  type="button"
+                  onClick={handleSyncNow}
+                  disabled={syncing}
+                  className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-4 text-xs sm:text-sm font-semibold text-[var(--status-warning)] hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+                >
+                  <CloudUpload className={`h-4 w-4 ${syncing ? "animate-pulse" : ""}`} />
+                  <span>
+                    {syncing ? "Syncing..." : `Sync ${pendingCount} Queued Action${pendingCount > 1 ? "s" : ""}`}
+                  </span>
+                </button>
+              )}
+
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-5 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+              >
+                <LayoutDashboard className="h-4 w-4 text-[var(--brand-primary)]" />
+                <span>Go to Dashboard</span>
+              </Link>
+            </>
+          ) : (
+            /* If Logged Out: Show Login when online, or Split Calculator offline */
+            <>
+              {onlineNow ? (
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-5 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+                >
+                  <LogIn className="h-4 w-4 text-[var(--brand-primary)]" />
+                  <span>Sign In to Your Account</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/calculator"
+                  className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-5 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
+                >
+                  <Calculator className="h-4 w-4 text-[var(--brand-primary)]" />
+                  <span>Open Split Calculator (Works Offline)</span>
+                </Link>
+              )}
+            </>
           )}
-
-          <Link
-            href="/dashboard"
-            className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-5 text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-secondary)] transition-colors"
-          >
-            <LayoutDashboard className="h-4 w-4 text-[var(--brand-primary)]" />
-            <span>Go to Dashboard</span>
-          </Link>
         </div>
 
-        {/* Available Offline Modules Grid */}
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5 shadow-[var(--shadow-card)] text-left space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold tracking-wider uppercase text-[var(--text-secondary)]">
-              Cached &amp; Ready Offline:
-            </span>
-            {pendingCount > 0 ? (
-              <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)] tabular-nums">
-                {pendingCount} waiting to sync
+        {/* Modules Grid for Logged-In Users */}
+        {isUserLoggedIn && (
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5 shadow-[var(--shadow-card)] text-left space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold tracking-wider uppercase text-[var(--text-secondary)]">
+                Cached &amp; Ready in Local Mode:
               </span>
-            ) : (
-              <span className="rounded-full border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--status-positive)]">
-                All changes synced
+              {pendingCount > 0 ? (
+                <span className="rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning)] tabular-nums">
+                  {pendingCount} waiting to sync
+                </span>
+              ) : (
+                <span className="rounded-full border border-[var(--status-positive-border)] bg-[var(--status-positive-bg)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--status-positive)]">
+                  All changes synced
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <Link
+                href="/dashboard"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
+                    <LayoutDashboard className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Dashboard</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">Balances &amp; debt summary</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
+              </Link>
+
+              <Link
+                href="/expenses"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
+                    <Receipt className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Expenses</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">Log new offline bills</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
+              </Link>
+
+              <Link
+                href="/groups"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
+                    <Users className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Groups</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">Members &amp; group ledgers</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
+              </Link>
+
+              <Link
+                href="/activity"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--status-warning)] border border-[var(--border-subtle)]">
+                    <History className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Activity Feed</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">Audit trails &amp; events</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
+              </Link>
+
+              <Link
+                href="/calculator"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
+                    <Calculator className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Split Calculator</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">Instant math offline</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
+              </Link>
+
+              <Link
+                href="/itinerary"
+                className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
+                    <Compass className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">Saved Trips</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] truncate">View trip day plans offline</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
+              </Link>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] text-xs">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>
+                Local Mode: Add expenses, edits, and settlements freely. All actions save to your device and sync when
+                online upon your confirmation.
               </span>
-            )}
+            </div>
           </div>
+        )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <Link
-              href="/dashboard"
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
-                  <LayoutDashboard className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">Dashboard</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">Balances &amp; debt summary</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
-            </Link>
-
-            <Link
-              href="/expenses"
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
-                  <Receipt className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">Expenses</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">Log new offline bills</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
-            </Link>
-
-            <Link
-              href="/groups"
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
-                  <Users className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">Groups</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">Members &amp; group ledgers</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
-            </Link>
-
-            <Link
-              href="/activity"
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--status-warning)] border border-[var(--border-subtle)]">
-                  <History className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">Activity Feed</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">Audit trails &amp; events</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
-            </Link>
-
-            <Link
-              href="/calculator"
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
-                  <Calculator className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">Split Calculator</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">Instant math offline</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
-            </Link>
-
-            <Link
-              href="/itinerary"
-              className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] text-[var(--text-primary)] transition-all hover:scale-[1.01]"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--brand-primary)] border border-[var(--border-subtle)]">
-                  <Compass className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">Saved Trips</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] truncate">View trip day plans offline</p>
-                </div>
-              </div>
-              <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0 ml-2" />
-            </Link>
+        {/* Info card for logged-out users */}
+        {!isUserLoggedIn && (
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5 shadow-[var(--shadow-card)] text-left space-y-3">
+            <div className="flex items-center gap-2.5 text-xs font-semibold uppercase text-[var(--text-secondary)] tracking-wider">
+              <Lock className="h-4 w-4 text-[var(--brand-primary)]" />
+              <span>Offline Availability</span>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Once you log in with your Google or email account, SplitRupee automatically caches your groups and expenses.
+              Next time you lose connectivity, you will be taken directly into local mode where you can record expenses,
+              view balances, and settle debts without internet.
+            </p>
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
+              <span className="font-medium text-[var(--text-primary)]">Need to split a bill right now?</span>
+              <Link
+                href="/calculator"
+                className="inline-flex items-center gap-1 font-semibold text-[var(--brand-primary)] hover:underline"
+              >
+                <span>Free Split Calculator</span>
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[var(--status-positive-bg)] text-[var(--status-positive)] border border-[var(--status-positive-border)] text-xs">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>
-              Offline Ledger Active: Add expenses, edits, and settlements freely. Changes queue safely to browser memory.
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Footer info */}
         <div className="flex items-center justify-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
