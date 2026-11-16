@@ -1,6 +1,29 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Terms of Service — Transparent Non-Custodial Usage",
+  description:
+    "Review the terms and conditions governing the use of SplitRupee's non-custodial expense management, debt simplification, and itinerary tools.",
+  alternates: {
+    canonical: "/terms",
+  },
+  openGraph: {
+    title: "Terms of Service | SplitRupee",
+    description: "Terms and conditions for SplitRupee's non-custodial expense management tools.",
+    url: "https://splitrupee.vercel.app/terms",
+    siteName: "SplitRupee",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Service | SplitRupee",
+    description: "Terms and conditions for SplitRupee's non-custodial expense management tools.",
+  },
+};
 
 export default function TermsPage() {
   return (

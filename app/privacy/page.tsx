@@ -1,6 +1,29 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, ArrowLeft, Lock } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy — Non-Custodial Security & Data Protection",
+  description:
+    "Review SplitRupee's privacy policy. Learn how we safeguard your information with a non-custodial ledger, encrypted local storage, and zero data selling.",
+  alternates: {
+    canonical: "/privacy",
+  },
+  openGraph: {
+    title: "Privacy Policy | SplitRupee",
+    description: "Learn how SplitRupee protects your data with a non-custodial architecture.",
+    url: "https://splitrupee.vercel.app/privacy",
+    siteName: "SplitRupee",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy | SplitRupee",
+    description: "Learn how SplitRupee protects your data with a non-custodial architecture.",
+  },
+};
 
 export default function PrivacyPage() {
   return (

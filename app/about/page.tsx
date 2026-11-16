@@ -1,6 +1,31 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, Zap, TrendingUp } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "About Us — Non-Custodial Group Expense Ledger & UPI Settlements",
+  description:
+    "Learn how SplitRupee simplifies shared trip expenses, flatmate budgets, and group bills with 1-tap UPI settlements and smart debt minimization.",
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    title: "About SplitRupee — Non-Custodial Group Expense Ledger",
+    description:
+      "Built around how friends travel, roommates share bills, and everyone settles up via UPI with zero awkwardness.",
+    url: "https://splitrupee.vercel.app/about",
+    siteName: "SplitRupee",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About SplitRupee — Non-Custodial Group Expense Ledger",
+    description:
+      "Built around how friends travel, roommates share bills, and everyone settles up via UPI with zero awkwardness.",
+  },
+};
 
 export default function AboutPage() {
   return (

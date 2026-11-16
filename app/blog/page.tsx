@@ -5,9 +5,27 @@ import { ArrowRight, Home, Plane, QrCode } from "lucide-react";
 import { BLOG_GUIDES } from "@/lib/blogGuides";
 
 export const metadata: Metadata = {
-  title: "Guides & Tips | SplitRupee",
+  title: "Guides & Tips — Group Travel Expenses, Flatmate Rent & UPI",
   description:
     "Practical guides on managing shared trip expenses, flatmate rent splits, and 1-tap UPI settlements with SplitRupee.",
+  alternates: {
+    canonical: "/blog",
+  },
+  openGraph: {
+    title: "SplitRupee Guides & Tips",
+    description:
+      "Clear workflows for splitting road trip tabs, monthly roommate bills, and direct UPI settlements.",
+    url: "https://splitrupee.vercel.app/blog",
+    siteName: "SplitRupee",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SplitRupee Guides & Tips",
+    description:
+      "Clear workflows for splitting road trip tabs, monthly roommate bills, and direct UPI settlements.",
+  },
 };
 
 export default function BlogPage() {
