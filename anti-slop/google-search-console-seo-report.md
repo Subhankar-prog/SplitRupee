@@ -18,7 +18,7 @@ A complete production-grade technical SEO, canonical metadata, and indexing safe
 | `app/layout.tsx` | Modified | Root layout metadata, canonical base, Google verification env support, OpenGraph, Twitter card, and JSON-LD schemas (`WebSite`, `Organization`, `SoftwareApplication`). |
 | `app/sitemap.ts` | Created | Dynamic XML Sitemap generator serving only public canonical URLs at `/sitemap.xml`. |
 | `app/robots.ts` | Created | Next.js Robots.txt configuration allowing public routes and disallowing private user routes at `/robots.txt`. |
-| `.env.example` | Modified | Added `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` documentation for manual GSC setup. |
+| `.env.example` | Modified | Added `GOOGLE_SITE_VERIFICATION` documentation for manual GSC setup. |
 | `app/about/page.tsx` | Modified | Added canonical metadata, OpenGraph, and Twitter tags for About page. |
 | `app/privacy/page.tsx` | Modified | Added canonical metadata, OpenGraph, and Twitter tags for Privacy Policy. |
 | `app/terms/page.tsx` | Modified | Added canonical metadata, OpenGraph, and Twitter tags for Terms of Service. |
@@ -235,7 +235,7 @@ Implemented according to Schema.org standards without fabricating false reviews 
 
 ### Step 2: Configure Environment Variable
 In your Vercel Dashboard (or local `.env.local` for testing):
-- Key: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`
+- Key: `GOOGLE_SITE_VERIFICATION`
 - Value: `<your-verification-code>`
 - Environment: Production, Preview, Development
 
