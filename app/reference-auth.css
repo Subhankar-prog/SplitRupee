@@ -20,14 +20,20 @@
     transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Split Architectural Brand Panel (Warm Deep Chocolate) */
+/* Split Architectural Brand Panel (With loginsidebg.png) */
 .auth-wrapper .background-shape {
     position: absolute;
     right: 0;
     top: 0;
     height: 100%;
     width: 50%;
-    background: #29251F;
+    background-color: #29251F;
+    background-image: 
+        linear-gradient(180deg, rgba(28, 24, 20, 0.70) 0%, rgba(28, 24, 20, 0.55) 45%, rgba(28, 24, 20, 0.82) 100%),
+        url('/loginsidebg.png');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
     transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 1;
     border-left: 1px solid rgba(248, 240, 228, 0.12);
@@ -35,7 +41,12 @@
 
 html.dark .auth-wrapper .background-shape,
 [data-theme="dark"] .auth-wrapper .background-shape {
-    background: #1C1A16;
+    background-color: #1C1A16;
+    background-image: 
+        linear-gradient(180deg, rgba(20, 18, 15, 0.75) 0%, rgba(20, 18, 15, 0.60) 45%, rgba(20, 18, 15, 0.88) 100%),
+        url('/loginsidebg.png');
+    background-size: cover;
+    background-position: center top;
     border-left: 1px solid var(--border-subtle);
 }
 
@@ -322,14 +333,20 @@ html.dark .auth-wrapper.toggled .background-shape,
     line-height: 1.2;
     color: #F8F0E4;
     letter-spacing: -0.02em;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
 }
 
 .welcome-section p {
     font-size: 13px;
     margin-top: 8px;
-    color: #C8BBAA;
+    color: #E6DCD0;
     line-height: 1.55;
     max-width: 290px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
+}
+
+.welcome-section .slide-element {
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
 }
 
 /* Mobile Responsive */
