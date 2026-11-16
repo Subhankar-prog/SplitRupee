@@ -1,6 +1,6 @@
-// SplitRupee Production Service Worker (PWA Offline Engine v11)
-const CACHE_NAME = "splitrupee-pwa-v11";
-const RSC_CACHE_NAME = "splitrupee-rsc-v11";
+// SplitRupee Production Service Worker (PWA Offline Engine v12)
+const CACHE_NAME = "splitrupee-pwa-v12";
+const RSC_CACHE_NAME = "splitrupee-rsc-v12";
 
 // Lean precache list: fast installation in <500ms on mobile connections
 const PRECACHE_URLS = [
@@ -13,7 +13,26 @@ const PRECACHE_URLS = [
   "/icon.svg"
 ];
 
-// Standalone fallback HTML shell when offline and cache miss occurs
+// Helper: Ensure a Response object has redirected: false and status: 200.
+// Chromium security policy throws net::ERR_FAILED on navigation if a cached response has redirected: true.
+async function cleanResponse(response) {
+  if (!response) return response;
+  if (response.redirected || response.status !== 200) {
+    try {
+      const blob = await response.blob();
+      return new Response(blob, {
+        status: 200,
+        statusText: "OK",
+        headers: response.headers,
+      });
+    } catch {
+      return response;
+    }
+  }
+  return response;
+}
+
+// Standalone fallback HTML shell when offline and an un-cached route is accessed
 const OFFLINE_FALLBACK_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,10 +105,11 @@ self.addEventListener("install", (event) => {
           try {
             const res = await fetch(url, { cache: "reload" });
             if (res && (res.ok || res.status === 200)) {
-              await cache.put(url, res);
+              const cleaned = await cleanResponse(res);
+              await cache.put(url, cleaned);
             }
           } catch (e) {
-            console.warn("[SW] Precache failed for:", url, e);
+            console.warn("[SW] Precache notice for:", url, e);
           }
         })
       );
@@ -100,13 +120,21 @@ self.addEventListener("install", (event) => {
 // 2. Activate & Clean Up Old Caches & Claim Clients Immediately
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    (async () => {
+      try {
+        if (self.registration && self.registration.navigationPreload) {
+          await self.registration.navigationPreload.disable();
+        }
+      } catch {}
+
+      const cacheNames = await caches.keys();
+      await Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME && name !== RSC_CACHE_NAME)
           .map((name) => caches.delete(name))
       );
-    }).then(() => self.clients.claim())
+      await self.clients.claim();
+    })()
   );
 });
 
@@ -123,6 +151,11 @@ self.addEventListener("fetch", (event) => {
   // Handle non-http requests
   if (!url.protocol.startsWith("http")) {
     return;
+  }
+
+  // Safe navigation preload handling: prevent unhandled preload promise rejection in Chromium
+  if (event.preloadResponse) {
+    event.preloadResponse.catch(() => null);
   }
 
   // Non-GET API mutations: clean cached API keys and let request execute
@@ -149,92 +182,71 @@ self.addEventListener("fetch", (event) => {
     (request.headers.get("accept") && request.headers.get("accept").includes("text/html"));
 
   // -------------------------------------------------------------
-  // STRATEGY A: HTML Page Navigation
+  // STRATEGY A: HTML Page Navigation - CACHE FIRST with Background Revalidate
+  // Solves WebAPK / Android Chrome ERR_FAILED cold-start timeouts completely!
   // -------------------------------------------------------------
   if (isNavigation) {
     event.respondWith(
       (async () => {
         const canonical = getCanonicalUrl(request.url);
+        const cache = await caches.open(CACHE_NAME);
 
-        // 1. If device is offline, DO NOT call fetch()!
-        // In Android Chromium, calling fetch() on a navigation request when offline aborts the pipeline with ERR_FAILED.
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
+        // 1. Instant Cache Match (<3ms): Check requested route, shells, and fallbacks
+        let cachedPage =
+          (await cache.match(canonical, { ignoreSearch: true })) ||
+          (await cache.match(request, { ignoreSearch: true })) ||
+          (await cache.match(url.pathname, { ignoreSearch: true })) ||
+          (await cache.match("/", { ignoreSearch: true })) ||
+          (await cache.match("/dashboard", { ignoreSearch: true })) ||
+          (url.pathname.startsWith("/groups/") ? await cache.match("/__shell__/group", { ignoreSearch: true }) : null) ||
+          (url.pathname.startsWith("/join/") ? await cache.match("/__shell__/join", { ignoreSearch: true }) : null) ||
+          (await cache.match("/offline", { ignoreSearch: true }));
+
+        // 2. If online: trigger background revalidation to keep cache fresh (Stale-While-Revalidate)
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          event.waitUntil(
+            fetch(request.url, { credentials: "same-origin" })
+              .then(async (networkRes) => {
+                if (networkRes && networkRes.ok) {
+                  const ct = networkRes.headers.get("content-type") || "";
+                  if (ct.includes("text/html")) {
+                    const cleaned = await cleanResponse(networkRes);
+                    const c = await caches.open(CACHE_NAME);
+                    await c.put(canonical, cleaned.clone());
+                    if (url.pathname !== "/") {
+                      await c.put(url.pathname, cleaned.clone());
+                    }
+                    if (url.pathname.startsWith("/groups/") && url.pathname !== "/groups/") {
+                      await c.put("/__shell__/group", cleaned.clone());
+                    } else if (url.pathname.startsWith("/join/") && url.pathname !== "/join/") {
+                      await c.put("/__shell__/join", cleaned.clone());
+                    }
+                  }
+                }
+              })
+              .catch(() => {})
+          );
+        }
+
+        // 3. If cache hit, return immediately!
+        if (cachedPage) {
+          return await cleanResponse(cachedPage);
+        }
+
+        // 4. Cache miss: only attempt network if device reports online
+        if (typeof navigator !== "undefined" && navigator.onLine) {
           try {
-            const cache = await caches.open(CACHE_NAME);
-            const cachedPage =
-              (await cache.match(canonical, { ignoreSearch: true })) ||
-              (await cache.match(request, { ignoreSearch: true })) ||
-              (await cache.match(url.pathname, { ignoreSearch: true })) ||
-              (await cache.match("/", { ignoreSearch: true })) ||
-              (await cache.match("/dashboard", { ignoreSearch: true })) ||
-              (url.pathname.startsWith("/groups/") ? await cache.match("/__shell__/group", { ignoreSearch: true }) : null) ||
-              (url.pathname.startsWith("/join/") ? await cache.match("/__shell__/join", { ignoreSearch: true }) : null) ||
-              (await cache.match("/offline", { ignoreSearch: true }));
-
-            if (cachedPage) return cachedPage;
-          } catch (e) {
-            console.warn("[SW] Cache lookup failed during offline navigation:", e);
-          }
-
-          // Safe 200 OK HTML fallback
-          return new Response(OFFLINE_FALLBACK_HTML, {
-            status: 200,
-            headers: { "Content-Type": "text/html; charset=utf-8" },
-          });
-        }
-
-        // 2. Device is online: fetch using request.url with a 2-second timeout race
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-          const networkRes = await fetch(request.url, {
-            signal: controller.signal,
-            credentials: "same-origin",
-          });
-          clearTimeout(timeoutId);
-
-          if (networkRes && networkRes.ok) {
-            const ct = networkRes.headers.get("content-type") || "";
-            if (ct.includes("text/html")) {
-              const cacheCopy = networkRes.clone();
-              const shellCopy = networkRes.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(canonical, cacheCopy);
-                if (url.pathname !== "/") {
-                  cache.put(url.pathname, shellCopy.clone());
-                }
-                if (url.pathname.startsWith("/groups/") && url.pathname !== "/groups/") {
-                  cache.put("/__shell__/group", shellCopy);
-                } else if (url.pathname.startsWith("/join/") && url.pathname !== "/join/") {
-                  cache.put("/__shell__/join", shellCopy);
-                }
-              }).catch(() => {});
+            const networkRes = await fetch(request.url, { credentials: "same-origin" });
+            if (networkRes && networkRes.ok) {
+              const cleaned = await cleanResponse(networkRes);
+              await cache.put(canonical, cleaned.clone());
+              await cache.put(url.pathname, cleaned.clone());
+              return cleaned;
             }
-            return networkRes;
-          }
-        } catch (err) {
-          // Network failed, timed out, or connection dropped: fallback below
+          } catch {}
         }
 
-        // 3. Network failed or timed out: serve from cache
-        try {
-          const cache = await caches.open(CACHE_NAME);
-          const cachedPage =
-            (await cache.match(canonical, { ignoreSearch: true })) ||
-            (await cache.match(request, { ignoreSearch: true })) ||
-            (await cache.match(url.pathname, { ignoreSearch: true })) ||
-            (await cache.match("/", { ignoreSearch: true })) ||
-            (await cache.match("/dashboard", { ignoreSearch: true })) ||
-            (url.pathname.startsWith("/groups/") ? await cache.match("/__shell__/group", { ignoreSearch: true }) : null) ||
-            (url.pathname.startsWith("/join/") ? await cache.match("/__shell__/join", { ignoreSearch: true }) : null) ||
-            (await cache.match("/offline", { ignoreSearch: true }));
-
-          if (cachedPage) return cachedPage;
-        } catch (e) {
-          console.warn("[SW] Cache lookup failed during fallback:", e);
-        }
-
+        // 5. Total offline fallback: 200 OK standalone HTML shell (NEVER throws net::ERR_FAILED)
         return new Response(OFFLINE_FALLBACK_HTML, {
           status: 200,
           headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -299,11 +311,29 @@ self.addEventListener("fetch", (event) => {
         const norm = new URL(request.url);
         norm.searchParams.delete("_rsc");
 
+        const cached =
+          (await rscCache.match(request)) ||
+          (await rscCache.match(norm.toString()));
+
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          event.waitUntil(
+            fetch(request.url)
+              .then(async (networkRes) => {
+                if (networkRes && networkRes.ok) {
+                  const clone = networkRes.clone();
+                  const cloneNorm = networkRes.clone();
+                  const rc = await caches.open(RSC_CACHE_NAME);
+                  rc.put(request, clone).catch(() => {});
+                  rc.put(norm.toString(), cloneNorm).catch(() => {});
+                }
+              })
+              .catch(() => {})
+          );
+        }
+
+        if (cached) return cached;
+
         if (typeof navigator !== "undefined" && !navigator.onLine) {
-          const cached =
-            (await rscCache.match(request)) ||
-            (await rscCache.match(norm.toString()));
-          if (cached) return cached;
           return new Response("", {
             status: 200,
             headers: { "Content-Type": "text/x-component" },
@@ -313,23 +343,16 @@ self.addEventListener("fetch", (event) => {
         try {
           const networkRes = await fetch(request.url);
           if (networkRes && networkRes.ok) {
-            const clone = networkRes.clone();
-            const cloneNorm = networkRes.clone();
-            rscCache.put(request, clone).catch(() => {});
-            rscCache.put(norm.toString(), cloneNorm).catch(() => {});
+            rscCache.put(request, networkRes.clone()).catch(() => {});
+            rscCache.put(norm.toString(), networkRes.clone()).catch(() => {});
+            return networkRes;
           }
-          return networkRes;
-        } catch {
-          const cached =
-            (await rscCache.match(request)) ||
-            (await rscCache.match(norm.toString()));
-          if (cached) return cached;
+        } catch {}
 
-          return new Response("", {
-            status: 200,
-            headers: { "Content-Type": "text/x-component" },
-          });
-        }
+        return new Response("", {
+          status: 200,
+          headers: { "Content-Type": "text/x-component" },
+        });
       })()
     );
     return;
@@ -337,6 +360,7 @@ self.addEventListener("fetch", (event) => {
 
   // -------------------------------------------------------------
   // STRATEGY D: Static Assets (_next/static, images, fonts, css, js)
+  // Cache-First with runtime caching and offline 404 safety
   // -------------------------------------------------------------
   if (
     url.pathname.startsWith("/_next/static/") ||

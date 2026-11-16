@@ -82,6 +82,7 @@ import ManageGroupModal from "@/components/ManageGroupModal";
 import ExitGroupModal from "@/components/ExitGroupModal";
 import WhatsAppReminderModal from "@/components/WhatsAppReminderModal";
 import RecurringExpensesModal from "@/components/RecurringExpensesModal";
+import ExpenseDistributionCard from "@/components/ExpenseDistributionCard";
 import DataStatusBanner from "@/components/ui/DataStatusBanner";
 import { getCachedGroup, saveCachedGroup } from "@/lib/offlineSync";
 import { parseApiJsonResponse, type FetchIssueState } from "@/lib/apiResponse";
@@ -1477,6 +1478,13 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
               </table>
             </div>
           </div>
+
+          {/* Group Expense Distribution Across All Expenses */}
+          <ExpenseDistributionCard
+            expenses={expenses}
+            title="Group Spending Distribution"
+            subtitle={`Breakdown by spending category across all ${expenses.length} group expenses`}
+          />
         </div>
       )}
 
@@ -1583,6 +1591,15 @@ export default function GroupDetailPage({ params: routeParams }: { params?: { id
       {/* TAB 3: CIRCUIT EXPENSES LIST & MATRIX */}
       {activeTab === "expenses" && (
         <div className="sr-tab-panel space-y-4">
+          {/* Group Expense Distribution Overview with Interactive Category Selection */}
+          <ExpenseDistributionCard
+            expenses={expenses}
+            title="Group Spending Distribution"
+            subtitle={`Exact amounts across all ${expenses.length} group expenses · Tap a category to filter`}
+            selectedCategory={categoryFilter}
+            onSelectCategory={(cat) => setCategoryFilter(cat)}
+          />
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-1.5">
               {(["All", ...CATEGORIES] as const).map((cat) => (

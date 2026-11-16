@@ -11,9 +11,16 @@ const nextConfig = {
           { key: "Expires", value: "0" },
           { key: "Surrogate-Control", value: "no-store" }
         ]
+      },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Service-Worker-Allowed", value: "/" }
+        ]
       }
     ];
   }
 };
 export default nextConfig;
-

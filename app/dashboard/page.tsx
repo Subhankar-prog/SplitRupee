@@ -11,7 +11,6 @@ import {
   type ActivityLogDTO,
   type CategoryName,
 } from "@/lib/types";
-import { buildCategoryDistribution } from "@/lib/categoryChart";
 import { buildLedger, computeNetBalances } from "@/lib/debt";
 import { formatINR, formatPaise } from "@/lib/money";
 import { DEFAULT_AVATAR_COLOR, getAvatarTextColor } from "@/lib/avatarColors";
@@ -71,15 +70,6 @@ const TYPE_ICONS = {
   OTHER: Tag,
 };
 
-const CATEGORY_ICONS: Record<CategoryName, typeof Utensils> = {
-  Food: Utensils,
-  Rent: Home,
-  Travel: Plane,
-  Utilities: Zap,
-  Shopping: ShoppingBag,
-  Entertainment: Film,
-  Miscellaneous: Shapes,
-};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -386,10 +376,6 @@ export default function DashboardPage() {
     return { net: totalNet, youOwe: totalOwe, youAreOwed: totalOwed, totalSpend, groupBalances, friendsBalances };
   }, [currentUser, groupDetails]);
 
-  const categoryBreakdown = useMemo(
-    () => buildCategoryDistribution(expenses),
-    [expenses]
-  );
 
   const handleRetryDashboard = () => {
     setIsRetrying(true);
@@ -824,130 +810,39 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Expense Distribution Chart + Quick Join via Code */}
-      <ScrollReveal className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Expense Distribution by Category */}
-        <div className="lg:col-span-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] space-y-4">
-          <div className="flex items-center justify-between">
+          {/* Quick Join via Code Card */}
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] flex flex-col justify-between space-y-3">
             <div>
-              <h2 className="font-display text-sm sm:text-base font-semibold text-[var(--text-primary)]">
-                Expense Distribution
-              </h2>
-              <p className="text-[11px] text-[var(--text-secondary)]">
-                Breakdown by spending category across all expenses
+              <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
+                <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
+                <span>Join a Group by Code</span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                Have an invite code from a friend? Enter it below to jump straight into the group ledger.
               </p>
             </div>
-            <Link
-              href="/expenses"
-              className="text-xs font-semibold text-[var(--brand-dark)] dark:text-[var(--brand-primary)] hover:underline flex items-center gap-1"
-            >
-              <span>All Expenses</span>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          {categoryBreakdown.rows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-6 text-center text-xs text-[var(--text-secondary)]">
-              No category expenses recorded yet. Add your first expense to view distribution.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Exact Proportional Stacked Overview Bar with Card-Surface Hairline Dividers */}
-              <div
-                className="flex h-3.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-canvas)] border border-[var(--border-subtle)] divide-x-2 divide-[var(--bg-surface)]"
-                role="img"
-                aria-label={categoryBreakdown.ariaSummary}
+            <form onSubmit={handleJoinGroup} className="space-y-2.5">
+              <input
+                type="text"
+                aria-label="Group invite code"
+                value={joinCodeInput}
+                onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                placeholder="Enter code (e.g. TRIP2026)"
+                className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] px-3.5 text-xs sm:text-sm font-mono uppercase text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={joining || !joinCodeInput.trim()}
+                className="min-h-[44px] sm:min-h-[40px] w-full rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors disabled:bg-[var(--bg-surface-secondary)] disabled:text-[var(--text-secondary)] disabled:border disabled:border-[var(--border-subtle)] flex items-center justify-center gap-1.5"
               >
-                {categoryBreakdown.rows.map((row) => (
-                  <div
-                    key={row.category}
-                    style={{ width: `${row.pct}%`, backgroundColor: row.color }}
-                    title={`${row.category}: ${formatINR(row.amount)} (${row.pctLabel})`}
-                  />
-                ))}
-              </div>
-
-              {/* Category Share Legend Rows with Icons, Exact Percentage Bars & Accessible Contrast */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3 pt-1">
-                {categoryBreakdown.rows.map((row) => {
-                  const CatIcon = CATEGORY_ICONS[row.category] || Shapes;
-                  return (
-                    <div key={row.category} className="space-y-1.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span
-                            className="h-3 w-3 rounded-sm shrink-0 border border-[var(--border-subtle)]"
-                            style={{ backgroundColor: row.color }}
-                            aria-hidden="true"
-                          />
-                          <CatIcon
-                            className="h-3.5 w-3.5 shrink-0 text-[var(--text-secondary)]"
-                            aria-hidden="true"
-                          />
-                          <span className="font-medium text-[var(--text-primary)] whitespace-nowrap">
-                            {row.category}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 tabular-nums">
-                          <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                            {row.pctLabel}
-                          </span>
-                          <span className="font-semibold text-[var(--text-primary)]">
-                            {formatINR(row.amount)}
-                          </span>
-                        </div>
-                      </div>
-                      <div
-                        className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface-secondary)] dark:bg-[var(--bg-canvas)]"
-                        aria-hidden="true"
-                      >
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${row.pct}%`, backgroundColor: row.color }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Join via Code Card */}
-        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 shadow-[var(--shadow-card)] flex flex-col justify-between space-y-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
-              <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
-              <span>Join a Group by Code</span>
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
-              Have an invite code from a friend? Enter it below to jump straight into the group ledger.
-            </p>
+                {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join Group"}
+              </button>
+              {joinError && <p className="text-[var(--status-negative)] text-xs">{joinError}</p>}
+            </form>
           </div>
-          <form onSubmit={handleJoinGroup} className="space-y-2.5">
-            <input
-              type="text"
-              aria-label="Group invite code"
-              value={joinCodeInput}
-              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-              placeholder="Enter code (e.g. TRIP2026)"
-              className="h-10 w-full rounded-xl bg-[var(--bg-surface-secondary)] border border-[var(--border-strong)] px-3.5 text-xs sm:text-sm font-mono uppercase text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--brand-primary)] focus:outline-none transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={joining || !joinCodeInput.trim()}
-              className="min-h-[44px] sm:min-h-[40px] w-full rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] transition-colors disabled:bg-[var(--bg-surface-secondary)] disabled:text-[var(--text-secondary)] disabled:border disabled:border-[var(--border-subtle)] flex items-center justify-center gap-1.5"
-            >
-              {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join Group"}
-            </button>
-            {joinError && <p className="text-[var(--status-negative)] text-xs">{joinError}</p>}
-          </form>
         </div>
-      </ScrollReveal>
+      </div>
 
       {/* Featured Tool: AI Travel & Trip Itinerary Planner Spotlight */}
       <ScrollReveal
