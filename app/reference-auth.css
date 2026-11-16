@@ -20,17 +20,17 @@
     transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Split Architectural Brand Panel (Seamless with Login Form) */
+/* Split Architectural Brand Panel (Pure Hero Artwork with loginsidebg.png) */
 .auth-wrapper .background-shape {
     position: absolute;
     right: 0;
     top: 0;
     height: 100%;
     width: 50%;
-    background-color: var(--bg-surface);
+    background-color: #F2E2D3;
     background-image: url('/loginsidebg.png');
-    background-size: 78% auto;
-    background-position: center bottom;
+    background-size: cover;
+    background-position: center center;
     background-repeat: no-repeat;
     transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 1;
@@ -39,10 +39,10 @@
 
 html.dark .auth-wrapper .background-shape,
 [data-theme="dark"] .auth-wrapper .background-shape {
-    background-color: var(--bg-surface);
+    background-color: #1C1A16;
     background-image: url('/loginsidebg.png');
-    background-size: 78% auto;
-    background-position: center bottom;
+    background-size: cover;
+    background-position: center center;
     border-left: 1px solid var(--border-subtle);
 }
 
@@ -268,80 +268,9 @@ html.dark .auth-wrapper.toggled .background-shape,
     text-decoration: underline;
 }
 
-/* Welcome Brand Panel */
+/* Welcome Brand Panel (Pure Hero Artwork) */
 .welcome-section {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    width: 50%;
-    display: flex;
-    justify-content: flex-start;
-    flex-direction: column;
-    z-index: 4;
-    padding: 38px 40px;
-}
-
-.welcome-section.signin {
-    right: 0;
-    text-align: right;
-    align-items: flex-end;
-}
-
-.welcome-section.signin .slide-element {
-    transform: translateX(0);
-    transition: opacity 0.35s ease;
-    opacity: 1;
-}
-
-.auth-wrapper.toggled .welcome-section.signin {
-    pointer-events: none;
-}
-
-.auth-wrapper.toggled .welcome-section.signin .slide-element {
-    opacity: 0;
-}
-
-.welcome-section.signup {
-    left: 0;
-    text-align: left;
-    pointer-events: none;
-    align-items: flex-start;
-}
-
-.welcome-section.signup .slide-element {
-    transition: opacity 0.35s ease;
-    opacity: 0;
-}
-
-.auth-wrapper.toggled .welcome-section.signup {
-    pointer-events: auto;
-}
-
-.auth-wrapper.toggled .welcome-section.signup .slide-element {
-    opacity: 1;
-}
-
-.welcome-section h2 {
-    font-family: var(--font-manrope), -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 26px;
-    font-weight: 700;
-    line-height: 1.2;
-    color: var(--text-primary);
-    letter-spacing: -0.025em;
-    text-shadow: none;
-}
-
-.welcome-section p {
-    font-size: 13.5px;
-    margin-top: 6px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    max-width: 300px;
-    text-shadow: none;
-}
-
-.welcome-section .slide-element {
-    text-shadow: none;
+    display: none;
 }
 
 /* Mobile Responsive */

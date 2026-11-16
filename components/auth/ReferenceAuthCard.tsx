@@ -19,11 +19,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Split,
-  Scale,
-  Users,
-  GitFork,
-  Smartphone,
 } from "lucide-react";
 
 interface ReferenceAuthCardProps {
@@ -504,31 +499,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         </div>
 
         {/* =========================================================================
-            2. SIGN IN WELCOME SECTION (Right side on desktop when untoggled)
+            2. SIGN IN WELCOME SECTION (Hero Artwork Panel)
            ========================================================================= */}
-        <div aria-hidden={isToggled} className="welcome-section signin">
-          <div className="slide-element text-right max-w-[310px]">
-            <h2>Welcome Back</h2>
-            <p>
-              Track shared expenses, simplify group debts, and settle balances with ease.
-            </p>
-          </div>
-
-          <div className="slide-element mt-4 flex flex-wrap gap-2 justify-end max-w-[310px] ml-auto">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
-              <Split className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
-              <span>Smart expense splitting</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
-              <Scale className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
-              <span>Clear balances</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
-              <QrCode className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
-              <span>UPI settlement links</span>
-            </div>
-          </div>
-        </div>
+        <div aria-hidden={isToggled} className="welcome-section signin" />
 
         {/* =========================================================================
             3. SIGN UP CREDENTIALS PANEL (Right side on desktop when toggled)
@@ -810,33 +783,9 @@ export default function ReferenceAuthCard({ initialMode = "login" }: ReferenceAu
         </div>
 
         {/* =========================================================================
-            4. SIGN UP WELCOME SECTION (Left side on desktop when toggled)
+            4. SIGN UP WELCOME SECTION (Hero Artwork Panel)
            ========================================================================= */}
-        <div aria-hidden={!isToggled} className="welcome-section signup">
-          <div className="slide-element text-left max-w-[310px]">
-            <h2>{isGoogleOnboarding ? "Almost Ready" : "Get Started"}</h2>
-            <p>
-              {isGoogleOnboarding
-                ? "Confirm your details to finish setting up your account."
-                : "Organize shared expenses and keep group balances clear."}
-            </p>
-          </div>
-
-          <div className="slide-element mt-4 flex flex-wrap gap-2 justify-start max-w-[310px]">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
-              <Users className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
-              <span>Group expense splitting</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
-              <GitFork className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
-              <span>Track who owes whom</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface-secondary)]/80 border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-sm">
-              <Smartphone className="h-3.5 w-3.5 text-[var(--brand-primary)] shrink-0" />
-              <span>1-tap settlements</span>
-            </div>
-          </div>
-        </div>
+        <div aria-hidden={!isToggled} className="welcome-section signup" />
       </div>
 
       {/* Google Auth Modal */}
