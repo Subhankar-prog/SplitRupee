@@ -22,24 +22,8 @@ export function generateMetadata({ params }: BlogArticlePageProps): Metadata {
     };
   }
   return {
-    title: guide.title,
+    title: `${guide.title} | SplitRupee Blog`,
     description: guide.desc,
-    alternates: {
-      canonical: `/blog/${guide.slug}`,
-    },
-    openGraph: {
-      title: guide.title,
-      description: guide.desc,
-      url: `https://splitrupee.vercel.app/blog/${guide.slug}`,
-      siteName: "SplitRupee",
-      locale: "en_IN",
-      type: "article",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: guide.title,
-      description: guide.desc,
-    },
   };
 }
 
@@ -48,31 +32,6 @@ export default function BlogArticlePage({ params }: BlogArticlePageProps) {
   if (!guide) {
     notFound();
   }
-
-  const articleStructuredData = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    headline: guide.title,
-    description: guide.desc,
-    url: `https://splitrupee.vercel.app/blog/${guide.slug}`,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `https://splitrupee.vercel.app/blog/${guide.slug}`,
-    },
-    author: {
-      "@type": "Organization",
-      name: "SplitRupee",
-      url: "https://splitrupee.vercel.app",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "SplitRupee",
-      logo: {
-        "@type": "ImageObject",
-        url: "https://splitrupee.vercel.app/icon.svg",
-      },
-    },
-  };
 
   const Icon =
     guide.iconName === "plane"
@@ -83,12 +42,6 @@ export default function BlogArticlePage({ params }: BlogArticlePageProps) {
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 space-y-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(articleStructuredData),
-        }}
-      />
       <div className="space-y-4">
         <Link
           href="/blog"
