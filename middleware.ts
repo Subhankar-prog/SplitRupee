@@ -4,20 +4,10 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // When a logged-in user navigates to the landing page "/", immediately redirect to "/dashboard"
+  // When visiting the landing page "/", immediately redirect to "/dashboard"
+  // so the dashboard is the primary landing page for all users (signed-in or signed-out).
   if (pathname === "/") {
-    const sessionCookie = request.cookies.get("splitrupee_session")?.value;
-    if (sessionCookie) {
-      try {
-        const decoded = decodeURIComponent(sessionCookie);
-        const parsed = JSON.parse(decoded);
-        if (parsed && (parsed.id || parsed.email)) {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-      } catch {
-        // Corrupted session cookie; allow visiting landing page
-      }
-    }
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
@@ -26,4 +16,3 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/"]
 };
-
