@@ -108,11 +108,7 @@ export default function DashboardPage() {
 
   const handleJoinGroup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCodeInput.trim()) return;
-    if (!currentUser) {
-      setJoinError("Please sign in or select an account to join a group.");
-      return;
-    }
+    if (!joinCodeInput.trim() || !currentUser) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setJoinError("You're offline. Internet connection is required to join a group.");
       return;
@@ -177,11 +173,8 @@ export default function DashboardPage() {
   }, [currentUser?.id]);
 
   const loadDashboardData = useCallback(async () => {
+    if (!currentUser) return;
     applyOfflineCacheFallback();
-    if (!currentUser) {
-      setInitialLoaded(true);
-      return;
-    }
 
     try {
       let nextIssue: FetchIssueState | null = null;
@@ -399,6 +392,34 @@ export default function DashboardPage() {
     );
   }
 
+  if (!currentUser) {
+    return (
+      <div className="grid min-h-[50vh] place-items-center text-center">
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-8 max-w-md shadow-[var(--shadow-card)]">
+          <Wallet className="mx-auto h-10 w-10 text-[var(--brand-primary)] mb-3" />
+          <h2 className="font-display text-xl font-semibold text-[var(--text-primary)]">Welcome to SplitRupee</h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-2">
+            Please select an active user or register to access your groups and expenses.
+          </p>
+          <div className="mt-5 flex gap-3 justify-center">
+            <Link
+              href="/login"
+              className="h-9 inline-flex items-center rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
+            >
+              Log In
+            </Link>
+            <Link
+              href="/signup"
+              className="h-9 inline-flex items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+            >
+              Sign Up
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const hasAnyDashboardData = groups.length > 0 || expenses.length > 0 || activities.length > 0;
 
   if (!hasAnyDashboardData && fetchIssue) {
@@ -436,12 +457,10 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl sm:text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
-            {currentUser ? `Welcome back, ${currentUser.name.split(" ")[0]}` : "Welcome to SplitRupee"}
+            Welcome back, {currentUser.name.split(" ")[0]}
           </h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-            {currentUser
-              ? `Your overall financial standing across ${groups.length} active ${groups.length === 1 ? "group" : "groups"}`
-              : "Track group expenses, split bills instantly, and settle debts with ease."}
+            Your overall financial standing across {groups.length} active {groups.length === 1 ? "group" : "groups"}
           </p>
         </div>
 
@@ -471,37 +490,6 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
-
-      {/* Guest Mode Informational Banner (Non-blocking) */}
-      {!currentUser && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-card)] text-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-primary)] text-[var(--brand-ink)] shrink-0 font-bold">
-              ₹
-            </div>
-            <div>
-              <p className="font-semibold text-[var(--text-primary)]">Browsing as Guest</p>
-              <p className="text-[var(--text-secondary)] text-[11px] mt-0.5">
-                Local groups and splits are stored safely on this device. Sign in anytime to sync across devices and settle up via UPI.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link
-              href="/login"
-              className="h-8 inline-flex items-center rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-3 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="h-8 inline-flex items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-            >
-              Sign Up
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Focal Financial Standing Overview */}
       <ScrollReveal
@@ -785,12 +773,12 @@ export default function DashboardPage() {
 
                                 setSettleUpData({
                                   groupId,
-                                  members: gDetail?.members || (currentUser ? [currentUser, user] : [user]),
+                                  members: gDetail?.members || [currentUser, user],
                                   groupCreatorId: gDetail?.creatorId,
                                   transfers: gLedger.transfers,
                                   balances: gLedger.balances,
-                                  payerId: isOwed ? user.id : (currentUser?.id || ""),
-                                  receiverId: isOwed ? (currentUser?.id || "") : user.id,
+                                  payerId: isOwed ? user.id : currentUser.id,
+                                  receiverId: isOwed ? currentUser.id : user.id,
                                   amount: Math.abs(net) / 100,
                                 });
                               }}

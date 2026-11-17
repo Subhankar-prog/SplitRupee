@@ -13,10 +13,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // When visiting the landing page "/", immediately redirect to "/dashboard"
-  // so the dashboard is the primary landing page for all users (signed-in or signed-out).
+  // When visiting the landing page "/", only redirect to "/dashboard" if the user has an active session cookie.
+  // Unauthenticated visitors remain on "/" to see the public marketing landing page.
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const sessionCookie = request.cookies.get("splitrupee_session")?.value;
+    if (sessionCookie) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return NextResponse.next();

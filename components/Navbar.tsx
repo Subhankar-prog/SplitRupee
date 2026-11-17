@@ -1057,7 +1057,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
         ) : (
           /* Public / Logged Out Mobile Header */
           <div className="md:hidden flex min-h-[56px] w-full items-center justify-between px-3 py-1.5">
-            <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+            <Link href="/" className="flex items-center gap-2 shrink-0">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)]">
                 <span className="text-base">₹</span>
               </div>
@@ -1103,7 +1103,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           <div className="hidden md:flex h-16 w-full items-stretch">
             {/* Sidebar-aligned Brand Column */}
             <div className="w-64 shrink-0 px-6 border-r border-[var(--border-subtle)] flex items-center">
-              <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
+              <Link href={currentUser ? "/dashboard" : "/"} className="flex items-center gap-2.5 shrink-0">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)] shadow-sm">
                   <span className="text-base">₹</span>
                 </div>
@@ -1150,7 +1150,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => vo
           <div className="hidden md:flex mx-auto h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
           {/* LEFT SECTION */}
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
+            <Link href={currentUser ? "/dashboard" : "/"} className="flex items-center gap-2.5 shrink-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand-primary)] font-display font-bold text-[var(--brand-ink)] shadow-sm">
                 <span className="text-base">₹</span>
               </div>

@@ -80,18 +80,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const shellMode = getShellMode(pathname, Boolean(currentUser));
   const isAppRoute = shellMode === "app";
   const isAuthRoute = shellMode === "auth";
-  const isDashboardRoute = pathname === "/dashboard";
 
   useEffect(() => {
-    // /dashboard is the designated landing page for signed-out users: do not redirect it to /login
-    if (!isLoading && !currentUser && isAppRoute && !isDashboardRoute) {
+    if (!isLoading && !currentUser && isAppRoute) {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         router.replace("/offline");
       } else {
         router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
       }
     }
-  }, [isLoading, currentUser, isAppRoute, isDashboardRoute, pathname, router]);
+  }, [isLoading, currentUser, isAppRoute, pathname, router]);
 
   const upiBanner = currentUser && !currentUser.upiId && (
     <div className="w-full border-b border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-4 py-2 text-center text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-2 z-20">
@@ -135,7 +133,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isLoading && !currentUser && !isDashboardRoute) {
+  if (isLoading && !currentUser) {
     return (
       <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex items-center justify-center">
         <SplitRupeeLoader variant="fullScreen" text="SplitRupee" subtext="Checking your login session..." />
@@ -143,7 +141,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!currentUser && !isDashboardRoute) {
+  if (!currentUser) {
     return (
       <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex items-center justify-center">
         <SplitRupeeLoader variant="fullScreen" text="SplitRupee" subtext="Taking you to sign in..." />

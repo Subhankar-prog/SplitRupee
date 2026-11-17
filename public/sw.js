@@ -1,9 +1,10 @@
-// SplitRupee Production Service Worker (PWA Offline Engine v14)
-const CACHE_NAME = "splitrupee-pwa-v14";
-const RSC_CACHE_NAME = "splitrupee-rsc-v14";
+// SplitRupee Production Service Worker (PWA Offline Engine v15)
+const CACHE_NAME = "splitrupee-pwa-v15";
+const RSC_CACHE_NAME = "splitrupee-rsc-v15";
 
 // Lean precache list: fast installation in <500ms on mobile connections
 const PRECACHE_URLS = [
+  "/",
   "/dashboard",
   "/offline",
   "/calculator",
@@ -12,45 +13,6 @@ const PRECACHE_URLS = [
   "/manifest.json",
   "/icon.svg"
 ];
-
-// Clean and sanitize any HTML response so Chromium NEVER throws net::ERR_FAILED.
-// 1. Reads decompressed response text via response.text().
-// 2. Explicitly strips Content-Encoding, Transfer-Encoding, and Content-Length to avoid decoder mismatches.
-// 3. Guarantees status: 200, statusText: "OK", redirected: false.
-async function sanitizeHtmlResponse(response) {
-  if (!response) return null;
-  try {
-    const text = await response.text();
-    if (typeof text !== "string" || text.length === 0) return null;
-
-    const cleanHeaders = new Headers();
-    cleanHeaders.set("Content-Type", "text/html; charset=utf-8");
-    cleanHeaders.set("Cache-Control", "no-cache");
-
-    response.headers.forEach((val, key) => {
-      const lower = key.toLowerCase();
-      if (
-        lower !== "content-encoding" &&
-        lower !== "content-length" &&
-        lower !== "transfer-encoding" &&
-        lower !== "content-range" &&
-        lower !== "connection" &&
-        lower !== "vary"
-      ) {
-        cleanHeaders.set(key, val);
-      }
-    });
-
-    return new Response(text, {
-      status: 200,
-      statusText: "OK",
-      headers: cleanHeaders,
-    });
-  } catch (err) {
-    console.warn("[SW] sanitizeHtmlResponse warning:", err);
-    return null;
-  }
-}
 
 // Standalone fallback HTML shell when offline and an un-cached route is accessed
 const OFFLINE_FALLBACK_HTML = `<!DOCTYPE html>
@@ -97,6 +59,30 @@ const OFFLINE_FALLBACK_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Clean and sanitize any HTML response so Chromium NEVER throws net::ERR_FAILED.
+// 1. Reads decompressed response text via response.text().
+// 2. Returns status: 200, statusText: "OK", and clean content-type headers.
+// 3. Excludes all compression and conflicting transport headers.
+async function sanitizeHtmlResponse(response) {
+  if (!response) return null;
+  try {
+    const text = await response.text();
+    if (typeof text !== "string" || text.length === 0) return null;
+
+    return new Response(text, {
+      status: 200,
+      statusText: "OK",
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
+  } catch (err) {
+    console.warn("[SW] sanitizeHtmlResponse warning:", err);
+    return null;
+  }
+}
+
 // Listen for message events (e.g. SKIP_WAITING from client)
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
@@ -117,29 +103,46 @@ function getCanonicalUrl(urlString) {
 
 // 1. Install & Precache App Shell
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      await Promise.allSettled(
-        PRECACHE_URLS.map(async (url) => {
-          try {
-            const res = await fetch(url, { cache: "reload" });
-            if (res && (res.ok || res.status === 200)) {
-              const cleaned = await sanitizeHtmlResponse(res);
-              if (cleaned) {
-                await cache.put(url, cleaned.clone());
-                if (url === "/dashboard") {
-                  // Also seed "/" with the clean dashboard response so offline root access is instant
-                  await cache.put("/", cleaned.clone());
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+
+        // Pre-seed offline fallback page immediately so it is available with zero network
+        await cache.put(
+          "/offline",
+          new Response(OFFLINE_FALLBACK_HTML, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "Cache-Control": "no-store",
+            },
+          })
+        );
+
+        // Precache initial critical URLs
+        await Promise.allSettled(
+          PRECACHE_URLS.map(async (url) => {
+            try {
+              const res = await fetch(url, { cache: "reload" });
+              if (res && (res.ok || res.status === 200)) {
+                const cleaned = await sanitizeHtmlResponse(res);
+                if (cleaned) {
+                  await cache.put(url, cleaned.clone());
                 }
               }
+            } catch (e) {
+              console.warn("[SW] Precache notice for:", url, e);
             }
-          } catch (e) {
-            console.warn("[SW] Precache notice for:", url, e);
-          }
-        })
-      );
-    })
+          })
+        );
+
+        await self.skipWaiting();
+      } catch (err) {
+        console.warn("[SW] Install step notice:", err);
+        await self.skipWaiting();
+      }
+    })()
   );
 });
 
@@ -220,8 +223,9 @@ self.addEventListener("fetch", (event) => {
     (request.headers.get("accept") && request.headers.get("accept").includes("text/html"));
 
   // -------------------------------------------------------------
-  // STRATEGY A: HTML Page Navigation - CACHE FIRST with Background Revalidate
-  // Solves WebAPK / Android Chrome ERR_FAILED cold-start timeouts completely!
+  // STRATEGY A: HTML Page Navigation
+  // Resilient Cache-First with 2-second Network Race:
+  // Prevents Chromium navigation watchdog timeout and net::ERR_FAILED on cold-start mobile offline!
   // -------------------------------------------------------------
   if (isNavigation) {
     event.respondWith(
@@ -230,7 +234,7 @@ self.addEventListener("fetch", (event) => {
           const canonical = getCanonicalUrl(request.url);
           const cache = await caches.open(CACHE_NAME);
 
-          // 1. Instant Cache Match (<3ms): Check requested route, dashboard shell (for / and /dashboard), and fallbacks
+          // 1. Instant Cache Match: requested URL, canonical, pathname, shells, or offline fallback
           const isRootOrDashboard = url.pathname === "/" || url.pathname === "/dashboard";
           let cachedPage =
             (await cache.match(canonical, { ignoreSearch: true })) ||
@@ -243,57 +247,51 @@ self.addEventListener("fetch", (event) => {
             (url.pathname.startsWith("/join/") ? await cache.match("/__shell__/join", { ignoreSearch: true }) : null) ||
             (await cache.match("/offline", { ignoreSearch: true }));
 
-          // 2. If online: trigger background revalidation to keep cache fresh (Stale-While-Revalidate)
-          if (typeof navigator !== "undefined" && navigator.onLine) {
-            event.waitUntil(
-              fetch(request.url, { credentials: "same-origin" })
-                .then(async (networkRes) => {
-                  if (networkRes && networkRes.ok) {
-                    const ct = networkRes.headers.get("content-type") || "";
-                    if (ct.includes("text/html")) {
-                      const cleaned = await sanitizeHtmlResponse(networkRes);
-                      if (cleaned) {
-                        const c = await caches.open(CACHE_NAME);
-                        await c.put(canonical, cleaned.clone());
-                        if (url.pathname !== "/") {
-                          await c.put(url.pathname, cleaned.clone());
-                        }
-                        if (url.pathname === "/" || url.pathname === "/dashboard") {
-                          await c.put("/", cleaned.clone());
-                          await c.put("/dashboard", cleaned.clone());
-                        }
-                        if (url.pathname.startsWith("/groups/") && url.pathname !== "/groups/") {
-                          await c.put("/__shell__/group", cleaned.clone());
-                        } else if (url.pathname.startsWith("/join/") && url.pathname !== "/join/") {
-                          await c.put("/__shell__/join", cleaned.clone());
-                        }
-                      }
-                    }
-                  }
-                })
-                .catch(() => {})
-            );
+          // 2. If device is strictly offline and we have a cached page, return it immediately (<5ms)
+          const isDefinitelyOffline = typeof navigator !== "undefined" && !navigator.onLine;
+          if (isDefinitelyOffline && cachedPage) {
+            const clean = await sanitizeHtmlResponse(cachedPage);
+            if (clean) return clean;
           }
 
-          // 3. If cache hit, sanitize and return immediately!
-          if (cachedPage) {
-            const safe = await sanitizeHtmlResponse(cachedPage);
-            if (safe) return safe;
-          }
+          // 3. If online or cache miss, attempt network with a STRICT 2000ms timeout
+          // Using AbortController prevents hanging on mobile cell signals without data packs!
+          let networkRes = null;
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2000);
+            networkRes = await fetch(request.url, {
+              signal: controller.signal,
+              credentials: "same-origin",
+            });
+            clearTimeout(timer);
 
-          // 4. Cache miss: only attempt network if device reports online
-          if (typeof navigator !== "undefined" && navigator.onLine) {
-            try {
-              const networkRes = await fetch(request.url, { credentials: "same-origin" });
-              if (networkRes && networkRes.ok) {
+            if (networkRes && (networkRes.ok || networkRes.status === 200)) {
+              const ct = networkRes.headers.get("content-type") || "";
+              if (ct.includes("text/html")) {
                 const cleaned = await sanitizeHtmlResponse(networkRes);
                 if (cleaned) {
-                  await cache.put(canonical, cleaned.clone());
-                  await cache.put(url.pathname, cleaned.clone());
+                  cache.put(canonical, cleaned.clone()).catch(() => {});
+                  if (url.pathname !== "/") {
+                    cache.put(url.pathname, cleaned.clone()).catch(() => {});
+                  }
+                  if (url.pathname.startsWith("/groups/") && url.pathname !== "/groups/") {
+                    cache.put("/__shell__/group", cleaned.clone()).catch(() => {});
+                  } else if (url.pathname.startsWith("/join/") && url.pathname !== "/join/") {
+                    cache.put("/__shell__/join", cleaned.clone()).catch(() => {});
+                  }
                   return cleaned;
                 }
               }
-            } catch {}
+            }
+          } catch {
+            // Network timed out or failed (offline / weak connection)
+          }
+
+          // 4. Fallback to cached page if network failed or timed out
+          if (cachedPage) {
+            const clean = await sanitizeHtmlResponse(cachedPage);
+            if (clean) return clean;
           }
 
           // 5. Total offline fallback: 200 OK standalone HTML shell (NEVER throws net::ERR_FAILED)
@@ -404,7 +402,10 @@ self.addEventListener("fetch", (event) => {
         }
 
         try {
-          const networkRes = await fetch(request.url);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          const networkRes = await fetch(request.url, { signal: controller.signal });
+          clearTimeout(timer);
           if (networkRes && networkRes.ok) {
             rscCache.put(request, networkRes.clone()).catch(() => {});
             rscCache.put(norm.toString(), networkRes.clone()).catch(() => {});
@@ -458,14 +459,17 @@ self.addEventListener("fetch", (event) => {
         }
 
         try {
-          const networkRes = await fetch(request.url);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 3000);
+          const networkRes = await fetch(request.url, { signal: controller.signal });
+          clearTimeout(timer);
           if (networkRes && networkRes.ok) {
             cache.put(request, networkRes.clone());
+            return networkRes;
           }
-          return networkRes;
-        } catch {
-          return new Response("", { status: 404 });
-        }
+        } catch {}
+
+        return new Response("", { status: 404 });
       })()
     );
     return;

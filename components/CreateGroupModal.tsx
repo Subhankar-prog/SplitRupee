@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useId, useRef, useState } from "react";
-import Link from "next/link";
 import { useUser } from "@/lib/userContext";
 import { useDialogAccessibility, ModalPortal } from "@/components/ui/primitives";
 import { X, Plane, Home, Heart, Tag, Check, Users, Plus, UserPlus, Info } from "lucide-react";
@@ -120,36 +119,7 @@ export default function CreateGroupModal({
           </button>
         </div>
 
-        {!currentUser ? (
-          <div className="p-6 text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--brand-tint)] text-[var(--brand-primary)]">
-              <Users className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <div>
-              <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">
-                Account Required to Create Groups
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] mt-1.5 max-w-sm mx-auto">
-                Sign in or register for free to create shared expense groups, invite friends, and settle bills with UPI.
-              </p>
-            </div>
-            <div className="flex gap-2.5 justify-center pt-2">
-              <Link
-                href="/login"
-                className="h-9 inline-flex items-center rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] px-4 text-xs font-semibold text-[var(--brand-ink)] transition-colors"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="h-9 inline-flex items-center rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface-secondary)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
-              >
-                Sign Up
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <form id={`${baseId}-form`} onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+        <form id={`${baseId}-form`} onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           {error && (
             <div className="rounded-xl border border-[var(--status-negative-border)] bg-[var(--status-negative-bg)] p-3 text-xs text-[var(--status-negative)]">
               {error}
@@ -223,28 +193,25 @@ export default function CreateGroupModal({
             </p>
           </div>
         </form>
-        )}
 
         {/* Fixed Action Footer */}
-        {currentUser && (
-          <div className="flex gap-2.5 p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form={`${baseId}-form`}
-              disabled={loading}
-              className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              {loading ? "Creating..." : "Create Group"}
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2.5 p-3.5 sm:p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-10 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-secondary)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={`${baseId}-form`}
+            disabled={loading}
+            className="flex-1 h-10 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-xs font-semibold text-[var(--brand-ink)] disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {loading ? "Creating..." : "Create Group"}
+          </button>
+        </div>
       </div>
     </div>
   </ModalPortal>
