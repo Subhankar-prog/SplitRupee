@@ -1,6 +1,6 @@
-// SplitRupee Production Service Worker (PWA Offline Engine v13)
-const CACHE_NAME = "splitrupee-pwa-v13";
-const RSC_CACHE_NAME = "splitrupee-rsc-v13";
+// SplitRupee Production Service Worker (PWA Offline Engine v14)
+const CACHE_NAME = "splitrupee-pwa-v14";
+const RSC_CACHE_NAME = "splitrupee-rsc-v14";
 
 // Lean precache list: fast installation in <500ms on mobile connections
 const PRECACHE_URLS = [
@@ -179,6 +179,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Never intercept SEO endpoints, crawler files, and verification files in the Service Worker:
+  // Let the browser and network fetch /sitemap.xml, /robots.txt, and /google*.html directly from the server.
+  if (
+    url.pathname === "/sitemap.xml" ||
+    url.pathname === "/robots.txt" ||
+    url.pathname.startsWith("/google") ||
+    url.pathname.endsWith(".xml") ||
+    url.pathname.endsWith(".txt")
+  ) {
+    return;
+  }
+
   // Safe navigation preload handling: prevent unhandled preload promise rejection in Chromium
   if (event.preloadResponse) {
     event.preloadResponse.catch(() => null);
@@ -218,13 +230,15 @@ self.addEventListener("fetch", (event) => {
           const canonical = getCanonicalUrl(request.url);
           const cache = await caches.open(CACHE_NAME);
 
-          // 1. Instant Cache Match (<3ms): Check requested route, dashboard shell, root, and fallbacks
+          // 1. Instant Cache Match (<3ms): Check requested route, dashboard shell (for / and /dashboard), and fallbacks
+          const isRootOrDashboard = url.pathname === "/" || url.pathname === "/dashboard";
           let cachedPage =
             (await cache.match(canonical, { ignoreSearch: true })) ||
             (await cache.match(request, { ignoreSearch: true })) ||
             (await cache.match(url.pathname, { ignoreSearch: true })) ||
-            (await cache.match("/dashboard", { ignoreSearch: true })) ||
-            (await cache.match("/", { ignoreSearch: true })) ||
+            (isRootOrDashboard
+              ? (await cache.match("/dashboard", { ignoreSearch: true })) || (await cache.match("/", { ignoreSearch: true }))
+              : null) ||
             (url.pathname.startsWith("/groups/") ? await cache.match("/__shell__/group", { ignoreSearch: true }) : null) ||
             (url.pathname.startsWith("/join/") ? await cache.match("/__shell__/join", { ignoreSearch: true }) : null) ||
             (await cache.match("/offline", { ignoreSearch: true }));
