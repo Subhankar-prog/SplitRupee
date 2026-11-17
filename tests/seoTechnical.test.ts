@@ -145,7 +145,10 @@ describe("Technical SEO & Google Indexing Infrastructure", () => {
     it("supports Google Search Console verification securely via environment without fake tokens", () => {
       const ver = rootMetadata.verification as any;
       // When env var is not set, it should be undefined (never a fabricated string)
-      if (!process.env.GOOGLE_SITE_VERIFICATION) {
+      if (
+        !process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION &&
+        !process.env.GOOGLE_SITE_VERIFICATION
+      ) {
         expect(ver?.google).toBeUndefined();
       } else {
         expect(typeof ver?.google).toBe("string");
